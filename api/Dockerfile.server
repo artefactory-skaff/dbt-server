@@ -1,0 +1,16 @@
+FROM python:3.10
+
+# we define a work directory
+WORKDIR /app
+
+# we copy the code dir into the work directory
+COPY requirements.server.txt /app/
+
+# we install the dependencies
+RUN pip install --no-cache-dir -r requirements.server.txt
+
+# we copy the code dir into the work directory
+COPY app.py utils.py cloud_storage.py firestore.py .env.server /app/
+
+# we execute the code with the following command
+CMD [ "python3", "app.py" ]
