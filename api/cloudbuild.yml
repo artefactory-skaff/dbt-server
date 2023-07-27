@@ -1,9 +1,0 @@
-steps:
-  - name: docker
-    args:
-      - build
-      - --tag=us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:tag2
-      - --file=./Dockerfile.server
-      - .
-images:
-  - us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image

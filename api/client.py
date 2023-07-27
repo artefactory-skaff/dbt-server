@@ -57,7 +57,7 @@ def main():
 
     command1 = "list"
     command2 = "run --select vbak_dbt"
-    command3 = "list --manifest ../manifest.json"
+    command3 = "list --manifest ../test-files/manifest.json"
 
     print(command1)
     uuid1 = json.loads(send_command(command1,dbt_project_file,profiles_file))["uuid"]

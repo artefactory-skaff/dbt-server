@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from fastapi import HTTPException
 from dbt.contracts.graph.manifest import Manifest
+from datetime import date
 
 from cloud_storage import read_manifest,write_to_bucket,load_file
 from utils import parse_args, parse_manifest_from_json, parse_command
@@ -49,11 +50,14 @@ if __name__ == '__main__':
     print("args",args)
 
     # we load profiles.yml and dbt_project.yml locally for dbt
-    load_file(bucket_name,request_uuid+"_profiles.yml","profiles.yml")
-    load_file(bucket_name,request_uuid+"_dbt_project.yml","dbt_project.yml")
+    today = date.today()
+    today_str = today.strftime("%Y-%m-%d")
+    bucket_folder = today_str+"-"+request_uuid
+    load_file(bucket_name,bucket_folder+"/profiles.yml","profiles.yml")
+    load_file(bucket_name,bucket_folder+"/dbt_project.yml","dbt_project.yml")
 
     # we extract the manifest
-    manifest_name = request_uuid + "_manifest.json"
+    manifest_name = bucket_folder + "/manifest.json"
     manifest = read_manifest(bucket_name,manifest_name)
 
     results = run_job(manifest,request_uuid,main_command,args)

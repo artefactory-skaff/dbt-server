@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "dbt-server"
+version = "0.1.0"
+description = ""
+authors = ["emma.galliere <emma.galliere@artefact.com>"]
+readme = "README.md"
+packages = [{include = "dbt_server"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

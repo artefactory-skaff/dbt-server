@@ -1,16 +1,21 @@
 FROM python:3.10
 
-# we define a work directory
-WORKDIR /app
+ENV SCRIPT dbt-server.py
 
 # we copy the code dir into the work directory
-COPY requirements.txt /app
+COPY requirements.txt .
 
 # we install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # we copy the code dir into the work directory
-COPY job.py utils.py cloud_storage.py firestore.py /app/
+
+RUN useradd -ms /bin/bash newuser
+
+USER newuser
+WORKDIR /home/newuser
+COPY . /home/newuser/
+
 
 # we execute the code with the following command
-CMD [ "python3", "job.py" ]
+CMD ["sh", "-c", "python3 $SCRIPT"]
