@@ -1,0 +1,13 @@
+test_cloud_run:
+  outputs:
+    dev:
+      dataset: stc_dbt_test_9e19
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      location: US
+      method: oauth
+      priority: interactive
+      project: stc-dbt-test-9e19
+      threads: 3
+      type: bigquery
+  target: dev
