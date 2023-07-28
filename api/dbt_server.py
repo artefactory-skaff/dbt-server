@@ -1,16 +1,13 @@
 
 from fastapi import FastAPI, status
-from pydantic import BaseModel
 from google.cloud import run_v2
 import os
 import uuid
 import uvicorn
-from datetime import date
 
-from firestore import set_status
-from utils import parse_args
-from cloud_storage import write_to_bucket
+from utils import parse_args, dbt_command
 from metadata import get_project_id, get_location, get_service_account
+from state import State
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
@@ -21,14 +18,6 @@ LOCATION = get_location()
 app = FastAPI()
 
 
-class dbt_command(BaseModel):
-    command: str
-    args: dict[str, str] = None
-    manifest: str
-    dbt_project: str
-    profiles: str
-
-
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: dbt_command):
     print("Received command '{main_command}' and args {args}".format(
@@ -37,41 +26,27 @@ def run_command(dbt_command: dbt_command):
         )
 
     request_uuid = str(uuid.uuid4())
-    set_status(request_uuid, "pending")
+    state = State(request_uuid)
+    state.init_state()
+    state.set_status("pending")
 
-    start_cloud_run_job(dbt_command, request_uuid)
+    start_cloud_run_job(dbt_command, state)
     return {"uuid": request_uuid}
 
 
-def start_cloud_run_job(dbt_command: dbt_command, request_uuid: str):
+def start_cloud_run_job(dbt_command: dbt_command, state: State):
     print(
         "Starting cloud run job {uuid} with command '{main_command}' and args {args}".format(
-            uuid=request_uuid,
+            uuid=state.get_uuid(),
             main_command=dbt_command.command,
             args=dbt_command.args)
         )
 
-    set_status(request_uuid, "running")
+    state.set_status("running")
+    state.load_context(dbt_command)
 
-    load_context_files(dbt_command, request_uuid)
-
-    response_job = create_job(dbt_command, request_uuid)
+    response_job = create_job(dbt_command, state.get_uuid())
     launch_job(response_job)
-
-
-def load_context_files(dbt_command: dbt_command, request_uuid: str):
-    today = date.today()
-    today_str = today.strftime("%Y-%m-%d")
-    bucket_folder = today_str+"-"+request_uuid
-    write_to_bucket(
-        BUCKET_NAME, bucket_folder+"/manifest.json", dbt_command.manifest
-        )
-    write_to_bucket(
-        BUCKET_NAME, bucket_folder+"/dbt_project.yml", dbt_command.dbt_project
-        )
-    write_to_bucket(
-        BUCKET_NAME, bucket_folder+"/profiles.yml", dbt_command.profiles
-        )
 
 
 def create_job(dbt_command: dbt_command, request_uuid: str):
@@ -128,7 +103,7 @@ def launch_job(response_job: run_v2.types.Job):
 
 if __name__ == "__main__":
     uvicorn.run(
-        "dbt-server:app",
+        "dbt_server:app",
         port=int(os.environ.get("PORT", 8001)),
         host="0.0.0.0",
         reload=True)

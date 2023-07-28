@@ -1,7 +1,6 @@
 import requests
 import json
 import os
-from firestore import get_status
 from utils import parse_command
 from dotenv import load_dotenv
 from pathlib import Path
@@ -67,24 +66,18 @@ def main():
         send_command(command1, dbt_project_file, profiles_file)
         )["uuid"]
     print("uuid: "+uuid1)
-    status = get_status(uuid1)
-    print(status)
 
     print(command2)
     uuid2 = json.loads(
         send_command(command2, dbt_project_file, profiles_file)
         )["uuid"]
     print("uuid: "+uuid2)
-    status = get_status(uuid2)
-    print(status)
 
     print(command3)
     uuid3 = json.loads(
         send_command(command3, dbt_project_file, profiles_file)
         )["uuid"]
     print("uuid: "+uuid3)
-    status = get_status(uuid3)
-    print(status)
 
 
 main()

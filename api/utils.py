@@ -1,22 +1,35 @@
-import json,msgpack
+import json
+import msgpack
 from dbt.contracts.graph.manifest import Manifest
+from pydantic import BaseModel
+
+
+class dbt_command(BaseModel):
+    command: str
+    args: dict[str, str] = None
+    manifest: str
+    dbt_project: str
+    profiles: str
+
 
 def parse_manifest_from_json(manifest_json):
     partial_parse = msgpack.packb(manifest_json)
     return Manifest.from_msgpack(partial_parse)
+
 
 def parse_manifest_from_payload(manifest_payload):
     manifest_str = json.loads(manifest_payload)
     partial_parse = msgpack.packb(manifest_str)
     return Manifest.from_msgpack(partial_parse)
 
+
 def parse_command(command):
     # command examples: list, run --select vbak
     command_list = command.split(" ")
     if len(command_list) == 0:
-        return "",{}
+        return "", {}
     if len(command_list) == 1:
-        return command_list[0],{}
+        return command_list[0], {}
     else:
         main_command = command_list[0]
         args = {}
@@ -30,7 +43,8 @@ def parse_command(command):
             else:
                 args[arg_key] = arg
             i += 1
-        return main_command,args
+        return main_command, args
+
 
 def parse_args(arg_dict):
     arg_list = []

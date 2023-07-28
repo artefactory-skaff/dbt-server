@@ -1,6 +1,6 @@
 FROM python:3.10
 
-ENV SCRIPT dbt-server.py
+ENV SCRIPT dbt_server.py
 
 # we copy the code dir into the work directory
 COPY requirements.txt .
