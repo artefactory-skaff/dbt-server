@@ -29,7 +29,7 @@ def run_command(dbt_command: dbt_command):
     request_uuid = str(uuid.uuid4())
     state = State(request_uuid)
     state.init_state()
-    state.set_status("pending")
+    state.status = "pending"
 
     start_cloud_run_job(dbt_command, state)
     return {"uuid": request_uuid}
@@ -38,14 +38,14 @@ def run_command(dbt_command: dbt_command):
 def start_cloud_run_job(dbt_command: dbt_command, state: State):
     logger.info(
         "Starting cloud run job {uuid} with command '{main_command}'".format(
-            uuid=state.get_uuid(),
+            uuid=state.uuid,
             main_command=dbt_command.command)
         )
 
-    state.set_status("running")
+    state.status = "running"
     state.load_context(dbt_command)
 
-    response_job = create_job(dbt_command, state.get_uuid())
+    response_job = create_job(dbt_command, state.uuid)
     launch_job(response_job)
 
 

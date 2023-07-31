@@ -21,4 +21,3 @@ def parse_manifest_from_payload(manifest_payload: str):
     manifest_str = json.loads(manifest_payload)
     partial_parse = msgpack.packb(manifest_str)
     return Manifest.from_msgpack(partial_parse)
-

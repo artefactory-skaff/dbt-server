@@ -27,7 +27,7 @@ def logger_version_callback(event: EventMsg):
 
 def run_job(manifest_json, state: State, dbt_command: str):
 
-    state.set_status("running")
+    state.status = "running"
 
     manifest: Manifest = parse_manifest_from_json(manifest_json)
     dbt = dbtRunner(manifest=manifest, callbacks=[logger_version_callback])
@@ -38,11 +38,11 @@ def run_job(manifest_json, state: State, dbt_command: str):
 
     res: dbtRunnerResult = dbt.invoke(cli_args)
     if not (res.success):
-        state.set_status("failed")
+        state.status = "failed"
         handle_exception(res)
 
     results = res.result
-    state.set_status("success")
+    state.status = "success"
     return results
 
 
