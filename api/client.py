@@ -23,9 +23,9 @@ def load_file(filename):
 
 def send_command(command, dbt_project_file, profiles_file):
     url = SERVER_URL + "dbt"
+    processed_command = command
 
     # handle manifest
-    processed_command = command
     m = re.search('--manifest (.+?)( |$)', command)
     if m:
         manifest_filename = m.group(1)
