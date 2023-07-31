@@ -4,7 +4,7 @@ METADATA_URL = 'http://metadata.google.internal/'
 HEADERS = {"Metadata-Flavor": "Google"}
 
 
-def send_metadata_request(path):
+def send_metadata_request(path: str):
     url = METADATA_URL + path
     headers = HEADERS
     res = requests.get(url, headers=headers)

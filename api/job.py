@@ -1,23 +1,40 @@
 import os
 import json
 from dbt.cli.main import dbtRunner, dbtRunnerResult
+from dbt.events.base_types import EventMsg
 from fastapi import HTTPException
 from dbt.contracts.graph.manifest import Manifest
 
-from utils import parse_args, parse_manifest_from_json, parse_command
+from utils import parse_manifest_from_json
 from state import State
+from lab_logger import logging
 
 
-def run_job(manifest_json, state, command, args):
+logger = logging.getLogger(__name__)
+
+
+def logger_version_callback(event: EventMsg):
+    match event.info.level:
+        case "debug":
+            logger.debug(event.info.msg)
+        case "info":
+            logger.info(event.info.msg)
+        case "warn":
+            logger.warn(event.info.msg)
+        case "error":
+            logger.error(event.info.msg)
+
+
+def run_job(manifest_json, state: State, dbt_command: str):
 
     state.set_status("running")
 
     manifest: Manifest = parse_manifest_from_json(manifest_json)
-    dbt = dbtRunner(manifest=manifest)
+    dbt = dbtRunner(manifest=manifest, callbacks=[logger_version_callback])
 
-    cli_args = [command] + parse_args(args)
     # ex: ['run', '--select', 'vbak_dbt', '--profiles-dir', '.']
-    print(cli_args)
+    cli_args = dbt_command.split(' ')
+    logger.info("cli args: {args}".format(args=cli_args))
 
     res: dbtRunnerResult = dbt.invoke(cli_args)
     if not (res.success):
@@ -29,8 +46,8 @@ def run_job(manifest_json, state, command, args):
     return results
 
 
-def handle_exception(res):
-    print(res)
+def handle_exception(res: dbtRunnerResult):
+    logger.error({"error": res})
     if res.exception is not None:
         raise HTTPException(status_code=400, detail=res.exception)
     else:
@@ -42,10 +59,14 @@ if __name__ == '__main__':
     # we get all the environment variables
     bucket_name = os.getenv('BUCKET_NAME')
     dbt_command = os.environ.get("DBT_COMMAND")
+    # ex dbt_command = "dbt run --select test"
     request_uuid = os.environ.get("UUID")
 
-    main_command, args = parse_command(dbt_command + " --profiles-dir .")
-    print("args", args)
+    dbt_command.replace("dbt ", "")
+    if "--profiles-dir" not in dbt_command:
+        dbt_command += " --profiles-dir ."
+    if "--log-format" not in dbt_command:
+        dbt_command = "--log-format json "+dbt_command
 
     state = State(request_uuid)
 
@@ -57,4 +78,4 @@ if __name__ == '__main__':
     manifest = json.loads(f.read())
     f.close()
 
-    results = run_job(manifest, state, main_command, args)
+    results = run_job(manifest, state, dbt_command)

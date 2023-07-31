@@ -5,9 +5,10 @@ import os
 import uuid
 import uvicorn
 
-from utils import parse_args, dbt_command
+from utils import dbt_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
+from lab_logger import logging
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
@@ -16,13 +17,13 @@ PROJECT_ID = get_project_id()
 LOCATION = get_location()
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: dbt_command):
-    print("Received command '{main_command}' and args {args}".format(
-        main_command=dbt_command.command,
-        args=dbt_command.args)
+    logger.info("Received command '{command}'".format(
+        command=dbt_command.command)
         )
 
     request_uuid = str(uuid.uuid4())
@@ -35,11 +36,10 @@ def run_command(dbt_command: dbt_command):
 
 
 def start_cloud_run_job(dbt_command: dbt_command, state: State):
-    print(
-        "Starting cloud run job {uuid} with command '{main_command}' and args {args}".format(
+    logger.info(
+        "Starting cloud run job {uuid} with command '{main_command}'".format(
             uuid=state.get_uuid(),
-            main_command=dbt_command.command,
-            args=dbt_command.args)
+            main_command=dbt_command.command)
         )
 
     state.set_status("running")
@@ -52,11 +52,10 @@ def start_cloud_run_job(dbt_command: dbt_command, state: State):
 def create_job(dbt_command: dbt_command, request_uuid: str):
     # Create a client
     client = run_v2.JobsClient()
-    cli_args = [dbt_command.command] + parse_args(dbt_command.args)
     task_container = {
         "image": DOCKER_IMAGE,
         "env": [
-            {"name": "DBT_COMMAND", "value": ' '.join(cli_args)},
+            {"name": "DBT_COMMAND", "value": dbt_command.command},
             {"name": "UUID", "value": request_uuid},
             {"name": "SCRIPT", "value": "job.py"},
             {"name": "BUCKET_NAME", "value": BUCKET_NAME}
@@ -79,10 +78,10 @@ def create_job(dbt_command: dbt_command, request_uuid: str):
     )
     operation = client.create_job(request=request)
 
-    print("Waiting for operation to complete...")
+    logger.info("Waiting for operation to complete...")
 
     response = operation.result()
-    print(response)
+    logger.info({"response": response})
     return response
 
 
@@ -90,7 +89,7 @@ def launch_job(response_job: run_v2.types.Job):
     # Create a client
     client = run_v2.JobsClient()
     job_name = response_job.name
-    print("job_name:", job_name)
+    logger.info("job_name:{job}".format(job=job_name))
 
     # Initialize request argument(s)
     request = run_v2.RunJobRequest(

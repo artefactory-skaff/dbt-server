@@ -1,9 +1,9 @@
 import requests
 import json
 import os
-from utils import parse_command
 from dotenv import load_dotenv
 from pathlib import Path
+import re
 
 dotenv_path = Path('.env.client')
 load_dotenv(dotenv_path=dotenv_path)
@@ -23,30 +23,48 @@ def load_file(filename):
 
 def send_command(command, dbt_project_file, profiles_file):
     url = SERVER_URL + "dbt"
-    main_command, args = parse_command(command)
-    if "--manifest" in args.keys():
-        manifest_filename = args["--manifest"]
-        del args["--manifest"]
+
+    # handle manifest
+    processed_command = command
+    m = re.search('--manifest (.+?)( |$)', command)
+    if m:
+        manifest_filename = m.group(1)
+        begin, end = m.span()
+        if processed_command[end:] != "":
+            processed_command = processed_command[:begin] + processed_command[end:]
+        else:
+            processed_command = processed_command[:begin-1]
+        print(m.span())
     else:
         manifest_filename = MANIFEST_FILENAME
+
+    # handle log settings
+    m = re.search('--log-level (.+?)( |$)', command)
+    debug_level = False
+    if m:
+        log_level = m.group(1)
+        if log_level == "debug":
+            debug_level = True
+        begin, end = m.span()
+        if processed_command[end:] != "":
+            processed_command = processed_command[:begin] + processed_command[end:]
+        else:
+            processed_command = processed_command[:begin-1]
+    else:
+        if " --debug" in processed_command:
+            debug_level = True
+            processed_command.replace(" --debug", "")
+
     manifest_str = load_file(manifest_filename)
     dbt_project_str = load_file(dbt_project_file)
     profiles_str = load_file(profiles_file)
 
-    if args != {}:
-        data = {
-            "command": main_command,
-            "args": args,
+    data = {
+            "command": processed_command,
             "manifest": manifest_str,
             "dbt_project": dbt_project_str,
-            "profiles": profiles_str
-        }
-    else:
-        data = {
-            "command": main_command,
-            "manifest": manifest_str,
-            "dbt_project": dbt_project_str,
-            "profiles": profiles_str
+            "profiles": profiles_str,
+            "debug_level": debug_level
         }
 
     res = requests.post(url=url, json=data)
