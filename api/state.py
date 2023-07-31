@@ -17,22 +17,22 @@ class State:
 
     def init_state(self):
         status_ref = dbt_collection.document(self._uuid)
-        status_ref.set({"uuid": self._uuid, "status": "created", "cloud_storage_folder": ""})
+        status_ref.set({"uuid": self._uuid, "run_status": "created", "cloud_storage_folder": ""})
 
     @property
     def uuid(self):
         return self._uuid
 
     @property
-    def status(self):
+    def run_status(self):
         status_ref = dbt_collection.document(self._uuid)
-        status = status_ref.get().to_dict()["status"]
-        return status
+        run_status = status_ref.get().to_dict()["run_status"]
+        return run_status
 
-    @status.setter
-    def status(self, new_status: str):
+    @run_status.setter
+    def run_status(self, new_status: str):
         status_ref = dbt_collection.document(self._uuid)
-        status_ref.update({"status": new_status})
+        status_ref.update({"run_status": new_status})
 
     @property
     def storage_folder(self):
