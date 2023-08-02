@@ -3,6 +3,7 @@ from google.cloud import firestore
 from utils import dbt_command
 from datetime import date
 from cloud_storage import write_to_bucket, get_all_documents_from_folder
+import logging
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 
@@ -47,20 +48,18 @@ class State:
 
     def load_context(self, dbt_command: dbt_command):
         cloud_storage_folder = generate_folder_name(self._uuid)
-        print('cloud_storage_folder', cloud_storage_folder)
+        logging.info('cloud_storage_folder ' + cloud_storage_folder)
         self.storage_folder = cloud_storage_folder
         write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/manifest.json", dbt_command.manifest)
         write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/dbt_project.yml", dbt_command.dbt_project)
-        write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/profiles.yml", dbt_command.profiles)
 
     def get_context_to_local(self):
         cloud_storage_folder = self.storage_folder
-        print("load data from folder", cloud_storage_folder)
+        logging.info("load data from folder " + cloud_storage_folder)
         blob_context_files = get_all_documents_from_folder(BUCKET_NAME, cloud_storage_folder)
         for filename in blob_context_files.keys():
-            f = open(filename, 'wb')
-            f.write(blob_context_files[filename])
-            f.close()
+            with open(filename, 'wb') as f:
+                f.write(blob_context_files[filename])
 
 
 def generate_folder_name(uuid: str):

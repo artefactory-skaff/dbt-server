@@ -1,4 +1,9 @@
+import google.cloud.logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.resource import Resource
+from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
 import os
+
 import json
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.events.base_types import EventMsg
@@ -10,19 +15,44 @@ from state import State
 from lab_logger import logging
 
 
-logger = logging.getLogger(__name__)
+def init_logger():
+    logger = logging.getLogger(__name__)
+
+    # find metadata about the execution environment
+    region = retrieve_metadata_server(_REGION_ID)
+    project = retrieve_metadata_server(_PROJECT_NAME)
+
+    # build a manual resource object
+    cr_job_resource = Resource(
+        type="cloud_run_job",
+        labels={
+            "job_name": os.environ.get('CLOUD_RUN_JOB', 'unknownJobId'),
+            "location":  region.split("/")[-1] if region else "",
+            "project_id": project,
+            "uuid": os.environ.get("UUID"),
+        }
+    )
+    labels = {"uuid": os.environ.get("UUID")}
+    client = google.cloud.logging.Client()  # grpc disable
+    handler = CloudLoggingHandler(client, resource=cr_job_resource, labels=labels)
+    logger.addHandler(handler)
+    return logger
+
+
+logger = init_logger()
 
 
 def logger_version_callback(event: EventMsg):
+    msg = event.info.msg
     match event.info.level:
         case "debug":
-            logger.debug(event.info.msg)
+            logger.debug(msg)
         case "info":
-            logger.info(event.info.msg)
+            logger.info(msg)
         case "warn":
-            logger.warn(event.info.msg)
+            logger.warn(msg)
         case "error":
-            logger.error(event.info.msg)
+            logger.error(msg)
 
 
 def run_job(manifest_json, state: State, dbt_command: str):
@@ -56,26 +86,22 @@ def handle_exception(res: dbtRunnerResult):
 
 if __name__ == '__main__':
 
+    logger.info("Job started")
+
     # we get all the environment variables
     bucket_name = os.getenv('BUCKET_NAME')
     dbt_command = os.environ.get("DBT_COMMAND")
-    # ex dbt_command = "dbt run --select test"
     request_uuid = os.environ.get("UUID")
 
-    dbt_command.replace("dbt ", "")
-    if "--profiles-dir" not in dbt_command:
-        dbt_command += " --profiles-dir ."
-    if "--log-format" not in dbt_command:
-        dbt_command = "--log-format json "+dbt_command
+    logger.info("DBT_COMMAND: "+dbt_command)
 
     state = State(request_uuid)
 
-    # we load manifest.json, profiles.yml and dbt_project.yml locally for dbt
+    # we load manifest.json and dbt_project.yml locally for dbt
     state.get_context_to_local()
 
     # we extract the manifest
-    f = open('manifest.json', 'r')
-    manifest = json.loads(f.read())
-    f.close()
+    with open('manifest.json', 'r') as f:
+        manifest = json.loads(f.read())
 
     results = run_job(manifest, state, dbt_command)

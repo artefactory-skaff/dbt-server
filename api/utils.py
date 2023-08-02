@@ -8,8 +8,6 @@ class dbt_command(BaseModel):
     command: str
     manifest: str
     dbt_project: str
-    profiles: str
-    debug_level: bool
 
 
 def parse_manifest_from_json(manifest_json):
