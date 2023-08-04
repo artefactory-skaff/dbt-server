@@ -13,17 +13,21 @@ from new_logger import init_logger
 logger = init_logger()
 
 
-def logger_version_callback(event: EventMsg):
+def logger_callback(event: EventMsg):
+    state = State(os.environ.get("UUID"))
     msg = event.info.msg
     match event.info.level:
         case "debug":
             logger.debug(msg)
         case "info":
             logger.info(msg)
+            state.run_logs = "INFO\t" + msg
         case "warn":
             logger.warn(msg)
+            state.run_logs = "WARNING\t" + msg
         case "error":
             logger.error(msg)
+            state.run_logs = "ERROR\t" + msg
 
 
 def run_job(manifest_json, state: State, dbt_command: str):
@@ -31,7 +35,7 @@ def run_job(manifest_json, state: State, dbt_command: str):
     state.run_status = "running"
 
     manifest: Manifest = parse_manifest_from_json(manifest_json)
-    dbt = dbtRunner(manifest=manifest, callbacks=[logger_version_callback])
+    dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback])
 
     # ex: ['run', '--select', 'vbak_dbt', '--profiles-dir', '.']
     cli_args = dbt_command.split(' ')
@@ -76,3 +80,5 @@ if __name__ == '__main__':
         manifest = json.loads(f.read())
 
     results = run_job(manifest, state, dbt_command)
+
+    state.run_logs = "INFO\t END JOB"

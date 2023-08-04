@@ -2,7 +2,6 @@
 from fastapi import FastAPI, status
 from google.cloud import run_v2
 import google.cloud.logging
-from google.cloud.logging import DESCENDING
 import logging as logger
 import os
 import uuid
@@ -29,22 +28,7 @@ def get_job_state(uuid: str):
 
     job_state = State(uuid)
 
-    job_name = "u"+uuid.replace('-', '')
-
-    filter_str = (
-        # f'logName="projects/{PROJECT_ID}/logs/cloudaudit.googleapis.com%2Factivity"'
-        '(resource.type="cloud_run_job" OR resource.type="gce_instance" OR resource.type="cloud_run_revision")'
-        ' AND severity >= INFO'
-        f' AND resource.labels.job_name="{job_name}"'
-    )
-
-    logger.info("filters: "+filter_str)
-    entries = client.list_entries(filter_=filter_str, order_by=DESCENDING, max_results=5)
-    logs = []
-    for log in entries:
-        logger.info(str(log))
-        logs.append(str(log.payload))
-    return {"run_status": job_state.run_status, "entries": logs}
+    return {"run_status": job_state.run_status, "entries": job_state.run_logs[-5:]}
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
@@ -57,6 +41,8 @@ def run_command(dbt_command: dbt_command):
     state = State(request_uuid)
     state.init_state()
     state.run_status = "pending"
+    state.run_logs = "INFO\t Received command '{command}'".format(
+        command=dbt_command.command)
 
     start_cloud_run_job(dbt_command, state)
     return {"uuid": request_uuid}
@@ -68,31 +54,35 @@ def start_cloud_run_job(dbt_command: dbt_command, state: State):
             uuid=state.uuid,
             main_command=dbt_command.command)
         )
+    state.run_logs = "INFO\t Starting cloud run job {uuid} with command '{main_command}'".format(
+        uuid=state.uuid,
+        main_command=dbt_command.command)
 
     state.run_status = "running"
     state.load_context(dbt_command)
 
     processed_command = process_command(dbt_command.command)
     logger.info('processed command: '+processed_command)
+    state.run_logs = 'INFO\t Processed command: '+processed_command
 
-    response_job = create_job(processed_command, state.uuid)
-    launch_job(response_job)
+    response_job = create_job(processed_command, state)
+    launch_job(response_job, state)
 
 
-def create_job(command: str, request_uuid: str):
+def create_job(command: str, state: State):
     # Create a client
     client = run_v2.JobsClient()
     task_container = {
         "image": DOCKER_IMAGE,
         "env": [
             {"name": "DBT_COMMAND", "value": command},
-            {"name": "UUID", "value": request_uuid},
+            {"name": "UUID", "value": state.uuid},
             {"name": "SCRIPT", "value": "job.py"},
             {"name": "BUCKET_NAME", "value": BUCKET_NAME}
             ]
         }
     # job_id must start with a letter and cannot contain '-'
-    job_id = "u"+request_uuid.replace('-', '')
+    job_id = "u"+state.uuid.replace('-', '')
     job_parent = "projects/"+PROJECT_ID+"/locations/"+LOCATION
 
     # Initialize request argument(s)
@@ -108,23 +98,24 @@ def create_job(command: str, request_uuid: str):
     )
     operation = client.create_job(request=request)
 
-    logger.info("Waiting for operation to complete...")
+    logger.info("Waiting for job creation to complete...")
+    state.run_logs = "INFO\t Waiting for job creation to complete..."
 
     response = operation.result()
     logger.info({"response": str(response)})
+    state.run_logs = "INFO\t Job created: " + response.name
     return response
 
 
-def launch_job(response_job: run_v2.types.Job):
+def launch_job(response_job: run_v2.types.Job, state: State):
     # Create a client
     client = run_v2.JobsClient()
     job_name = response_job.name
     logger.info("job_name:{job}".format(job=job_name))
+    state.run_logs = "INFO\t Launching job: "+job_name
 
     # Initialize request argument(s)
-    request = run_v2.RunJobRequest(
-        name=job_name,
-    )
+    request = run_v2.RunJobRequest(name=job_name,)
 
     # Make the request
     client.run_job(request=request)

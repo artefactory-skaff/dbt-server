@@ -32,7 +32,6 @@ def extract_manifest_filename_from_command(command):
             processed_command = processed_command[:begin] + processed_command[end:]
         else:
             processed_command = processed_command[:begin-1]
-        print(m.span())
     else:
         manifest_filename = MANIFEST_FILENAME
     return manifest_filename, processed_command
@@ -62,8 +61,50 @@ def get_run_status(uuid: str):
     return res.text
 
 
-def main():
+def show_last_logs(uuid: str, last_logs=[]):
+    run_status_json = json.loads(get_run_status(uuid))
+    logs = run_status_json["entries"]  # gets 5 last logs from Firestore
+    for log in logs:
+        if log not in last_logs:
+            print(log)
+            last_logs.append(log)
+    last_logs = last_logs[-5:]
+    return last_logs
+
+
+def handle_command(command: str):
     dbt_project_file = DBT_PROJECT_FILE
+
+    start_all = timer()
+
+    uuid = json.loads(send_command(command, dbt_project_file))["uuid"]
+    print("uuid: "+uuid)
+
+    start_execution_job = timer()
+
+    time.sleep(16)
+    run_status = json.loads(get_run_status(uuid))["run_status"]
+    last_logs = []
+
+    while run_status == "running":
+        time.sleep(3)
+        run_status_json = json.loads(get_run_status(uuid))
+        run_status = run_status_json["run_status"]
+        last_logs = show_last_logs(uuid, last_logs)
+
+    end = timer()
+    total_execution_time = end - start_all
+    dbt_job_execution_time = end - start_execution_job
+
+    while "END JOB" not in last_logs[-1]:
+        time.sleep(1)
+        last_logs = show_last_logs(uuid, last_logs)
+
+    print("total excution time\t", total_execution_time)
+    print("dbt job excution time\t", dbt_job_execution_time)
+
+
+def main():
 
     commands = [
         "list",
@@ -74,33 +115,7 @@ def main():
     for command in commands:
         print()
         print(command)
-        start_all = timer()
-        uuid1 = json.loads(send_command(command, dbt_project_file))["uuid"]
-        print("uuid: "+uuid1)
-        start_execution_job = timer()
-
-        time.sleep(16)
-        run_status = json.loads(get_run_status(uuid1))["run_status"]
-        buffer_logs = []
-        while run_status == "running":
-            time.sleep(3)
-            run_status_json = json.loads(get_run_status(uuid1))
-            run_status = run_status_json["run_status"]
-            logs = run_status_json["entries"]
-            for log in logs:
-                if log not in buffer_logs:
-                    print(log)
-                    buffer_logs.append(log)
-            print()
-        print("run status", run_status)
-        end = timer()
-        print("total excution time", end - start_all)
-        print("dbt job excution time", end - start_execution_job)
-        print("\n Logs")
-        time.sleep(6)
-        entries = json.loads(get_run_status(uuid1))["entries"]
-        for log in entries:
-            print(log)
+        handle_command(command)
 
 
 main()

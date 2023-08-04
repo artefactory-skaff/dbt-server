@@ -4,6 +4,7 @@ from utils import dbt_command
 from datetime import date
 from cloud_storage import write_to_bucket, get_all_documents_from_folder
 import logging
+from datetime import datetime
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 
@@ -18,7 +19,14 @@ class State:
 
     def init_state(self):
         status_ref = dbt_collection.document(self._uuid)
-        status_ref.set({"uuid": self._uuid, "run_status": "created", "cloud_storage_folder": ""})
+        dt_time = current_date_time()
+        initial_state = {
+            "uuid": self._uuid,
+            "run_status": "created",
+            "cloud_storage_folder": "",
+            "run_logs": [dt_time+"\tINFO\t init"]
+        }
+        status_ref.set(initial_state)
 
     @property
     def uuid(self):
@@ -46,6 +54,20 @@ class State:
         status_ref = dbt_collection.document(self._uuid)
         status_ref.update({"cloud_storage_folder": cloud_storage_folder})
 
+    @property
+    def run_logs(self):
+        status_ref = dbt_collection.document(self._uuid)
+        run_logs = status_ref.get().to_dict()["run_logs"]
+        return run_logs
+
+    @run_logs.setter
+    def run_logs(self, new_log: str):
+        dt_time = current_date_time()
+        status_ref = dbt_collection.document(self._uuid)
+        run_logs = status_ref.get().to_dict()["run_logs"]
+        run_logs.append(dt_time+"\t"+new_log)
+        status_ref.update({"run_logs": run_logs})
+
     def load_context(self, dbt_command: dbt_command):
         cloud_storage_folder = generate_folder_name(self._uuid)
         logging.info('cloud_storage_folder ' + cloud_storage_folder)
@@ -60,6 +82,12 @@ class State:
         for filename in blob_context_files.keys():
             with open(filename, 'wb') as f:
                 f.write(blob_context_files[filename])
+
+
+def current_date_time():
+    now = datetime.now()
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    return dt_string
 
 
 def generate_folder_name(uuid: str):
