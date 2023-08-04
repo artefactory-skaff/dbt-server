@@ -66,12 +66,12 @@ def main():
     dbt_project_file = DBT_PROJECT_FILE
 
     commands = [
-        "dbt list",
-        "dbt --log-level info run --select vbak_dbt",
-        "dbt --debug list --manifest ../test-files/manifest.json"
+        "list",
+        "--log-level info run --select vbak_dbt",
+        "--debug list --manifest ../test-files/manifest.json"
     ]
 
-    for command in commands[:1]:
+    for command in commands:
         print()
         print(command)
         start_all = timer()

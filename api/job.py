@@ -1,7 +1,3 @@
-import google.cloud.logging
-from google.cloud.logging.handlers import CloudLoggingHandler
-from google.cloud.logging_v2.resource import Resource
-from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
 import os
 
 import json
@@ -12,32 +8,7 @@ from dbt.contracts.graph.manifest import Manifest
 
 from utils import parse_manifest_from_json
 from state import State
-from lab_logger import logging
-
-
-def init_logger():
-    logger = logging.getLogger(__name__)
-
-    # find metadata about the execution environment
-    region = retrieve_metadata_server(_REGION_ID)
-    project = retrieve_metadata_server(_PROJECT_NAME)
-
-    # build a manual resource object
-    cr_job_resource = Resource(
-        type="cloud_run_job",
-        labels={
-            "job_name": os.environ.get('CLOUD_RUN_JOB', 'unknownJobId'),
-            "location":  region.split("/")[-1] if region else "",
-            "project_id": project,
-            "uuid": os.environ.get("UUID"),
-        }
-    )
-    labels = {"uuid": os.environ.get("UUID")}
-    client = google.cloud.logging.Client()  # grpc disable
-    handler = CloudLoggingHandler(client, resource=cr_job_resource, labels=labels)
-    logger.addHandler(handler)
-    return logger
-
+from new_logger import init_logger
 
 logger = init_logger()
 

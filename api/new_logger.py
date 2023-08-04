@@ -1,5 +1,10 @@
 import logging
 # https://stackoverflow.com/questions/2183233/how-to-add-a-custom-loglevel-to-pythons-logging-facility/35804945#35804945
+import google.cloud.logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.resource import Resource
+from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
+import os
 
 
 def _addLoggingLevel(levelName, levelNum, methodName=None):
@@ -73,4 +78,27 @@ def _addGcloudLoggingLevel():
     logging.basicConfig(level=logging.DEFAULT, format=format)  # type: ignore
 
 
-_addGcloudLoggingLevel()
+def init_logger():
+    _addGcloudLoggingLevel()
+
+    logger = logging.getLogger(__name__)
+
+    # find metadata about the execution environment
+    region = retrieve_metadata_server(_REGION_ID)
+    project = retrieve_metadata_server(_PROJECT_NAME)
+
+    # build a manual resource object
+    cr_job_resource = Resource(
+        type="cloud_run_job",
+        labels={
+            "job_name": os.environ.get('CLOUD_RUN_JOB', 'unknownJobId'),
+            "location":  region.split("/")[-1] if region else "",
+            "project_id": project,
+            "uuid": os.environ.get("UUID"),
+        }
+    )
+    labels = {"uuid": os.environ.get("UUID")}
+    client = google.cloud.logging.Client()
+    handler = CloudLoggingHandler(client, resource=cr_job_resource, labels=labels)
+    logger.addHandler(handler)
+    return logger

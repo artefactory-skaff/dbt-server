@@ -7,12 +7,10 @@ import logging as logger
 import os
 import uuid
 import uvicorn
-import re
 
-from utils import dbt_command
+from utils import dbt_command, process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
-# from lab_logger import logging
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
@@ -21,7 +19,6 @@ PROJECT_ID = get_project_id()
 LOCATION = get_location()
 
 app = FastAPI()
-# logger = logging.getLogger(__name__)
 
 client = google.cloud.logging.Client()
 client.setup_logging()
@@ -75,48 +72,11 @@ def start_cloud_run_job(dbt_command: dbt_command, state: State):
     state.run_status = "running"
     state.load_context(dbt_command)
 
-    processed_command, _ = process_command(dbt_command.command)
+    processed_command = process_command(dbt_command.command)
     logger.info('processed command: '+processed_command)
 
     response_job = create_job(processed_command, state.uuid)
     launch_job(response_job)
-
-
-def process_command(command: str):
-    processed_command = command
-    processed_command = processed_command.replace("dbt ", "")
-
-    # handle log settings
-    m = re.search('--log-level (.+?)( |$)', processed_command)
-    debug_level = False
-    if m:  # command contains --log-level <something>
-        log_level = m.group(1)
-        if log_level == "debug":
-            debug_level = True
-        else:
-            # if not --log-level, we remove it and add --debug
-            # to test: processed_command = processed_command.replace(m.group(), "")
-            begin, end = m.span()
-            if processed_command[end:] != "":
-                processed_command = processed_command[:begin] + processed_command[end:]
-            else:
-                processed_command = processed_command[:begin-1]
-            processed_command = "--debug "+processed_command
-    else:
-        if "--debug" in processed_command:
-            debug_level = True
-        else:
-            processed_command = "--debug "+processed_command
-
-    # add profile-dir
-    if "--profiles-dir" not in processed_command:
-        processed_command += " --profiles-dir ."
-
-    # add log-format
-    if "--log-format" not in processed_command:
-        processed_command = "--log-format json "+processed_command
-
-    return processed_command, debug_level
 
 
 def create_job(command: str, request_uuid: str):
