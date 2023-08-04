@@ -8,4 +8,10 @@ Launch Cloud Run dbt-server
 
 ## Test dbt server with Client
 
-```poetry run python3 run client.py```
+```poetry run python3 client.py```
+
+## Local run
+
+```poetry run python3 dbt_server.py --local```
+
+```poetry run python3 client.py --local```

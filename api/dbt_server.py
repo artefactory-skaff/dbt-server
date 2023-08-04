@@ -6,16 +6,32 @@ import logging as logger
 import os
 import uuid
 import uvicorn
+import sys
 
 from utils import dbt_command, process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
 
-BUCKET_NAME = os.getenv('BUCKET_NAME')
-DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
-SERVICE_ACCOUNT = get_service_account()
-PROJECT_ID = get_project_id()
-LOCATION = get_location()
+if len(sys.argv) == 2:
+    if sys.argv[1] == "--local":
+        from dotenv import load_dotenv
+        from pathlib import Path
+
+        dotenv_path = Path('.env.local_server')
+        load_dotenv(dotenv_path=dotenv_path)
+
+        BUCKET_NAME = os.getenv('BUCKET_NAME')
+        DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
+        SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT')
+        PROJECT_ID = os.getenv('PROJECT_ID')
+        LOCATION = os.getenv('LOCATION')
+
+else:
+    BUCKET_NAME = os.getenv('BUCKET_NAME')
+    DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
+    SERVICE_ACCOUNT = get_service_account()
+    PROJECT_ID = get_project_id()
+    LOCATION = get_location()
 
 app = FastAPI()
 
@@ -25,9 +41,7 @@ client.setup_logging()
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
 def get_job_state(uuid: str):
-
     job_state = State(uuid)
-
     return {"run_status": job_state.run_status, "entries": job_state.run_logs[-5:]}
 
 

@@ -6,11 +6,16 @@ from pathlib import Path
 import re
 import time
 from timeit import default_timer as timer
+import sys
 
 dotenv_path = Path('.env.client')
 load_dotenv(dotenv_path=dotenv_path)
 
 SERVER_URL = os.getenv('SERVER_URL')+"/"
+
+if len(sys.argv) == 2:
+    if sys.argv[1] == "--local":
+        SERVER_URL = os.getenv('LOCAL_URL')+"/"
 MANIFEST_FILENAME = os.getenv('MANIFEST_FILENAME')
 DBT_PROJECT_FILE = os.getenv('DBT_PROJECT_FILE')
 
