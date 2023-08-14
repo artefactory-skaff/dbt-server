@@ -24,37 +24,6 @@ def parse_manifest_from_payload(manifest_payload: str):
     return Manifest.from_msgpack(partial_parse)
 
 
-def args_to_list(default_args, new_args):
-    """
-    default_args, new_args are dictionnaries
-    this function identifies which values were changed between both
-    then convert the changes values in a list
-    ex: if profiles-dir values changed, returns ['--profiles-dir', '.']
-    """
-
-    new_list = []
-    for key in new_args:
-        if key in default_args.keys():
-            if default_args[key] != new_args[key]:
-                new_value = new_args[key]
-                args_to_add = ['--'+key.replace('_', '-')]
-                match (new_value):
-                    case tuple():
-                        for el in new_value:
-                            args_to_add.append(el)
-                    case dict():
-                        args_to_add.append(str(new_value))
-                    case bool():
-                        if new_value:
-                            args_to_add = ['--'+key.replace('_', '-')]
-                        else:
-                            args_to_add = ['--no-'+key.replace('_', '-')]
-                    case _:
-                        args_to_add.append(new_value)
-                new_list = new_list + args_to_add
-    return (new_list)
-
-
 def context_param_diff(command: str, main_command: str):
     split_args = split_arg_string(command)
     # 'run --select my_model my_other_model'
@@ -75,17 +44,40 @@ def context_param_diff(command: str, main_command: str):
     return new_list
 
 
-def set_correct_settings_for_dbt_execution(args: Flags, command: str):
-    new_command = command
-    if args.log_format != "json":
-        object.__setattr__(args, 'log_format', 'json')
-    if args.log_level != "debug":
-        object.__setattr__(args, 'log_level', 'debug')
-    if not (args.debug):
-        object.__setattr__(args, 'debug', True)
-    if args.profiles_dir != ".":
-        new_command += " --profiles-dir ."
-    return args, new_command
+def args_to_list(default_args, new_args):
+    """
+    default_args, new_args are dictionnaries
+    this function identifies which values changed between both dictionnaries
+    then converts the changed values into a list
+    ex: if profiles-dir value changed, it returns ['--profiles-dir', '.']
+    """
+    new_list = []
+    for key in new_args:
+        if key in default_args.keys():
+            if default_args[key] != new_args[key]:
+                new_value = new_args[key]
+                args_to_add = changed_value_to_list(key, new_value)
+                new_list = new_list + args_to_add
+    return (new_list)
+
+
+def changed_value_to_list(key, new_value):
+    key_flag = '--'+key.replace('_', '-')
+    args_to_add = [key_flag]
+    match (new_value):
+        case tuple():
+            for el in new_value:
+                args_to_add.append(el)
+        case dict():
+            args_to_add.append(str(new_value))
+        case bool():
+            if new_value:
+                args_to_add = [key_flag]
+            else:
+                args_to_add = ['--no-'+key.replace('_', '-')]
+        case _:
+            args_to_add.append(new_value)
+    return args_to_add
 
 
 def process_command(command: str):
@@ -117,3 +109,16 @@ def process_command(command: str):
     processed_command = ' '.join(command_list)
 
     return processed_command
+
+
+def set_correct_settings_for_dbt_execution(args: Flags, command: str):
+    new_command = command
+    if args.log_format != "json":
+        object.__setattr__(args, 'log_format', 'json')
+    if args.log_level != "debug":
+        object.__setattr__(args, 'log_level', 'debug')
+    if not (args.debug):
+        object.__setattr__(args, 'debug', True)
+    if args.profiles_dir != ".":
+        new_command += " --profiles-dir ."
+    return args, new_command

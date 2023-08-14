@@ -2,7 +2,7 @@
 from fastapi import FastAPI, status
 from google.cloud import run_v2
 import google.cloud.logging
-import logging as logger
+import logging
 import os
 import uuid
 import uvicorn
@@ -12,20 +12,23 @@ from utils import dbt_command, process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
 
-if len(sys.argv) == 2:
-    if sys.argv[1] == "--local":
-        from dotenv import load_dotenv
-        from pathlib import Path
+# run locally:
+if len(sys.argv) == 2 and sys.argv[1] == "--local":
+    from dotenv import load_dotenv
+    from pathlib import Path
 
-        dotenv_path = Path('.env.local_server')
-        load_dotenv(dotenv_path=dotenv_path)
+    dotenv_path = Path('.env.local_server')
+    load_dotenv(dotenv_path=dotenv_path)
 
-        BUCKET_NAME = os.getenv('BUCKET_NAME')
-        DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
-        SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT')
-        PROJECT_ID = os.getenv('PROJECT_ID')
-        LOCATION = os.getenv('LOCATION')
+    BUCKET_NAME = os.getenv('BUCKET_NAME')
+    DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
+    SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT')
+    PROJECT_ID = os.getenv('PROJECT_ID')
+    LOCATION = os.getenv('LOCATION')
 
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
+# run on GCP:
 else:
     BUCKET_NAME = os.getenv('BUCKET_NAME')
     DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
@@ -33,10 +36,10 @@ else:
     PROJECT_ID = get_project_id()
     LOCATION = get_location()
 
-app = FastAPI()
+    client = google.cloud.logging.Client()
+    client.setup_logging()
 
-client = google.cloud.logging.Client()
-client.setup_logging()
+app = FastAPI()
 
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
@@ -47,7 +50,7 @@ def get_job_state(uuid: str):
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: dbt_command):
-    logger.info("Received command '{command}'".format(
+    logging.info("Received command '{command}'".format(
         command=dbt_command.command)
         )
 
@@ -63,7 +66,7 @@ def run_command(dbt_command: dbt_command):
 
 
 def start_cloud_run_job(dbt_command: dbt_command, state: State):
-    logger.info(
+    logging.info(
         "Starting cloud run job {uuid} with command '{main_command}'".format(
             uuid=state.uuid,
             main_command=dbt_command.command)
@@ -76,7 +79,7 @@ def start_cloud_run_job(dbt_command: dbt_command, state: State):
     state.load_context(dbt_command)
 
     processed_command = process_command(dbt_command.command)
-    logger.info('processed command: '+processed_command)
+    logging.info('processed command: '+processed_command)
     state.run_logs = 'INFO\t Processed command: '+processed_command
 
     response_job = create_job(processed_command, state)
@@ -112,11 +115,11 @@ def create_job(command: str, state: State):
     )
     operation = client.create_job(request=request)
 
-    logger.info("Waiting for job creation to complete...")
+    logging.info("Waiting for job creation to complete...")
     state.run_logs = "INFO\t Waiting for job creation to complete..."
 
     response = operation.result()
-    logger.info({"response": str(response)})
+    logging.info({"response": str(response)})
     state.run_logs = "INFO\t Job created: " + response.name
     return response
 
@@ -125,7 +128,7 @@ def launch_job(response_job: run_v2.types.Job, state: State):
     # Create a client
     client = run_v2.JobsClient()
     job_name = response_job.name
-    logger.info("job_name:{job}".format(job=job_name))
+    logging.info("job_name:{job}".format(job=job_name))
     state.run_logs = "INFO\t Launching job: "+job_name
 
     # Initialize request argument(s)

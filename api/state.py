@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
+MAX_LOGS = 200  # max number of logs to keep in Firestore
 
 client = firestore.Client()
 dbt_collection = client.collection("dbt-status")
@@ -66,7 +67,7 @@ class State:
         status_ref = dbt_collection.document(self._uuid)
         run_logs = status_ref.get().to_dict()["run_logs"]
         run_logs.append(dt_time+"\t"+new_log)
-        status_ref.update({"run_logs": run_logs})
+        status_ref.update({"run_logs": run_logs[-MAX_LOGS:]})
 
     def load_context(self, dbt_command: dbt_command):
         cloud_storage_folder = generate_folder_name(self._uuid)
