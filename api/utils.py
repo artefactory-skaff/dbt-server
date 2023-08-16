@@ -1,16 +1,10 @@
 import json
 import msgpack
 from dbt.contracts.graph.manifest import Manifest
-from pydantic import BaseModel
 from click.parser import split_arg_string
 from dbt.cli.flags import Flags, args_to_context
 from dbt.cli.main import cli
-
-
-class dbt_command(BaseModel):
-    command: str
-    manifest: str
-    dbt_project: str
+from state import State
 
 
 def parse_manifest_from_json(manifest_json):
@@ -80,17 +74,20 @@ def changed_value_to_list(key, new_value):
     return args_to_add
 
 
-def process_command(command: str):
+def process_command(state: State, command: str):
 
     split_args = split_arg_string(command)
-    # '--log-level info --debug run --select my_model my_other_model'
-    # --> ['--select', 'my_model', 'my_other_model']
+    # from: '--log-level info --debug run --select my_model my_other_model'
+    # to:   ['--select', 'my_model', 'my_other_model']
 
-    # get context and flags from command
+    # get main command, context and flags from command
     ctx = args_to_context(split_args)
     args = Flags(ctx)
     main_command = ctx.command.name
     initial_args = args.__dict__.copy()
+
+    log_level = args.log_level
+    state.log_level = log_level
 
     # set right --log-level, --log-format, --profiles-dir, --debug
     args, new_command = set_correct_settings_for_dbt_execution(args, command)

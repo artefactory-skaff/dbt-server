@@ -42,3 +42,6 @@ Make sure you are in a dbt project (```dbt_project.yml``` should be in your curr
 Then run commands like ```poetry run dbt-remote run --select vbak_dbt```.
 
 Otherwise, you can specify both files' path: ```poetry run dbt-remote run --manifest ../test-files/manifest.json --select vbak_dbt --dbt_project ../test-files/dbt_project.yml```.
+
+You can precise the level of log you wish to see from the dbt execution. Ex: 
+```poetry run dbt-remote --log-level warn run --select vbak```

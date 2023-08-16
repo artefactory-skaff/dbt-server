@@ -16,15 +16,20 @@ logger = init_logger()
 def logger_callback(event: EventMsg):
     state = State(os.environ.get("UUID"))
     msg = event.info.msg
+    user_log_level = state.log_level
     match event.info.level:
         case "debug":
             logger.debug(msg)
+            if user_log_level == "debug":
+                state.run_logs = "DEBUG\t" + msg
         case "info":
             logger.info(msg)
-            state.run_logs = "INFO\t" + msg
+            if user_log_level in ["debug", "info"]:
+                state.run_logs = "INFO\t" + msg
         case "warn":
             logger.warn(msg)
-            state.run_logs = "WARNING\t" + msg
+            if user_log_level in ["debug", "info", "warn"]:
+                state.run_logs = "WARN\t" + msg
         case "error":
             logger.error(msg)
             state.run_logs = "ERROR\t" + msg

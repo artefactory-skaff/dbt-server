@@ -1,6 +1,6 @@
 import os
 from google.cloud import firestore
-from utils import dbt_command
+from dbt_types import dbt_command
 from datetime import date
 from cloud_storage import write_to_bucket, get_all_documents_from_folder
 import logging
@@ -24,6 +24,7 @@ class State:
         initial_state = {
             "uuid": self._uuid,
             "run_status": "created",
+            "log_level": "info",
             "cloud_storage_folder": "",
             "run_logs": [dt_time+"\tINFO\t init"]
         }
@@ -43,6 +44,17 @@ class State:
     def run_status(self, new_status: str):
         status_ref = dbt_collection.document(self._uuid)
         status_ref.update({"run_status": new_status})
+
+    @property
+    def log_level(self):
+        status_ref = dbt_collection.document(self._uuid)
+        log_level = status_ref.get().to_dict()["log_level"]
+        return log_level
+
+    @log_level.setter
+    def log_level(self, new_log_level: str):
+        status_ref = dbt_collection.document(self._uuid)
+        status_ref.update({"log_level": new_log_level})
 
     @property
     def storage_folder(self):

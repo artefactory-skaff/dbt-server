@@ -16,10 +16,10 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 @click.command(context_settings=dict(ignore_unknown_options=True,),
                help='Enter dbt command, ex: dbt-remote run --select test')
 @click.argument('user_command')
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.option('--manifest', '-m', default='./target/manifest.json',
               help='Manifest file, by default: ./target/manifest.json')
 @click.option('--dbt_project', default='./dbt_project.yml', help='dbt_project file, by default: ./dbt_project.yml')
-@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def cli(user_command: str, manifest: str, dbt_project: str, args):
     dbt_args = ' '.join(args)
     dbt_command = user_command + ' ' + dbt_args
@@ -27,10 +27,14 @@ def cli(user_command: str, manifest: str, dbt_project: str, args):
 
     server_res = send_command(dbt_command, manifest, dbt_project)
 
-    uuid = json.loads(server_res)['uuid']
-    click.echo("uuid: {0}".format(uuid))
+    try:
+        uuid = json.loads(server_res)['uuid']
+        click.echo("uuid: {0}".format(uuid))
 
-    stream_log(uuid)
+        stream_log(uuid)
+
+    except json.decoder.JSONDecodeError:
+        click.echo(server_res)
 
 
 def send_command(command: str, manifest: str, dbt_project: str):
@@ -91,7 +95,7 @@ def show_log(log: str):
     match (log_level):
         case 'INFO':
             log_color = 'green'
-        case 'WARNING':
+        case 'WARN':
             log_color = 'yellow'
         case 'ERROR':
             log_color = 'red'

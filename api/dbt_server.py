@@ -8,7 +8,8 @@ import uuid
 import uvicorn
 import sys
 
-from utils import dbt_command, process_command
+from dbt_types import dbt_command
+from utils import process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
 
@@ -78,7 +79,7 @@ def start_cloud_run_job(dbt_command: dbt_command, state: State):
     state.run_status = "running"
     state.load_context(dbt_command)
 
-    processed_command = process_command(dbt_command.command)
+    processed_command = process_command(state, dbt_command.command)
     logging.info('processed command: '+processed_command)
     state.run_logs = 'INFO\t Processed command: '+processed_command
 
