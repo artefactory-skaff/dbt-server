@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 import json
 import time
+from timeit import default_timer as timer
+from utils import current_time, handling_server_errors, show_last_logs, load_file, get_run_status
 
 
 dotenv_path = Path('.env')
@@ -20,21 +22,43 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 @click.option('--manifest', '-m', default='./target/manifest.json',
               help='Manifest file, by default: ./target/manifest.json')
 @click.option('--dbt_project', default='./dbt_project.yml', help='dbt_project file, by default: ./dbt_project.yml')
-def cli(user_command: str, manifest: str, dbt_project: str, args):
+@click.option('--set_timer', is_flag=True, help='Set flag to record the job execution duration')
+def cli(user_command: str, manifest: str, dbt_project: str, set_timer: bool, args):
     dbt_args = ' '.join(args)
     dbt_command = user_command + ' ' + dbt_args
     click.echo('Command: dbt {0}'.format(dbt_command))
 
+    starting_time = current_time()
+    click.echo("Starting time: {0}".format(starting_time))
+
+    if set_timer:
+        click.echo('Starting timer for complete execution')
+        start_all = timer()
+
     server_res = send_command(dbt_command, manifest, dbt_project)
 
     try:
+
         uuid = json.loads(server_res)['uuid']
         click.echo("uuid: {0}".format(uuid))
 
+        if set_timer:
+            click.echo('Starting timer for job execution')
+            start_execution_job = timer()
+
         stream_log(uuid)
 
+        if set_timer:
+            end = timer()
+            click.echo("total excution time\t{0}".format(str(end - start_all)))
+            click.echo("dbt job excution time\t{0}".format(str(end - start_execution_job)))
+
     except json.decoder.JSONDecodeError:
+        if set_timer:
+            end = timer()
+
         click.echo(server_res)
+        handling_server_errors(starting_time)
 
 
 def send_command(command: str, manifest: str, dbt_project: str):
@@ -57,55 +81,14 @@ def stream_log(uuid: str):
     click.echo("Waiting for job execution...")
     time.sleep(16)
     run_status = json.loads(get_run_status(uuid))["run_status"]
-    last_logs = []
+    last_timestamp_str = current_time()
 
     while run_status == "running":
         time.sleep(1)
         run_status_json = json.loads(get_run_status(uuid))
         run_status = run_status_json["run_status"]
-        last_logs = show_last_logs(uuid, last_logs)
+        last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
 
-    while "END JOB" not in last_logs[-1]:
+    while "END JOB" not in last_log:
         time.sleep(1)
-        last_logs = show_last_logs(uuid, last_logs)
-
-
-def get_run_status(uuid: str):
-    url = SERVER_URL + "job/" + uuid
-    res = requests.get(url=url)
-    return res.text
-
-
-def show_last_logs(uuid: str, last_logs=[]):
-    run_status_json = json.loads(get_run_status(uuid))
-    logs = run_status_json["entries"]  # gets 5 last logs from Firestore
-    for log in logs:
-        if log not in last_logs:
-            show_log(log)
-            last_logs.append(log)
-    last_logs = last_logs[-5:]
-    return last_logs
-
-
-def show_log(log: str):
-    parsed_log = log.split('\t')
-    log_level = parsed_log[1]
-    log_content = parsed_log[2]
-
-    match (log_level):
-        case 'INFO':
-            log_color = 'green'
-        case 'WARN':
-            log_color = 'yellow'
-        case 'ERROR':
-            log_color = 'red'
-        case _:
-            log_color = 'black'
-
-    click.echo(click.style(log_level, fg=log_color) + '\t' + log_content)
-
-
-def load_file(filename):
-    with open(filename, 'r') as f:
-        file_str = f.read()
-    return file_str
+        last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)

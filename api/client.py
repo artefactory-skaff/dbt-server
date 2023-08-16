@@ -82,8 +82,13 @@ def handle_command(command: str):
 
     start_all = timer()
 
-    uuid = json.loads(send_command(command, dbt_project_file))["uuid"]
-    print("uuid: "+uuid)
+    try:
+        server_response = send_command(command, dbt_project_file)
+        uuid = json.loads(server_response)["uuid"]
+        print("uuid: "+uuid)
+    except json.decoder.JSONDecodeError:
+        print(server_response)
+        return 0
 
     start_execution_job = timer()
 

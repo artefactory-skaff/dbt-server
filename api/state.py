@@ -4,7 +4,7 @@ from dbt_types import dbt_command
 from datetime import date
 from cloud_storage import write_to_bucket, get_all_documents_from_folder
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 MAX_LOGS = 200  # max number of logs to keep in Firestore
@@ -98,8 +98,8 @@ class State:
 
 
 def current_date_time():
-    now = datetime.now()
-    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    now = datetime.now(timezone.utc)
+    dt_string = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     return dt_string
 
 

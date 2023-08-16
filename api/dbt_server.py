@@ -2,6 +2,7 @@
 from fastapi import FastAPI, status
 from google.cloud import run_v2
 import google.cloud.logging
+from google.cloud.logging import DESCENDING
 import logging
 import os
 import uuid
@@ -13,16 +14,20 @@ from utils import process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
 
+
+BUCKET_NAME = os.getenv('BUCKET_NAME')
+DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
+
 # run locally:
 if len(sys.argv) == 2 and sys.argv[1] == "--local":
+    LOCAL = True
+
     from dotenv import load_dotenv
     from pathlib import Path
 
     dotenv_path = Path('.env.local_server')
     load_dotenv(dotenv_path=dotenv_path)
 
-    BUCKET_NAME = os.getenv('BUCKET_NAME')
-    DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
     SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT')
     PROJECT_ID = os.getenv('PROJECT_ID')
     LOCATION = os.getenv('LOCATION')
@@ -31,8 +36,8 @@ if len(sys.argv) == 2 and sys.argv[1] == "--local":
 
 # run on GCP:
 else:
-    BUCKET_NAME = os.getenv('BUCKET_NAME')
-    DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
+    LOCAL = False
+
     SERVICE_ACCOUNT = get_service_account()
     PROJECT_ID = get_project_id()
     LOCATION = get_location()
@@ -46,7 +51,25 @@ app = FastAPI()
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
 def get_job_state(uuid: str):
     job_state = State(uuid)
-    return {"run_status": job_state.run_status, "entries": job_state.run_logs[-5:]}
+    return {"run_status": job_state.run_status, "entries": job_state.run_logs}
+
+
+@app.get("/errors/{timestamp}", status_code=status.HTTP_200_OK)
+def get_server_errors(timestamp: str):
+    if LOCAL:
+        return {"logs": ["Server running in local"]}
+
+    filter_str = (
+        '(resource.type="cloud_run_revision")'
+        ' AND severity = ERROR'
+        f' AND timestamp>="{timestamp}"'
+    )
+
+    entries = client.list_entries(filter_=filter_str, order_by=DESCENDING, max_results=5)
+    logs = []
+    for log in entries:
+        logs.append(str(log.payload))
+    return {"logs": logs}
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
