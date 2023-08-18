@@ -8,14 +8,16 @@ COPY requirements.txt .
 # we install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# we copy the code dir into the work directory
-
-RUN useradd -ms /bin/bash newuser
-
-USER newuser
-WORKDIR /home/newuser
-COPY . /home/newuser/
+COPY . .
+CMD ["/bin/bash", "-c", "if [[ \"$SCRIPT\" == \"job.py\" ]] ; then python3 job.py && python3 elementary_report.py ; else python3 $SCRIPT ; fi"]
 
 
-# we execute the code with the following command
-CMD ["sh", "-c", "python3 $SCRIPT"]
+# RUN useradd -ms /bin/bash newuser
+
+# WORKDIR /home/newuser
+# COPY . /home/newuser/
+
+# RUN chown -R newuser /home/newuser
+# USER newuser
+
+# CMD ["/bin/bash", "-c", "if [[ \"$SCRIPT\" == \"job.py\" ]] ; then python3 job.py && python3 elementary_report.py ; else python3 $SCRIPT ; fi"]

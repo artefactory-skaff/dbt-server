@@ -21,7 +21,8 @@ def get_document_from_bucket(bucket_name: str, document_name: str):
     storage_client = connect_client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(document_name)
-    return blob
+    document = blob.download_as_string(client=None)
+    return document
 
 
 def get_all_documents_from_folder(bucket_name: str, folder_name: str):

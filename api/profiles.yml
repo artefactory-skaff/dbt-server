@@ -11,3 +11,17 @@ test_cloud_run:
       threads: 3
       type: bigquery
   target: dev
+elementary:
+  outputs:
+    default:
+      type: bigquery
+
+      ## Service account auth ##
+      method: service-account
+      keyfile: elementary-sa.json
+
+      project: stc-dbt-test-9e19
+      dataset: stc_dbt_test_9e19_elementary # elementary dataset, usually [dataset name]_elementary
+      threads: 4
+      location: US
+      priority: interactive

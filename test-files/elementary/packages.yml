@@ -1,0 +1,4 @@
+packages:
+  - package: elementary-data/elementary
+    version: 0.9.4
+    ## Docs: https://docs.elementary-data.com

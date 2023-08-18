@@ -87,6 +87,8 @@ class State:
         self.storage_folder = cloud_storage_folder
         write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/manifest.json", dbt_command.manifest)
         write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/dbt_project.yml", dbt_command.dbt_project)
+        if dbt_command.packages is not None:
+            write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/packages.yml", dbt_command.packages)
 
     def get_context_to_local(self):
         cloud_storage_folder = self.storage_folder

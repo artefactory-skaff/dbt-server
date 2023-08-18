@@ -13,6 +13,7 @@ from dbt_types import dbt_command
 from utils import process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
+from cloud_storage import get_document_from_bucket
 
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
@@ -72,6 +73,18 @@ def get_server_errors(timestamp: str):
     return {"logs": logs}
 
 
+@app.get("/report/{uuid}", status_code=status.HTTP_200_OK)
+def get_report(uuid: str):
+    state = State(uuid)
+    cloud_storage_folder = state.storage_folder
+    report = get_document_from_bucket(BUCKET_NAME, cloud_storage_folder+'/elementary_report.html')
+    _ = report
+
+    google_console_url = 'https://console.cloud.google.com/storage/browser/_details/'
+    url = google_console_url + BUCKET_NAME + '/' + cloud_storage_folder + '/elementary_report.html'
+    return {"url": url}
+
+
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: dbt_command):
     logging.info("Received command '{command}'".format(
@@ -106,20 +119,22 @@ def start_cloud_run_job(dbt_command: dbt_command, state: State):
     logging.info('processed command: '+processed_command)
     state.run_logs = 'INFO\t Processed command: '+processed_command
 
-    response_job = create_job(processed_command, state)
+    response_job = create_job(processed_command, state, dbt_command)
     launch_job(response_job, state)
 
 
-def create_job(command: str, state: State):
+def create_job(command: str, state: State, dbt_command: dbt_command):
     # Create a client
     client = run_v2.JobsClient()
+    logging.info(str(dbt_command.elementary))
     task_container = {
         "image": DOCKER_IMAGE,
         "env": [
             {"name": "DBT_COMMAND", "value": command},
             {"name": "UUID", "value": state.uuid},
             {"name": "SCRIPT", "value": "job.py"},
-            {"name": "BUCKET_NAME", "value": BUCKET_NAME}
+            {"name": "BUCKET_NAME", "value": BUCKET_NAME},
+            {"name": "ELEMENTARY", "value": str(dbt_command.elementary)}
             ]
         }
     # job_id must start with a letter and cannot contain '-'
