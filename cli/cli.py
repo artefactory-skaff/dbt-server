@@ -22,8 +22,10 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 @click.option('--manifest', '-m', default='./target/manifest.json',
               help='Manifest file, by default: ./target/manifest.json')
 @click.option('--dbt_project', default='./dbt_project.yml', help='dbt_project file, by default: ./dbt_project.yml')
+@click.option('--packages', default='', help='packages.yml file, by default none')
 @click.option('--set_timer', is_flag=True, help='Set flag to record the job execution duration')
-def cli(user_command: str, manifest: str, dbt_project: str, set_timer: bool, args):
+@click.option('--elementary', is_flag=True, help='Set flag to record the job execution duration')
+def cli(user_command: str, manifest: str, dbt_project: str, packages: str, set_timer: bool, elementary: bool, args):
     dbt_args = ' '.join(args)
     dbt_command = user_command + ' ' + dbt_args
     click.echo('Command: dbt {0}'.format(dbt_command))
@@ -35,7 +37,7 @@ def cli(user_command: str, manifest: str, dbt_project: str, set_timer: bool, arg
         click.echo('Starting timer for complete execution')
         start_all = timer()
 
-    server_res = send_command(dbt_command, manifest, dbt_project)
+    server_res = send_command(dbt_command, manifest, dbt_project, packages, elementary)
 
     try:
 
@@ -61,7 +63,7 @@ def cli(user_command: str, manifest: str, dbt_project: str, set_timer: bool, arg
         handling_server_errors(starting_time)
 
 
-def send_command(command: str, manifest: str, dbt_project: str):
+def send_command(command: str, manifest: str, dbt_project: str, packages: str, elementary: bool):
     url = SERVER_URL + "dbt"
 
     manifest_str = load_file(manifest)
@@ -73,6 +75,13 @@ def send_command(command: str, manifest: str, dbt_project: str):
             "dbt_project": dbt_project_str
         }
 
+    if packages != '':
+        packages_str = load_file(packages)
+        data["packages"] = packages_str
+
+    if elementary:
+        data["elementary"] = True
+
     res = requests.post(url=url, json=data)
     return res.text
 
@@ -83,12 +92,19 @@ def stream_log(uuid: str):
     run_status = json.loads(get_run_status(uuid))["run_status"]
     last_timestamp_str = current_time()
 
-    while run_status == "running":
+    i, timeout = 0, 60
+    while run_status == "running" and i < timeout:
         time.sleep(1)
         run_status_json = json.loads(get_run_status(uuid))
         run_status = run_status_json["run_status"]
         last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+        i += 1
 
-    while "END JOB" not in last_log:
-        time.sleep(1)
-        last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+    if run_status == "success":
+        i, timeout = 0, 30
+        while "END REPORT" not in last_log and i < timeout:
+            time.sleep(1)
+            last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+            i += 1
+    else:
+        print("job failed")

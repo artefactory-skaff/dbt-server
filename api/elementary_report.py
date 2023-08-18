@@ -13,11 +13,16 @@ def main():
     state = State(request_uuid)
 
     logger.info("elementary_report started")
-    state.run_logs = "INFO\t elementary_report started"
+    state.run_logs = "INFO\t elementary_report.py started"
 
     elementary = os.environ.get("ELEMENTARY")
     if elementary == "True":
+        logger.info("Uploading report...")
+        state.run_logs = "INFO\t Uploading report..."
         upload_elementary_report(state)
+    else:
+        logger.info("Elementary not requested")
+        state.run_logs = "INFO\t Elementary not requested"
 
     logger.info("END REPORT")
     state.run_logs = "INFO\t END REPORT"
