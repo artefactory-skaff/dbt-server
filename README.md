@@ -17,11 +17,13 @@ For Elementary
 ```gcloud projects add-iam-policy-binding stc-dbt-test-9e19 --role roles/bigquery.dataViewer --member serviceAccount:stc-dbt-elementary-sa@stc-dbt-test-9e19.iam.gserviceaccount.com```
 ```gcloud projects add-iam-policy-binding stc-dbt-test-9e19 --role roles/bigquery.metadataViewer --member serviceAccount:stc-dbt-elementary-sa@stc-dbt-test-9e19.iam.gserviceaccount.com```
 
+Add elementary's service account credentials to ```api/``` as ```elementary-sa.json```
+
 Send new Dockerfile image
-```gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:tag3```
+```gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:prod```
 
 Launch Cloud Run dbt-server
-```gcloud run deploy server-image-3 --image us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:tag3 --platform managed --region us-central1 --service-account=stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com --set-env-vars=BUCKET_NAME='dbt-stc-test' --set-env-vars=DOCKER_IMAGE='us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:tag3'```
+```gcloud run deploy server-prod --image us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:prod --platform managed --region us-central1 --service-account=stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com --set-env-vars=BUCKET_NAME='dbt-stc-test' --set-env-vars=DOCKER_IMAGE='us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:prod'```
 
 Initialize Python environment
 ```poetry run pip install -r requirements.txt```
@@ -50,3 +52,11 @@ Otherwise, you can specify both files' path: ```poetry run dbt-remote run --mani
 
 You can precise the level of log you wish to see from the dbt execution. Ex: 
 ```poetry run dbt-remote --log-level warn run --select vbak```
+
+Other examples:
+
+- run --select: ```poetry run dbt-remote --log-level info run --manifest ../test-files/elementary/manifest.json --select vbak_dbt --dbt_project ../test-files/elementary/dbt_project.yml --packages ../test-files/elementary/packages.yml --elementary --set_timer```
+
+without elementary: ```poetry run dbt-remote --log-level info run --manifest ../test-files/manifest.json --select vbak_dbt --dbt_project ../test-files/dbt_project.yml --set_timer```
+
+- list: ```poetry run dbt-remote --log-level debug list --manifest ../test-files/elementary/manifest.json --dbt_project ../test-files/elementary/dbt_project.yml --packages ../test-files/elementary/packages.yml --elementary --set_timer```

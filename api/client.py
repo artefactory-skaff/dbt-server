@@ -17,6 +17,8 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 if len(sys.argv) == 2:
     if sys.argv[1] == "--local":
         SERVER_URL = os.getenv('LOCAL_URL')+"/"
+    if sys.argv[1] == "--dev":
+        SERVER_URL = os.getenv('DEV_URL')+"/"
 
 MANIFEST_FILENAME = os.getenv('MANIFEST_FILENAME')
 ELEMENTARY_MANIFEST_FILENAME = os.getenv('ELEMENTARY_MANIFEST_FILENAME')
@@ -135,20 +137,30 @@ def handle_command(command: str):
     now = datetime.now(timezone.utc)
     last_timestamp_str = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    k, timeout = 0, 30
+    k, timeout = 0, 45
+    last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
     while run_status == "running" and k < timeout:
         time.sleep(1)
         run_status_json = json.loads(get_run_status(uuid))
         run_status = run_status_json["run_status"]
         last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
         k += 1
+    if k == timeout:
+        print("Job timeout")
 
     if run_status == "success":
-        k, timeout = 0, 30
-        while "END JOB" not in last_log and k < timeout:
+        k, timeout = 0, 45
+        if "--elementary" in command:
+            timeout = 120
+        while "END REPORT" not in last_log and k < timeout:
             time.sleep(1)
             last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
             k += 1
+        show_last_logs(uuid, last_timestamp_str)
+        if k == timeout:
+            print("Logs or report timeout")
+    else:
+        print("job failed")
 
     end = timer()
     total_execution_time = end - start_all

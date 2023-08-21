@@ -55,6 +55,7 @@ def run_job(manifest_json, state: State, dbt_command: str):
     state.run_status = "running"
 
     manifest: Manifest = parse_manifest_from_json(manifest_json)
+    manifest.build_flat_graph()
     dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback])
 
     # ex: ['run', '--select', 'vbak_dbt', '--profiles-dir', '.']

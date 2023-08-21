@@ -48,7 +48,7 @@ def cli(user_command: str, manifest: str, dbt_project: str, packages: str, set_t
             click.echo('Starting timer for job execution')
             start_execution_job = timer()
 
-        stream_log(uuid)
+        stream_log(uuid, elementary)
 
         if set_timer:
             end = timer()
@@ -86,7 +86,7 @@ def send_command(command: str, manifest: str, dbt_project: str, packages: str, e
     return res.text
 
 
-def stream_log(uuid: str):
+def stream_log(uuid: str, elementary: bool):
     click.echo("Waiting for job execution...")
     time.sleep(16)
     run_status = json.loads(get_run_status(uuid))["run_status"]
@@ -101,10 +101,15 @@ def stream_log(uuid: str):
         i += 1
 
     if run_status == "success":
-        i, timeout = 0, 30
+        i, timeout = 0, 60
+        if elementary:  # elementary report takes longer to build
+            timeout = 120
         while "END REPORT" not in last_log and i < timeout:
             time.sleep(1)
             last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
             i += 1
+        show_last_logs(uuid, last_timestamp_str)
+        if i == timeout:
+            click.echo(click.style("ERROR", fg="red") + '\t' + "Timeout while waiting for logs")
     else:
-        print("job failed")
+        click.echo(click.style("ERROR", fg="red") + '\t' + "Job failed")
