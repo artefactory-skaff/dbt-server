@@ -71,7 +71,7 @@ def get_server_errors(timestamp: str):
     server_name = 'server-prod'
     filter_str = (
         '(resource.type="cloud_run_revision")'
-        f'AND resource.labels.service_name = "{server_name}"'
+        f' AND resource.labels.service_name="{server_name}"'
         ' AND severity = ERROR'
         f' AND timestamp>="{timestamp}"'
     )
@@ -107,7 +107,7 @@ def run_command(dbt_command: dbt_command):
     Log_info(state, log)
     state.user_command = dbt_command.command
 
-    processed_command = process_command(state, dbt_command.command)
+    processed_command = process_command(dbt_command.command)
     log = f"Processed command: {processed_command}"
     Log_info(state, log)
     dbt_command.command = processed_command
