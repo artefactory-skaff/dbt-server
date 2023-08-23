@@ -16,24 +16,24 @@ logger = init_logger()
 
 def logger_callback(event: EventMsg):
     state = State(os.environ.get("UUID"))
-    msg = event.info.msg
+    msg = event.info.msg.replace('\n', '  ')
     user_log_level = state.log_level
     match event.info.level:
         case "debug":
             logger.debug(msg)
             if user_log_level == "debug":
-                state.run_logs = "DEBUG\t" + msg
+                state.run_logs.debug(msg)
         case "info":
             logger.info(msg)
             if user_log_level in ["debug", "info"]:
-                state.run_logs = "INFO\t" + msg
+                state.run_logs.info(msg)
         case "warn":
             logger.warn(msg)
             if user_log_level in ["debug", "info", "warn"]:
-                state.run_logs = "WARN\t" + msg
+                state.run_logs.warn(msg)
         case "error":
             logger.error(msg)
-            state.run_logs = "ERROR\t" + msg
+            state.run_logs.error(msg)
 
 
 def run_deps(manifest_json):
@@ -60,7 +60,7 @@ def run_job(manifest_json, state: State, dbt_command: str):
 
     # ex: ['run', '--select', 'vbak_dbt', '--profiles-dir', '.']
     cli_args = dbt_command.split(' ')
-    logger.info("cli args: {args}".format(args=cli_args))
+    logger.info(f"cli args: {cli_args}")
 
     res_dbt: dbtRunnerResult = dbt.invoke(cli_args)
     if "run" in dbt_command:
@@ -126,9 +126,11 @@ if __name__ == '__main__':
 
     # generate elementary report
     if elementary == 'True':
-        logger.info("Generating report...")
-        state.run_logs = "INFO\t Generating report..."
+        log = "Generating report..."
+        logger.info(log)
+        state.run_logs.info(log)
         report()
 
-    logger.info("END JOB")
-    state.run_logs = "INFO\t END JOB"
+    log = "END JOB"
+    logger.info(log)
+    state.run_logs.info(log)

@@ -33,13 +33,6 @@ def _addLoggingLevel(levelName, levelNum, methodName=None):
     if not methodName:
         methodName = levelName.lower()
 
-    """if hasattr(logging, levelName):
-       raise AttributeError('{} already defined in logging module'.format(levelName))
-    if hasattr(logging, methodName):
-       raise AttributeError('{} already defined in logging module'.format(methodName))
-    if hasattr(logging.getLoggerClass(), methodName):
-       raise AttributeError('{} already defined in logger class'.format(methodName))"""
-
     def logForLevel(self, message, *args, **kwargs):
         if self.isEnabledFor(levelNum):
             self._log(levelNum, message, args, **kwargs)
@@ -86,6 +79,7 @@ def init_logger():
     # find metadata about the execution environment
     region = retrieve_metadata_server(_REGION_ID)
     project = retrieve_metadata_server(_PROJECT_NAME)
+    uuid = os.environ.get("UUID")
 
     # build a manual resource object
     cr_job_resource = Resource(
@@ -94,10 +88,10 @@ def init_logger():
             "job_name": os.environ.get('CLOUD_RUN_JOB', 'unknownJobId'),
             "location":  region.split("/")[-1] if region else "",
             "project_id": project,
-            "uuid": os.environ.get("UUID"),
+            "uuid": uuid,
         }
     )
-    labels = {"uuid": os.environ.get("UUID")}
+    labels = {"uuid": uuid}
     client = google.cloud.logging.Client()
     handler = CloudLoggingHandler(client, resource=cr_job_resource, labels=labels)
     logger.addHandler(handler)

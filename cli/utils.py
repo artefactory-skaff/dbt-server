@@ -24,7 +24,7 @@ def handling_server_errors(starting_time: str):
 def wait_for_errors(starting_time_str: str, timeout: int):
     k = 0
     errors = []
-    while k < timeout and errors == []:
+    while k < timeout and (errors == [] or errors == ['None']):
         time.sleep(1)
         server_res = get_errors(starting_time_str)
         errors = json.loads(server_res)["logs"]
@@ -46,27 +46,29 @@ def get_run_status(uuid: str):
     return res.text
 
 
-def show_last_logs(uuid: str, last_timestamp_str: str):
-    last_timestamp = datetime.strptime(last_timestamp_str, '%Y-%m-%dT%H:%M:%SZ')
+def get_last_logs(uuid: str):
+    url = SERVER_URL + "job/" + uuid + '/last_logs'
+    res = requests.get(url=url)
+    return res.text
 
-    run_status_json = json.loads(get_run_status(uuid))
-    logs = run_status_json["entries"]  # gets last logs from Firestore
+
+def show_last_logs(uuid: str):
+
+    last_logs_json = json.loads(get_last_logs(uuid))
+    logs = last_logs_json["run_logs"]
 
     for log in logs:
-        log_timestamp_str = log.split('\t')[0]
-        log_timestamp = datetime.strptime(log_timestamp_str, '%Y-%m-%dT%H:%M:%SZ')
-
-        if log_timestamp > last_timestamp:
-            show_log(log)
-
-    if log_timestamp > last_timestamp:
-        last_timestamp_str = log_timestamp_str
-    last_log = logs[-1]
-
-    return last_log, log_timestamp_str
+        show_log(log)
+    if len(logs) > 0:
+        return logs[-1]
+    else:
+        return ""
 
 
 def show_log(log: str):
+    if log == '':
+        click.echo('')
+        return
     parsed_log = log.split('\t')
     log_level = parsed_log[1]
     log_content = parsed_log[2]

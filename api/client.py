@@ -7,7 +7,6 @@ import re
 import time
 from timeit import default_timer as timer
 import sys
-from datetime import datetime, timezone
 
 dotenv_path = Path('.env.client')
 load_dotenv(dotenv_path=dotenv_path)
@@ -67,7 +66,6 @@ def send_command(command):
 
     manifest_str = load_file(manifest_filename)
     dbt_project_str = load_file(dbt_project_file)
-    print(PACKAGES_FILE)
     packages_str = load_file(PACKAGES_FILE)
 
     elementary_bool = False
@@ -92,24 +90,23 @@ def get_run_status(uuid: str):
     return res.text
 
 
-def show_last_logs(uuid: str, last_timestamp_str: str):
-    last_timestamp = datetime.strptime(last_timestamp_str, '%Y-%m-%dT%H:%M:%SZ')
+def get_last_logs(uuid: str):
+    url = SERVER_URL + "job/" + uuid + '/last_logs'
+    res = requests.get(url=url)
+    return res.text
 
-    run_status_json = json.loads(get_run_status(uuid))
-    logs = run_status_json["entries"]  # gets last logs from Firestore
+
+def show_last_logs(uuid: str):
+
+    last_logs_json = json.loads(get_last_logs(uuid))
+    logs = last_logs_json["run_logs"]
 
     for log in logs:
-        log_timestamp_str = log.split('\t')[0]
-        log_timestamp = datetime.strptime(log_timestamp_str, '%Y-%m-%dT%H:%M:%SZ')
-
-        if log_timestamp > last_timestamp:
-            print(log)
-
-    if log_timestamp > last_timestamp:
-        last_timestamp_str = log_timestamp_str
-    last_log = logs[-1]
-
-    return last_log, log_timestamp_str
+        print(log)
+    if len(logs) > 0:
+        return logs[-1]
+    else:
+        return ""
 
 
 def get_report(uuid: str):
@@ -134,16 +131,14 @@ def handle_command(command: str):
 
     time.sleep(26)
     run_status = json.loads(get_run_status(uuid))["run_status"]
-    now = datetime.now(timezone.utc)
-    last_timestamp_str = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     k, timeout = 0, 45
-    last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+    last_log = show_last_logs(uuid)
     while run_status == "running" and k < timeout:
         time.sleep(1)
         run_status_json = json.loads(get_run_status(uuid))
         run_status = run_status_json["run_status"]
-        last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+        last_log = show_last_logs(uuid)
         k += 1
     if k == timeout:
         print("Job timeout")
@@ -151,12 +146,13 @@ def handle_command(command: str):
     if run_status == "success":
         k, timeout = 0, 45
         if "--elementary" in command:
+            time.sleep(30)
             timeout = 120
         while "END REPORT" not in last_log and k < timeout:
             time.sleep(1)
-            last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+            last_log = show_last_logs(uuid)
             k += 1
-        show_last_logs(uuid, last_timestamp_str)
+        show_last_logs(uuid)
         if k == timeout:
             print("Logs or report timeout")
     else:
@@ -173,9 +169,10 @@ def handle_command(command: str):
 def main():
 
     commands = [
-        "list --elementary",
         "list",
+        "list --elementary",
         "--log-level info run --select vbak_dbt --elementary",
+        "--log-level info run --select vbak_dbt",
         "--debug list --manifest ../test-files/manifest.json"
     ]
 

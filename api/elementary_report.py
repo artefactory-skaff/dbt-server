@@ -12,20 +12,20 @@ def main():
     request_uuid = os.environ.get("UUID")
     state = State(request_uuid)
 
-    logger.info("elementary_report started")
-    state.run_logs = "INFO\t elementary_report.py started"
+    log = "elementary_report started"
+    Log_info(state, log)
 
     elementary = os.environ.get("ELEMENTARY")
     if elementary == "True":
-        logger.info("Uploading report...")
-        state.run_logs = "INFO\t Uploading report..."
+        log = "Uploading report..."
+        Log_info(state, log)
         upload_elementary_report(state)
     else:
-        logger.info("Elementary not requested")
-        state.run_logs = "INFO\t Elementary not requested"
+        log = "Elementary not requested"
+        Log_info(state, log)
 
-    logger.info("END REPORT")
-    state.run_logs = "INFO\t END REPORT"
+    log = "END REPORT"
+    Log_info(state, log)
 
 
 def upload_elementary_report(state: State):
@@ -41,6 +41,11 @@ def upload_elementary_report(state: State):
 
     write_to_bucket(bucket_name, cloud_storage_folder+"/elementary_output.json", elementary_output)
     write_to_bucket(bucket_name, cloud_storage_folder+"/elementary_report.html", elementary_report)
+
+
+def Log_info(state: State, log: str):
+    logger.info(log)
+    state.run_logs.info(log)
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ import uvicorn
 import sys
 
 from dbt_types import dbt_command
-from utils import process_command
+from command_processor import process_command
 from metadata import get_project_id, get_location, get_service_account
 from state import State
 from cloud_storage import get_document_from_bucket
@@ -52,16 +52,26 @@ app = FastAPI()
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
 def get_job_state(uuid: str):
     job_state = State(uuid)
-    return {"run_status": job_state.run_status, "entries": job_state.run_logs}
+    run_status = job_state.run_status
+    return {"run_status": run_status}
+
+
+@app.get("/job/{uuid}/last_logs", status_code=status.HTTP_200_OK)
+def get_last_logs(uuid: str):
+    job_state = State(uuid)
+    logs = job_state.get_last_logs()
+    return {"run_logs": logs}
 
 
 @app.get("/errors/{timestamp}", status_code=status.HTTP_200_OK)
 def get_server_errors(timestamp: str):
     if LOCAL:
-        return {"logs": ["Server running in local"]}
+        return {"logs": ["Logs are not available on Cloud Logging: Server running in local"]}
 
+    server_name = 'server-prod'
     filter_str = (
         '(resource.type="cloud_run_revision")'
+        f'AND resource.labels.service_name = "{server_name}"'
         ' AND severity = ERROR'
         f' AND timestamp>="{timestamp}"'
     )
@@ -80,57 +90,47 @@ def get_report(uuid: str):
     report = get_document_from_bucket(BUCKET_NAME, cloud_storage_folder+'/elementary_report.html')
     _ = report
 
-    google_console_url = 'https://console.cloud.google.com/storage/browser/_details/'
-    url = google_console_url + BUCKET_NAME + '/' + cloud_storage_folder + '/elementary_report.html'
+    google_console_url = 'https://console.cloud.google.com/storage/browser/_details'
+    url = f'{google_console_url}/{BUCKET_NAME}/{cloud_storage_folder}/elementary_report.html'
     return {"url": url}
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: dbt_command):
-    logging.info("Received command '{command}'".format(
-        command=dbt_command.command)
-        )
 
     request_uuid = str(uuid.uuid4())
     state = State(request_uuid)
     state.init_state()
     state.run_status = "pending"
-    state.run_logs = "INFO\t Received command '{command}'".format(
-        command=dbt_command.command)
 
-    start_cloud_run_job(dbt_command, state)
+    log = f"Received command '{dbt_command.command}'"
+    Log_info(state, log)
+    state.user_command = dbt_command.command
+
+    processed_command = process_command(state, dbt_command.command)
+    log = f"Processed command: {processed_command}"
+    Log_info(state, log)
+    dbt_command.command = processed_command
+
+    state.load_context(dbt_command)
+
+    response_job = create_job(state, dbt_command)
+    launch_job(response_job, state)
+
     return {"uuid": request_uuid}
 
 
-def start_cloud_run_job(dbt_command: dbt_command, state: State):
-    logging.info(
-        "Starting cloud run job {uuid} with command '{main_command}'".format(
-            uuid=state.uuid,
-            main_command=dbt_command.command)
-        )
-    state.run_logs = "INFO\t Starting cloud run job {uuid} with command '{main_command}'".format(
-        uuid=state.uuid,
-        main_command=dbt_command.command)
+def create_job(state: State, dbt_command: dbt_command) -> run_v2.types.Job:
+    log = f"Creating cloud run job {state.uuid} with command '{dbt_command.command}'"
+    Log_info(state, log)
 
-    state.run_status = "running"
-    state.load_context(dbt_command)
-
-    processed_command = process_command(state, dbt_command.command)
-    logging.info('processed command: '+processed_command)
-    state.run_logs = 'INFO\t Processed command: '+processed_command
-
-    response_job = create_job(processed_command, state, dbt_command)
-    launch_job(response_job, state)
-
-
-def create_job(command: str, state: State, dbt_command: dbt_command):
     # Create a client
     client = run_v2.JobsClient()
     logging.info(str(dbt_command.elementary))
     task_container = {
         "image": DOCKER_IMAGE,
         "env": [
-            {"name": "DBT_COMMAND", "value": command},
+            {"name": "DBT_COMMAND", "value": dbt_command.command},
             {"name": "UUID", "value": state.uuid},
             {"name": "SCRIPT", "value": "job.py"},
             {"name": "BUCKET_NAME", "value": BUCKET_NAME},
@@ -154,27 +154,37 @@ def create_job(command: str, state: State, dbt_command: dbt_command):
     )
     operation = client.create_job(request=request)
 
-    logging.info("Waiting for job creation to complete...")
-    state.run_logs = "INFO\t Waiting for job creation to complete..."
+    log = "Waiting for job creation to complete..."
+    Log_info(state, log)
 
     response = operation.result()
-    logging.info({"response": str(response)})
-    state.run_logs = "INFO\t Job created: " + response.name
+    log = f"Job created: {response.name}"
+    Log_info(state, log)
+
     return response
 
 
 def launch_job(response_job: run_v2.types.Job, state: State):
+
+    job_name = response_job.name
+    log = f"Launching job: {job_name}'"
+    Log_info(state, log)
+
     # Create a client
     client = run_v2.JobsClient()
-    job_name = response_job.name
-    logging.info("job_name:{job}".format(job=job_name))
-    state.run_logs = "INFO\t Launching job: "+job_name
 
     # Initialize request argument(s)
     request = run_v2.RunJobRequest(name=job_name,)
 
     # Make the request
     client.run_job(request=request)
+    state.run_status = "running"
+
+
+def Log_info(state: State, log: str):
+    logging.info(log)
+    # state.run_logs = "INFO\t"+log
+    state.run_logs.info(log)
 
 
 if __name__ == "__main__":

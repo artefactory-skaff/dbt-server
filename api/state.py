@@ -2,7 +2,7 @@ import os
 from google.cloud import firestore
 from dbt_types import dbt_command
 from datetime import date
-from cloud_storage import write_to_bucket, get_all_documents_from_folder
+from cloud_storage import write_to_bucket, get_document_from_bucket, get_all_documents_from_folder
 import logging
 from datetime import datetime, timezone
 
@@ -17,18 +17,20 @@ class State:
 
     def __init__(self, uuid: str):
         self._uuid = uuid
+        self.run_logs = Run_logs(uuid)
 
     def init_state(self):
         status_ref = dbt_collection.document(self._uuid)
-        dt_time = current_date_time()
         initial_state = {
             "uuid": self._uuid,
             "run_status": "created",
+            "user_command": "",
             "log_level": "info",
             "cloud_storage_folder": "",
-            "run_logs": [dt_time+"\tINFO\t init"]
+            "log_starting_byte": 0
         }
         status_ref.set(initial_state)
+        self.run_logs.init_log_file()
 
     @property
     def uuid(self):
@@ -46,6 +48,17 @@ class State:
         status_ref.update({"run_status": new_status})
 
     @property
+    def user_command(self):
+        status_ref = dbt_collection.document(self._uuid)
+        run_status = status_ref.get().to_dict()["user_command"]
+        return run_status
+
+    @user_command.setter
+    def user_command(self, user_command: str):
+        status_ref = dbt_collection.document(self._uuid)
+        status_ref.update({"user_command": user_command})
+
+    @property
     def log_level(self):
         status_ref = dbt_collection.document(self._uuid)
         log_level = status_ref.get().to_dict()["log_level"]
@@ -57,6 +70,17 @@ class State:
         status_ref.update({"log_level": new_log_level})
 
     @property
+    def log_starting_byte(self):
+        status_ref = dbt_collection.document(self._uuid)
+        log_starting_byte = status_ref.get().to_dict()["log_starting_byte"]
+        return log_starting_byte
+
+    @log_starting_byte.setter
+    def log_starting_byte(self, new_log_starting_byte: int):
+        status_ref = dbt_collection.document(self._uuid)
+        status_ref.update({"log_starting_byte": new_log_starting_byte})
+
+    @property
     def storage_folder(self):
         status_ref = dbt_collection.document(self._uuid)
         cloud_storage_folder = status_ref.get().to_dict()["cloud_storage_folder"]
@@ -66,20 +90,6 @@ class State:
     def storage_folder(self, cloud_storage_folder: str):
         status_ref = dbt_collection.document(self._uuid)
         status_ref.update({"cloud_storage_folder": cloud_storage_folder})
-
-    @property
-    def run_logs(self):
-        status_ref = dbt_collection.document(self._uuid)
-        run_logs = status_ref.get().to_dict()["run_logs"]
-        return run_logs
-
-    @run_logs.setter
-    def run_logs(self, new_log: str):
-        dt_time = current_date_time()
-        status_ref = dbt_collection.document(self._uuid)
-        run_logs = status_ref.get().to_dict()["run_logs"]
-        run_logs.append(dt_time+"\t"+new_log)
-        status_ref.update({"run_logs": run_logs[-MAX_LOGS:]})
 
     def load_context(self, dbt_command: dbt_command):
         cloud_storage_folder = generate_folder_name(self._uuid)
@@ -97,6 +107,51 @@ class State:
         for filename in blob_context_files.keys():
             with open(filename, 'wb') as f:
                 f.write(blob_context_files[filename])
+
+    def get_last_logs(self):
+        logs, byte_length = self.run_logs.get(self.log_starting_byte)
+        self.log_starting_byte += byte_length
+        return logs
+
+
+class Run_logs:
+
+    def __init__(self, uuid: str):
+        self._uuid = uuid
+        self.log_file = 'logs/' + uuid + '.txt'
+
+    def init_log_file(self):
+        dt_time = current_date_time()
+        write_to_bucket(BUCKET_NAME, self.log_file, dt_time + "\t" + "INFO" + "\t" + "Init")
+
+    def get(self, starting_byte: int = 0):
+        current_log_file = get_document_from_bucket(BUCKET_NAME, self.log_file, starting_byte)
+        byte_length = len(current_log_file)
+        if byte_length == 0:
+            return [], byte_length
+        run_logs = current_log_file.decode('utf-8').split('\n')
+        return run_logs, byte_length
+
+    def debug(self, new_log: str):
+        self.__add(severity="DEBUG", new_log=new_log)
+
+    def info(self, new_log: str):
+        self.__add(severity="INFO", new_log=new_log)
+
+    def warn(self, new_log: str):
+        self.__add(severity="WARN", new_log=new_log)
+
+    def error(self, new_log: str):
+        self.__add(severity="ERROR", new_log=new_log)
+
+    def __add(self, severity: str, new_log: str):
+        current_log_file = get_document_from_bucket(BUCKET_NAME, self.log_file).decode('utf-8')
+
+        dt_time = current_date_time()
+        new_log = (dt_time + "\t" + severity + "\t" + new_log)
+
+        new_log_file = current_log_file + '\n' + new_log
+        write_to_bucket(BUCKET_NAME, self.log_file, new_log_file)
 
 
 def current_date_time():

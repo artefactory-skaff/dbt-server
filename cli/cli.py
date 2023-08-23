@@ -22,27 +22,27 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 @click.option('--manifest', '-m', default='./target/manifest.json',
               help='Manifest file, by default: ./target/manifest.json')
 @click.option('--dbt_project', default='./dbt_project.yml', help='dbt_project file, by default: ./dbt_project.yml')
-@click.option('--packages', default='', help='packages.yml file, by default none')
+@click.option('--extra_packages', default='', help='packages.yml file, by default none')
 @click.option('--set_timer', is_flag=True, help='Set flag to record the job execution duration')
-@click.option('--elementary', is_flag=True, help='Set flag to record the job execution duration')
-def cli(user_command: str, manifest: str, dbt_project: str, packages: str, set_timer: bool, elementary: bool, args):
+@click.option('--elementary', is_flag=True, help='Set flag to run elementary report at the end of the job')
+def cli(user_command: str, manifest: str, dbt_project: str, extra_packages: str, set_timer: bool, elementary: bool, args):
     dbt_args = ' '.join(args)
     dbt_command = user_command + ' ' + dbt_args
-    click.echo('Command: dbt {0}'.format(dbt_command))
+    click.echo(f'Command: dbt {dbt_command}')
 
     starting_time = current_time()
-    click.echo("Starting time: {0}".format(starting_time))
+    click.echo(f"Starting time: {starting_time}")
 
     if set_timer:
         click.echo('Starting timer for complete execution')
         start_all = timer()
 
-    server_res = send_command(dbt_command, manifest, dbt_project, packages, elementary)
+    server_res = send_command(dbt_command, manifest, dbt_project, extra_packages, elementary)
 
     try:
 
         uuid = json.loads(server_res)['uuid']
-        click.echo("uuid: {0}".format(uuid))
+        click.echo(f"uuid: {uuid}")
 
         if set_timer:
             click.echo('Starting timer for job execution')
@@ -52,8 +52,8 @@ def cli(user_command: str, manifest: str, dbt_project: str, packages: str, set_t
 
         if set_timer:
             end = timer()
-            click.echo("total excution time\t{0}".format(str(end - start_all)))
-            click.echo("dbt job excution time\t{0}".format(str(end - start_execution_job)))
+            click.echo(f"total excution time\t{str(end - start_all)}")
+            click.echo(f"dbt job excution time\t{str(end - start_execution_job)}")
 
     except json.decoder.JSONDecodeError:
         if set_timer:
@@ -90,14 +90,13 @@ def stream_log(uuid: str, elementary: bool):
     click.echo("Waiting for job execution...")
     time.sleep(16)
     run_status = json.loads(get_run_status(uuid))["run_status"]
-    last_timestamp_str = current_time()
 
     i, timeout = 0, 60
     while run_status == "running" and i < timeout:
         time.sleep(1)
         run_status_json = json.loads(get_run_status(uuid))
         run_status = run_status_json["run_status"]
-        last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+        last_log = show_last_logs(uuid)
         i += 1
 
     if run_status == "success":
@@ -106,9 +105,9 @@ def stream_log(uuid: str, elementary: bool):
             timeout = 120
         while "END REPORT" not in last_log and i < timeout:
             time.sleep(1)
-            last_log, last_timestamp_str = show_last_logs(uuid, last_timestamp_str)
+            last_log = show_last_logs(uuid)
             i += 1
-        show_last_logs(uuid, last_timestamp_str)
+        show_last_logs(uuid)
         if i == timeout:
             click.echo(click.style("ERROR", fg="red") + '\t' + "Timeout while waiting for logs")
     else:
