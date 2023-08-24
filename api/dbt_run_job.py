@@ -1,14 +1,18 @@
 import os
-
+import sys
+import msgpack
 import json
-from dbt.cli.main import dbtRunner, dbtRunnerResult
+
+from click.parser import split_arg_string
+from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
 from dbt.events.base_types import EventMsg
 from dbt.events.functions import msg_to_json
 from dbt.contracts.graph.manifest import Manifest
-from fastapi import HTTPException
 from elementary.monitor.cli import report
+from fastapi import HTTPException
 
-from utils import parse_manifest_from_json, get_user_request_log_configuration
+sys.path.insert(1, './lib')
+
 from state import State
 from new_logger import init_logger
 
@@ -29,18 +33,18 @@ def logger_callback(event: EventMsg):
         case "debug":
             logger.debug(msg)
             if user_log_level == "debug":
-                state.run_logs.debug(msg)
+                state.run_logs.log(event.info.level.upper(), msg)
         case "info":
             logger.info(msg)
             if user_log_level in ["debug", "info"]:
-                state.run_logs.info(msg)
+                state.run_logs.log(event.info.level.upper(), msg)
         case "warn":
             logger.warn(msg)
             if user_log_level in ["debug", "info", "warn"]:
-                state.run_logs.warn(msg)
+                state.run_logs.log(event.info.level.upper(), msg)
         case "error":
             logger.error(msg)
-            state.run_logs.error(msg)
+            state.run_logs.log(event.info.level.upper(), msg)
 
 
 def run_deps(manifest_json):
@@ -99,6 +103,18 @@ def handle_exception(res: dbtRunnerResult):
         raise HTTPException(status_code=404, detail="dbt command failed")
 
 
+def parse_manifest_from_json(manifest_json):
+    partial_parse = msgpack.packb(manifest_json)
+    return Manifest.from_msgpack(partial_parse)
+
+
+def get_user_request_log_configuration(user_command: str):
+    command_args_list = split_arg_string(user_command)
+    command_context = cli.make_context(info_name='', args=command_args_list)
+    command_params = command_context.params
+    return {"log_format": command_params['log_format'], "log_level": command_params['log_level']}
+
+
 if __name__ == '__main__':
 
     logger.info("Job started")
@@ -135,9 +151,9 @@ if __name__ == '__main__':
     if elementary == 'True':
         log = "Generating report..."
         logger.info(log)
-        state.run_logs.info(log)
+        state.run_logs.log("INFO", log)
         report()
 
     log = "END JOB"
     logger.info(log)
-    state.run_logs.info(log)
+    state.run_logs.log("INFO", log)

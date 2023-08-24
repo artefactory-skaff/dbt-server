@@ -18,5 +18,5 @@ RUN chown -R newuser /usr/local/lib/python3.10/site-packages/elementary/
 USER newuser
 
 # we run relevant script
-CMD ["/bin/bash", "-c", "if [[ \"$SCRIPT\" == \"job.py\" ]] ; then python3 job.py && python3 elementary_report.py ; else python3 $SCRIPT ; fi"]
+CMD ["/bin/bash", "-c", "if [[ \"$SCRIPT\" == \"dbt_run_job.py\" ]] ; then python3 dbt_run_job.py && python3 elementary_report.py ; else python3 $SCRIPT ; fi"]
 

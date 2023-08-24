@@ -12,24 +12,20 @@ def process_command(command: str) -> str:
         command: '--log-level info --debug run --select my_model my_other_model'
     """
 
-    command_args_list = split_arg_string(command)
+    args_list = split_arg_string(command)
     # ex: ['--log-format', 'text', '--log-level', 'debug', 'run', '--select', 'vbak_dbt']
 
-    command_click_context = args_to_context(command_args_list)
-    sub_command_args = get_sub_command_args_list(command, command_click_context)
-    print("sub_command_args:", sub_command_args)
+    command_args = get_command_args_list(args_list)
 
-    command_args = get_command_args_list(command)
-    print("command args:", command_args)
+    sub_command_click_context = args_to_context(args_list)
+    sub_command_args = get_sub_command_args_list(command, sub_command_click_context)
 
-    sub_command = command_click_context.command
+    sub_command = sub_command_click_context.command
     processed_command = ' '.join(command_args + [sub_command.name] + sub_command_args)
     return processed_command
 
 
-def get_command_args_list(command: str) -> List[str]:
-
-    command_args_list = split_arg_string(command)
+def get_command_args_list(command_args_list: List[str]) -> List[str]:
 
     default_context = cli.make_context(info_name='', args=[''])
     default_args_dict = default_context.params
@@ -45,7 +41,7 @@ def get_command_args_list(command: str) -> List[str]:
 def override_command_args(args: Dict[str, str]) -> Dict[str, str]:
     if args['log_format'] != "json":
         args['log_format'] = 'json'
-    if args['log_level'] not in ["debug", "info"]:
+    if args['log_level'] != "debug":
         args['log_level'] = 'debug'
     if not args['debug']:
         args['debug'] = True
@@ -107,9 +103,9 @@ def get_list_of_differences_between_dict(default_args: Dict[str, Any], new_args:
 def new_value_to_arg_list(key, new_value) -> List[str]:
     """
         Example:
-        - key: 'select', new_value: '(model,)'  -> ['--select', 'my_model']
-        - key: 'profiles_dir', new_value: '.'   -> ['--select', 'my_model']
-        - key: 'debug', value: False            -> ['--no-debug']
+        - key: 'select', value: '(model,)'  -> ['--select', 'my_model']
+        - key: 'profiles_dir', value: '.'   -> ['--profiles_dir', '.']
+        - key: 'debug', value: False        -> ['--no-debug']
     """
     key_flag = '--'+key.replace('_', '-')
     args_to_add = [key_flag]

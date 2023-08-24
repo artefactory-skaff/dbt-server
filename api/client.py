@@ -8,6 +8,8 @@ import time
 from timeit import default_timer as timer
 import sys
 
+sys.path.insert(1, './lib')
+
 dotenv_path = Path('.env.client')
 load_dotenv(dotenv_path=dotenv_path)
 
@@ -73,7 +75,7 @@ def send_command(command):
         elementary_bool = True
 
     data = {
-            "command": processed_command,
+            "user_command": processed_command,
             "manifest": manifest_str,
             "dbt_project": dbt_project_str,
             "packages": packages_str,

@@ -6,7 +6,7 @@ from command_processor import process_command, get_sub_command_args_list, get_co
 from command_processor import new_value_to_arg_list
 
 
-Test_dictionnary = {
+test_dictionnary = {
     "list": {
         "processed_command": "--debug --log-format json list --profiles-dir .",
         "get_command_args_list": ["--debug", "--log-format", "json"],
@@ -43,32 +43,33 @@ Test_dictionnary = {
 
 def test_process_command():
 
-    for key in Test_dictionnary.keys():
+    for key in test_dictionnary.keys():
         computed_val = process_command(key)
-        expected_val = Test_dictionnary[key]["processed_command"]
+        expected_val = test_dictionnary[key]["processed_command"]
         assert computed_val == expected_val
 
 
 def test_get_command_args_list():
 
-    for key in Test_dictionnary.keys():
+    for key in test_dictionnary.keys():
 
         command = key
-        computed_val = get_command_args_list(command)
-        expected_val = Test_dictionnary[key]["get_command_args_list"]
+        command_args_list = split_arg_string(command)
+        computed_val = get_command_args_list(command_args_list)
+        expected_val = test_dictionnary[key]["get_command_args_list"]
         assert computed_val == expected_val
 
 
 def test_get_sub_command_args_list():
 
-    for key in Test_dictionnary.keys():
+    for key in test_dictionnary.keys():
 
         command = key
         command_args_list = split_arg_string(command)
         command_click_context = args_to_context(command_args_list)
         computed_val = get_sub_command_args_list(command, command_click_context)
 
-        expected_val = Test_dictionnary[key]["get_sub_command_args_list"]
+        expected_val = test_dictionnary[key]["get_sub_command_args_list"]
         assert computed_val == expected_val
 
 

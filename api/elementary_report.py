@@ -1,4 +1,7 @@
 import os
+import sys
+
+sys.path.insert(1, './lib')
 
 from state import State
 from new_logger import init_logger
@@ -45,7 +48,7 @@ def upload_elementary_report(state: State):
 
 def Log_info(state: State, log: str):
     logger.info(log)
-    state.run_logs.info(log)
+    state.run_logs.log('INFO', log)
 
 
 if __name__ == '__main__':

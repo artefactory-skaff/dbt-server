@@ -71,7 +71,7 @@ def send_command(command: str, manifest: str, dbt_project: str, packages: str, e
     dbt_project_str = load_file(dbt_project)
 
     data = {
-            "command": command,
+            "user_command": command,
             "manifest": manifest_str,
             "dbt_project": dbt_project_str
         }

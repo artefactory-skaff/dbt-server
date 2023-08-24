@@ -1,8 +1,9 @@
 from pydantic import BaseModel
 
 
-class dbt_command(BaseModel):
-    command: str
+class DbtCommand(BaseModel):
+    user_command: str
+    processed_command: str = ''
     manifest: str
     dbt_project: str
     packages: str = None
