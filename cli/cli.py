@@ -25,7 +25,8 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 @click.option('--extra_packages', default='', help='packages.yml file, by default none')
 @click.option('--set_timer', is_flag=True, help='Set flag to record the job execution duration')
 @click.option('--elementary', is_flag=True, help='Set flag to run elementary report at the end of the job')
-def cli(user_command: str, manifest: str, dbt_project: str, extra_packages: str, set_timer: bool, elementary: bool, args):
+def cli(user_command: str, manifest: str, dbt_project: str,
+        extra_packages: str, set_timer: bool, elementary: bool, args):
     dbt_args = ' '.join(args)
     dbt_command = user_command + ' ' + dbt_args
     click.echo(f'Command: dbt {dbt_command}')

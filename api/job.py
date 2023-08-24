@@ -3,11 +3,12 @@ import os
 import json
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.events.base_types import EventMsg
-from fastapi import HTTPException
+from dbt.events.functions import msg_to_json
 from dbt.contracts.graph.manifest import Manifest
+from fastapi import HTTPException
 from elementary.monitor.cli import report
 
-from utils import parse_manifest_from_json
+from utils import parse_manifest_from_json, get_user_request_log_configuration
 from state import State
 from new_logger import init_logger
 
@@ -16,8 +17,14 @@ logger = init_logger()
 
 def logger_callback(event: EventMsg):
     state = State(os.environ.get("UUID"))
-    msg = event.info.msg.replace('\n', '  ')
-    user_log_level = state.log_level
+
+    user_log_format = get_user_request_log_configuration(state.user_command)['log_format']
+    if user_log_format == "json":
+        msg = msg_to_json(event)
+    else:
+        msg = event.info.msg.replace('\n', '  ')
+
+    user_log_level = get_user_request_log_configuration(state.user_command)['log_level']
     match event.info.level:
         case "debug":
             logger.debug(msg)

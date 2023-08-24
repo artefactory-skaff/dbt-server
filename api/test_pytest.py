@@ -91,4 +91,3 @@ def test_new_value_to_arg_list():
 
     key_val_dict = {"key": "val"}
     assert new_value_to_arg_list('flag', key_val_dict) == ['--flag', "'{" + "key: val}'"]
-
