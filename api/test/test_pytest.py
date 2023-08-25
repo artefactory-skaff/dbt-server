@@ -1,6 +1,9 @@
+import sys
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from typing import Dict
+
+sys.path.insert(1, './lib')
 
 from command_processor import process_command, get_sub_command_args_list, get_command_args_list
 from command_processor import new_value_to_arg_list
@@ -8,18 +11,18 @@ from command_processor import new_value_to_arg_list
 
 test_dictionnary = {
     "list": {
-        "processed_command": "--debug --log-format json list --profiles-dir .",
-        "get_command_args_list": ["--debug", "--log-format", "json"],
+        "processed_command": "--debug --log-format json --log-level debug list --profiles-dir .",
+        "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
         "get_sub_command_args_list": ["--profiles-dir", "."]
     },
     "--debug --log-format json list --profiles-dir .": {
-        "processed_command": "--debug --log-format json list --profiles-dir .",
-        "get_command_args_list": ["--debug", "--log-format", "json"],
+        "processed_command": "--debug --log-format json --log-level debug list --profiles-dir .",
+        "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
         "get_sub_command_args_list": ["--profiles-dir", "."]
     },
     "--no-print --log-format text run --select model": {
-        "processed_command": "--no-print --log-format json --debug run --select model --profiles-dir .",
-        "get_command_args_list": ['--no-print', '--log-format', 'json', '--debug'],
+        "processed_command": "--no-print --log-format json --debug --log-level debug run --select model --profiles-dir .",
+        "get_command_args_list": ['--no-print', '--log-format', 'json', '--debug', "--log-level", "debug"],
         "get_sub_command_args_list": ["--select", "model", "--profiles-dir", "."]
     },
     "--log-level error run --select model1 model2": {
@@ -33,8 +36,8 @@ test_dictionnary = {
         "get_sub_command_args_list": ["--profiles-dir", "."]
     },
     "test --vars '{"+"key1: val1}'": {
-        "processed_command": "--debug --log-format json test --vars '{"+"key1: val1}' --profiles-dir .",
-        "get_command_args_list": ["--debug", "--log-format", "json"],
+        "processed_command": "--debug --log-format json --log-level debug test --vars '{"+"key1: val1}' --profiles-dir .",
+        "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
         "get_sub_command_args_list": ["--vars", "'{"+"key1: val1}'", "--profiles-dir", "."]
     },
 

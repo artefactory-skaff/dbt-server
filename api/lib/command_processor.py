@@ -39,12 +39,9 @@ def get_command_args_list(command_args_list: List[str]) -> List[str]:
 
 
 def override_command_args(args: Dict[str, str]) -> Dict[str, str]:
-    if args['log_format'] != "json":
-        args['log_format'] = 'json'
-    if args['log_level'] != "debug":
-        args['log_level'] = 'debug'
-    if not args['debug']:
-        args['debug'] = True
+    args['log_format'] = 'json'
+    args['log_level'] = 'debug'
+    args['debug'] = True
     return args
 
 
@@ -71,8 +68,7 @@ def get_sub_command_args_list(command: str, command_click_context: Context) -> L
 
 def override_sub_command_args(args: Dict[str, str]) -> Dict[str, str]:
     new_args = args.copy()
-    if args['profiles_dir'] != ".":
-        new_args['profiles_dir'] = "."
+    new_args['profiles_dir'] = "."
     return new_args
 
 

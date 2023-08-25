@@ -150,7 +150,7 @@ def handle_command(command: str):
         if "--elementary" in command:
             time.sleep(30)
             timeout = 120
-        while "END REPORT" not in last_log and k < timeout:
+        while "END JOB" not in last_log and k < timeout:
             time.sleep(1)
             last_log = show_last_logs(uuid)
             k += 1
@@ -171,7 +171,7 @@ def handle_command(command: str):
 def main():
 
     commands = [
-        "list",
+        "--log-level debug list",
         "list --elementary",
         "--log-level info run --select vbak_dbt --elementary",
         "--log-level info run --select vbak_dbt",

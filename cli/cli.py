@@ -104,7 +104,7 @@ def stream_log(uuid: str, elementary: bool):
         i, timeout = 0, 60
         if elementary:  # elementary report takes longer to build
             timeout = 120
-        while "END REPORT" not in last_log and i < timeout:
+        while "END JOB" not in last_log and i < timeout:
             time.sleep(1)
             last_log = show_last_logs(uuid)
             i += 1
