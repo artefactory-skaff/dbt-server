@@ -126,7 +126,13 @@ def handle_command(command: str):
         uuid = json.loads(server_response)["uuid"]
         print("uuid: "+uuid)
     except json.decoder.JSONDecodeError:
+        print("Error from server")
         print(server_response)
+        return 0
+    except KeyError:
+        error = json.loads(server_response)["detail"]
+        print("Error from server")
+        print(error)
         return 0
 
     start_execution_job = timer()

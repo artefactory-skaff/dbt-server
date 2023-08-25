@@ -14,32 +14,6 @@ load_dotenv(dotenv_path=dotenv_path)
 SERVER_URL = os.getenv('SERVER_URL')+"/"
 
 
-def handling_server_errors(starting_time: str):
-    click.echo(click.style("Errors detected in execution. Fetching errors from server...", fg="red"))
-    errors = wait_for_errors(starting_time_str=starting_time, timeout=60)
-    for err in errors:
-        click.echo(err)
-
-
-def wait_for_errors(starting_time_str: str, timeout: int):
-    k = 0
-    errors = []
-    while k < timeout and (errors == [] or errors == ['None']):
-        time.sleep(1)
-        server_res = get_errors(starting_time_str)
-        errors = json.loads(server_res)["logs"]
-        k += 1
-    if k == timeout:
-        click.echo(click.style("Timeout. Check server logs directly on Cloud Logging", fg="red"))
-    return errors
-
-
-def get_errors(starting_time_str: str):
-    url = SERVER_URL + "errors/" + starting_time_str
-    res = requests.get(url=url)
-    return res.text
-
-
 def get_run_status(uuid: str):
     url = SERVER_URL + "job/" + uuid
     res = requests.get(url=url)

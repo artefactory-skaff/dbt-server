@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 import time
 from timeit import default_timer as timer
-from utils import current_time, handling_server_errors, show_last_logs, load_file, get_run_status
+from utils import current_time, show_last_logs, load_file, get_run_status
 
 
 dotenv_path = Path('.env')
@@ -56,12 +56,18 @@ def cli(user_command: str, manifest: str, dbt_project: str,
             click.echo(f"total excution time\t{str(end - start_all)}")
             click.echo(f"dbt job excution time\t{str(end - start_execution_job)}")
 
+    except KeyError:
+        if set_timer:
+            end = timer()
+        error_msg = json.loads(server_res)["detail"]
+        click.echo(click.style("ERROR", fg="red") + '\t' + error_msg)
+        return 0
+
     except json.decoder.JSONDecodeError:
         if set_timer:
             end = timer()
-
-        click.echo(server_res)
-        handling_server_errors(starting_time)
+        click.echo(click.style("ERROR", fg="red") + '\t' + server_res)
+        return 0
 
 
 def send_command(command: str, manifest: str, dbt_project: str, packages: str, elementary: bool):

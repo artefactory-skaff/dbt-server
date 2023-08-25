@@ -17,11 +17,10 @@ elementary:
       type: bigquery
 
       ## Service account auth ##
-      method: service-account
-      keyfile: elementary-sa.json
+      method: oauth
 
       project: stc-dbt-test-9e19
-      dataset: stc_dbt_test_9e19_elementary # elementary dataset, usually [dataset name]_elementary
+      dataset: stc_dbt_test_9e19_elementary
       threads: 4
       location: US
       priority: interactive

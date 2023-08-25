@@ -79,8 +79,10 @@ def generate_elementary_report(state: State) -> ():
 
     report_thread = threading.Thread(target=report, name="Report generator")
     report_thread.start()
-    while report_thread.is_alive():
+    i, timeout = 0, 120
+    while report_thread.is_alive() and i < timeout:
         time.sleep(1)
+        i += 1
 
     log = "Report generated!"
     logger.info(log)

@@ -7,17 +7,12 @@ Make sure that the GCP service account has the following permissions:
 ```roles/storage.admin```
 ```roles/bigquery.dataEditor```
 ```roles/bigquery.jobUser```
+```roles/bigquery.dataViewer```
+```roles/bigquery.metadataViewer```
 ```roles/run.developer```
 ```roles/iam.serviceAccountUser```
 ```roles/logging.logWriter```
 ```roles/logging.viewer```
-
-For Elementary
-```gcloud projects add-iam-policy-binding stc-dbt-test-9e19 --role roles/bigquery.jobUser --member serviceAccount:stc-dbt-elementary-sa@stc-dbt-test-9e19.iam.gserviceaccount.com```
-```gcloud projects add-iam-policy-binding stc-dbt-test-9e19 --role roles/bigquery.dataViewer --member serviceAccount:stc-dbt-elementary-sa@stc-dbt-test-9e19.iam.gserviceaccount.com```
-```gcloud projects add-iam-policy-binding stc-dbt-test-9e19 --role roles/bigquery.metadataViewer --member serviceAccount:stc-dbt-elementary-sa@stc-dbt-test-9e19.iam.gserviceaccount.com```
-
-Add elementary's service account credentials to ```api/``` as ```elementary-sa.json```
 
 Send new Dockerfile image
 ```gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:prod```
