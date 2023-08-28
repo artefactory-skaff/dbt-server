@@ -17,15 +17,16 @@ from fastapi import HTTPException
 sys.path.insert(1, './lib')
 
 from state import State
-from new_logger import init_logger
+from logger import DbtLogger
 from cloud_storage import write_to_bucket
 
-logger = init_logger()
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 DBT_COMMAND = os.environ.get("DBT_COMMAND")
 UUID = os.environ.get("UUID")
 ELEMENTARY = os.environ.get("ELEMENTARY")
+DBT_LOGGER = DbtLogger(local=False, server=False)
+DBT_LOGGER.uuid = UUID
 
 
 def prepare_and_execute_job(state: State) -> ():
@@ -41,8 +42,7 @@ def prepare_and_execute_job(state: State) -> ():
         upload_elementary_report(state)
 
     log = "END JOB"
-    logger.info(log)
-    state.run_logs.log("INFO", log)
+    DBT_LOGGER.log("INFO", log)
 
 
 def install_dependencies(state: State, manifest: Manifest) -> ():
@@ -74,8 +74,7 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
 
 def generate_elementary_report(state: State) -> ():
     log = "Generating elementary report..."
-    logger.info(log)
-    state.run_logs.log("INFO", log)
+    DBT_LOGGER.log("INFO", log)
 
     report_thread = threading.Thread(target=report, name="Report generator")
     report_thread.start()
@@ -85,14 +84,12 @@ def generate_elementary_report(state: State) -> ():
         i += 1
 
     log = "Report generated!"
-    logger.info(log)
-    state.run_logs.log("INFO", log)
+    DBT_LOGGER.log("INFO", log)
 
 
 def upload_elementary_report(state: State) -> ():
     log = "Uploading report..."
-    logger.info(log)
-    state.run_logs.log("INFO", log)
+    DBT_LOGGER.log("INFO", log)
 
     cloud_storage_folder = state.storage_folder
 
@@ -114,20 +111,25 @@ def logger_callback(event: EventMsg):
     user_log_level = log_configuration['log_level']
     match event.info.level:
         case "debug":
-            logger.debug(msg)
             if user_log_level == "debug":
-                state.run_logs.log(event.info.level.upper(), msg)
+                DBT_LOGGER.log(event.info.level.upper(), msg)
+            else:
+                DBT_LOGGER.logger.debug(msg)
+
         case "info":
-            logger.info(msg)
             if user_log_level in ["debug", "info"]:
-                state.run_logs.log(event.info.level.upper(), msg)
+                DBT_LOGGER.log(event.info.level.upper(), msg)
+            else:
+                DBT_LOGGER.logger.info(msg)
+
         case "warn":
-            logger.warn(msg)
             if user_log_level in ["debug", "info", "warn"]:
-                state.run_logs.log(event.info.level.upper(), msg)
+                DBT_LOGGER.log(event.info.level.upper(), msg)
+            else:
+                DBT_LOGGER.logger.warn(msg)
+
         case "error":
-            logger.error(msg)
-            state.run_logs.log(event.info.level.upper(), msg)
+            DBT_LOGGER.log(event.info.level.upper(), msg)
 
 
 LogConfiguration = TypedDict('LogConfiguration', {'log_format': str, 'log_level': str})
@@ -141,7 +143,7 @@ def get_user_request_log_configuration(user_command: str) -> LogConfiguration:
 
 
 def handle_exception(dbt_exception: BaseException | None):
-    logger.error({"error": dbt_exception})
+    DBT_LOGGER.logger.error({"error": dbt_exception})
     if dbt_exception is not None:
         raise HTTPException(status_code=400, detail=dbt_exception)
     else:
@@ -158,6 +160,6 @@ def get_manifest() -> Manifest:
 
 if __name__ == '__main__':
 
-    logger.info("Job started")
+    DBT_LOGGER.log("INFO", "Job started")
     state = State(UUID)
     prepare_and_execute_job(state)
