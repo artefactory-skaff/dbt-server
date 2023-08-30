@@ -17,6 +17,7 @@ from logger import DbtLogger
 
 
 BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
+PORT = os.environ.get("PORT", "8001")
 
 if len(sys.argv) == 2 and sys.argv[1] == "--local":  # run locally:
     LOCAL = True
@@ -133,6 +134,12 @@ def get_report(uuid: str):
     google_console_url = 'https://console.cloud.google.com/storage/browser/_details'
     url = f'{google_console_url}/{BUCKET_NAME}/{cloud_storage_folder}/elementary_report.html'
     return {"url": url}
+
+
+@app.get("/check", status_code=status.HTTP_200_OK)
+def check():
+    print(int(os.environ.get("PORT", 8001)))
+    return {"response": "Running dbt-server on port "+PORT}
 
 
 if __name__ == "__main__":

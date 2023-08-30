@@ -6,7 +6,9 @@ import time
 from datetime import datetime, timezone
 import traceback
 from typing import Dict, List
+import json
 
+from google.cloud import run_v2
 import click
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
@@ -18,8 +20,6 @@ from classes import DbtResponse, DbtResponseRunStatus, DbtResponseLogs
 dotenv_path = Path('.env')
 load_dotenv(dotenv_path=dotenv_path)
 
-SERVER_URL = os.getenv('SERVER_URL')+"/"
-
 
 @click.command(context_settings=dict(ignore_unknown_options=True,),
                help="Enter dbt command, ex: dbt-remote run --select test")
@@ -30,11 +30,65 @@ SERVER_URL = os.getenv('SERVER_URL')+"/"
 @click.option('--dbt-project', default='./dbt_project.yml', help='dbt_project file, by default: ./dbt_project.yml')
 @click.option('--extra-packages', help='packages.yml file, by default none')
 @click.option('--seeds-path', default='./seeds/', help='Path to seeds directory. By default: seeds/')
+@click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
+              for a dbt server in GCP project\'s Cloud Run')
 @click.option('--elementary', is_flag=True, help='Set flag to run elementary report at the end of the job')
 def cli(user_command: str, manifest: str | None, dbt_project: str, extra_packages: str | None, seeds_path: str,
-        elementary: bool, args):
+        server_url: str | None, elementary: bool, args):
+
+    global SERVER_URL
+    if server_url is None:
+        SERVER_URL = get_dbt_server_uri() + "/"
+        if SERVER_URL is None:
+            click.echo(click.style("ERROR", fg="red") + '\t' + 'No dbt server found in Cloud Run')
+            return
+    else:
+        SERVER_URL = server_url + "/"
+    click.echo('dbt server url: '+SERVER_URL)
 
     dbt_cli_command(user_command, manifest, dbt_project, extra_packages, seeds_path, elementary, args)
+
+
+def get_dbt_server_uri() -> str | None:
+    cloud_run_services = cloud_run_service_list()
+
+    for service in cloud_run_services:
+        if check_if_server_is_dbt_server(service):
+            click.echo('Using Cloud Run `' + service.name + '` as dbt server')
+            click.echo('uri: ' + service.uri)
+            return service.uri
+
+    return
+
+
+def cloud_run_service_list() -> List[run_v2.types.service.Service]:
+
+    client = run_v2.ServicesClient()
+
+    project, location = "stc-dbt-test-9e19", "us-central1"
+    parent_value = f"projects/{project}/locations/{location}"
+    request = run_v2.ListServicesRequest(
+        parent=parent_value,
+    )
+
+    service_list = client.list_services(request=request)
+    return service_list
+
+
+def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool:
+    url = service.uri + '/check'
+    res = requests.get(url)
+    if res.status_code == 200:
+        try:
+            check = json.loads(res.text)['response']
+            if 'Running dbt-server on port' in check:
+                return True
+            else:
+                return False
+        except Exception:
+            return False
+    else:
+        return False
 
 
 def dbt_cli_command(user_command: str, manifest: str | None, dbt_project: str, extra_packages: str | None,
