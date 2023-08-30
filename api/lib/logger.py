@@ -1,7 +1,7 @@
 import logging
+from logging import Logger
 # https://stackoverflow.com/questions/2183233/how-to-add-a-custom-loglevel-to-pythons-logging-facility/35804945#35804945
 import google.cloud.logging
-from google.cloud.logging import Logger
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
@@ -25,17 +25,10 @@ class DbtLogger:
         self.state = State(self._uuid)
 
     def log(self, severity: str, new_log: str):
-        match (severity.upper()):
-            case "DEBUG":
-                self.logger.debug(new_log)
-            case "INFO":
-                self.logger.info(new_log)
-            case "WARN":
-                self.logger.warn(new_log)
-            case "ERROR":
-                self.logger.error(new_log)
+        log_level = get_log_level(severity)
+        self.logger.log(msg=new_log, level=log_level)
         if hasattr(self, "state"):
-            self.state.run_logs.log(severity.upper(), new_log)
+            self.state.log(severity.upper(), new_log)
 
 
 def init_logger(local: bool, server: bool) -> Logger:
@@ -91,6 +84,24 @@ def job_cloud_handler():
     handler = CloudLoggingHandler(client, resource=cr_job_resource, labels=labels)
 
     return handler
+
+
+def get_log_level(severity: str):
+    level_dict = {
+        "DEFAULT": 0,
+        "DEBUG": 10,
+        "INFO": 20,
+        "NOTICE": 20,
+        "WARN": 30,
+        "ERROR": 40,
+        "CRITICAL": 50,
+        "ALERT": 50,
+        "EMERGENCY": 50,
+    }
+    if severity.upper() in level_dict.keys():
+        return level_dict[severity.upper()]
+    else:
+        raise Exception(f"Unknown severity: {severity}")
 
 
 def _addGcloudLoggingLevel():

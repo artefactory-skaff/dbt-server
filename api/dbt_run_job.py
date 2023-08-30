@@ -11,8 +11,10 @@ from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
 from dbt.events.base_types import EventMsg
 from dbt.events.functions import msg_to_json
 from dbt.contracts.graph.manifest import Manifest
+from dbt.contracts.graph.nodes import SeedNode
 from elementary.monitor.cli import report
 from fastapi import HTTPException
+from taskqueue import queueable
 
 sys.path.insert(1, './lib')
 
@@ -28,17 +30,21 @@ ELEMENTARY = os.environ.get("ELEMENTARY")
 DBT_LOGGER = DbtLogger(local=False, server=False)
 DBT_LOGGER.uuid = UUID
 
+STATE = State(UUID)
+
 
 def prepare_and_execute_job(state: State) -> ():
+
     state.get_context_to_local()
 
     manifest = get_manifest()
+    manifest = override_manifest_with_correct_seed_path(manifest)
     install_dependencies(state, manifest)
 
     run_dbt_command(state, manifest, DBT_COMMAND)
 
     if ELEMENTARY == 'True':
-        generate_elementary_report(state)
+        generate_elementary_report()
         upload_elementary_report(state)
 
     log = "END JOB"
@@ -62,7 +68,7 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
     manifest.build_flat_graph()
     dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback])
 
-    args_list = dbt_command.split(' ')
+    args_list = split_arg_string(dbt_command)
     res_dbt: dbtRunnerResult = dbt.invoke(args_list)
 
     if res_dbt.success:
@@ -72,7 +78,7 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
         handle_exception(res_dbt.exception)
 
 
-def generate_elementary_report(state: State) -> ():
+def generate_elementary_report() -> ():
     log = "Generating elementary report..."
     DBT_LOGGER.log("INFO", log)
 
@@ -98,13 +104,14 @@ def upload_elementary_report(state: State) -> ():
     write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/elementary_report.html", elementary_report)
 
 
+@queueable
 def logger_callback(event: EventMsg):
-    state = State(UUID)
+    state = STATE
     log_configuration = get_user_request_log_configuration(state.user_command)
 
     user_log_format = log_configuration['log_format']
     if user_log_format == "json":
-        msg = msg_to_json(event)
+        msg = msg_to_json(event).replace('\n', '  ')
     else:
         msg = event.info.msg.replace('\n', '  ')
 
@@ -158,8 +165,17 @@ def get_manifest() -> Manifest:
     return manifest
 
 
+def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
+    nodes_list = manifest.nodes.keys()
+    for node_name in nodes_list:
+        node = manifest.nodes[node_name]
+        if isinstance(node, SeedNode):
+            node.root_path = '.'
+    return manifest
+
+
 if __name__ == '__main__':
 
     DBT_LOGGER.log("INFO", "Job started")
-    state = State(UUID)
+    state = STATE
     prepare_and_execute_job(state)

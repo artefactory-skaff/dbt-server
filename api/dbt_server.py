@@ -75,7 +75,7 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
     job_parent = "projects/"+PROJECT_ID+"/locations/"+LOCATION
 
     job = run_v2.Job()
-    job.template.template.max_retries = 1
+    job.template.template.max_retries = 0
     job.template.template.containers = [task_container]
     job.template.template.service_account = SERVICE_ACCOUNT
 
@@ -123,7 +123,7 @@ def get_last_logs(uuid: str):
     return {"run_logs": logs}
 
 
-@app.get("/report/{uuid}", status_code=status.HTTP_200_OK)
+@app.get("/job/{uuid}/report", status_code=status.HTTP_200_OK)
 def get_report(uuid: str):
     state = State(uuid)
     cloud_storage_folder = state.storage_folder

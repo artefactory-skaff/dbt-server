@@ -17,6 +17,7 @@ RUN chown -R newuser /home/newuser/
 RUN chown -R newuser /usr/local/lib/python3.10/site-packages/elementary/ 
 USER newuser
 
+RUN mkdir seeds
 # we run relevant script
 CMD ["/bin/bash", "-c", "if [[ \"$SCRIPT\" == \"dbt_run_job.py\" ]] ; then python3 dbt_run_job.py ; else python3 $SCRIPT ; fi"]
 

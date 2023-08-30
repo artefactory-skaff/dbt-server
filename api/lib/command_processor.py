@@ -2,10 +2,10 @@ from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import cli
 from click.core import Command, Context
-from click.exceptions import UsageError
 from fastapi import HTTPException
 
 from typing import List, Dict, Any
+import traceback
 
 
 def process_command(command: str) -> str:
@@ -65,8 +65,9 @@ def get_sub_command_click_context(args_list: List[str]) -> Context:
     try:
         sub_command_click_context = args_to_context(args_list)
         return sub_command_click_context
-    except UsageError as err:
-        raise HTTPException(status_code=404, detail="dbt command failed: " + err.message)
+    except Exception:
+        traceback_str = traceback.format_exc()
+        raise HTTPException(status_code=400, detail="dbt command failed: " + traceback_str)
 
 
 def get_sub_command_args_list(args_list: List[str], command_click_context: Context) -> List[str]:
@@ -85,6 +86,7 @@ def get_sub_command_args_list(args_list: List[str], command_click_context: Conte
 
 def override_sub_command_params(args: Dict[str, Any]) -> Dict[str, Any]:
     args['profiles_dir'] = "."
+    args['project_dir'] = "."
     return args
 
 
@@ -154,6 +156,14 @@ def get_arg_list_from_param(param, value) -> List[str]:
         case dict():
             dict_value_str = "'"+str(value).replace("'", '')+"'"  # '{key1: val1}'
             return [key_arg, dict_value_str]
+
+        case int():
+            return [key_arg, str(value)]
+
+        case str():
+            if key_arg == '--macro':
+                return [value]
+            return [key_arg, value]
 
         case _:
             return [key_arg, value]

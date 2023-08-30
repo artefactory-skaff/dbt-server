@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Dict
 
 
 class DbtCommand(BaseModel):
@@ -6,5 +7,6 @@ class DbtCommand(BaseModel):
     processed_command: str = ''
     manifest: str
     dbt_project: str
+    seeds: Dict[str, str] = None
     packages: str = None
     elementary: bool = False

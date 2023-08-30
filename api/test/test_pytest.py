@@ -40,6 +40,11 @@ test_dictionnary = {
         "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
         "get_sub_command_args_list": ["--vars", "'{key1: val1}'", "--profiles-dir", "."]
     },
+    "run-operation item_count --args '{vbeln_value: value}'": {
+        "processed_command": "--debug --log-format json --log-level debug run-operation --args '{vbeln_value: value}' item_count --profiles-dir .",
+        "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
+        "get_sub_command_args_list": ["--args", "'{vbeln_value: value}'", "item_count", "--profiles-dir", "."]
+    }
 
 }
 

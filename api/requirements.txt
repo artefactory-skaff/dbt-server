@@ -12,4 +12,5 @@ msgpack==1.0.5
 python-dotenv==1.0.0
 pydantic<2.0
 pydantic_core
+task-queue==2.12.1
 uvicorn==0.23.1

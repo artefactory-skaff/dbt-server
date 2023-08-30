@@ -112,7 +112,7 @@ def show_last_logs(uuid: str):
 
 
 def get_report(uuid: str):
-    url = SERVER_URL + "report/" + uuid
+    url = SERVER_URL + "job/" + uuid + "/report"
     res = requests.get(url=url)
     return res.text
 
@@ -177,10 +177,12 @@ def handle_command(command: str):
 def main():
 
     commands = [
-        "--log-level debug list",
+        "list run",
+        "--log-level info list",
         "list --elementary",
         "--log-level info run --select vbak_dbt --elementary",
         "--log-level info run --select vbak_dbt",
+        "--log-level info run --select failing_model",
         "--debug list --manifest ../test-files/manifest.json"
     ]
 
