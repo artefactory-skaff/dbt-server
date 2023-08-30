@@ -35,9 +35,18 @@ def process_command(command: str) -> str:
     sub_command_click_context = get_sub_command_click_context(args_list)
     sub_command_args = get_sub_command_args_list(args_list, sub_command_click_context)
 
-    sub_command = sub_command_click_context.command
-    processed_command = ' '.join(command_args + [sub_command.name] + sub_command_args)
+    sub_command_name = get_sub_command_name(sub_command_click_context)
+    processed_command = ' '.join(command_args + [sub_command_name] + sub_command_args)
     return processed_command
+
+
+def get_sub_command_name(sub_command_click_context: Context) -> str:
+    sub_command_name = sub_command_click_context.command.name
+
+    if sub_command_name == "freshness":
+        sub_command_name = "source freshness"
+
+    return sub_command_name
 
 
 def get_command_args_list(command_args_list: List[str]) -> List[str]:
@@ -58,6 +67,7 @@ def override_command_params(params: Dict[str, str]) -> Dict[str, str]:
     params['log_format'] = 'json'
     params['log_level'] = 'debug'
     params['debug'] = True
+    params['quiet'] = False
     return params
 
 

@@ -1,12 +1,11 @@
 import requests
 import os
-from dotenv import load_dotenv
-from pathlib import Path
 import time
 from datetime import datetime, timezone
 import traceback
 from typing import Dict, List
 import json
+import yaml
 
 from google.cloud import run_v2
 import click
@@ -17,39 +16,54 @@ from dbt.cli.main import dbtRunner
 from classes import DbtResponse, DbtResponseRunStatus, DbtResponseLogs
 
 
-dotenv_path = Path('.env')
-load_dotenv(dotenv_path=dotenv_path)
-
-
 @click.command(context_settings=dict(ignore_unknown_options=True,),
                help="Enter dbt command, ex: dbt-remote run --select test")
 @click.argument('user_command')
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), \
               by default: none and the cli compiles one from current dbt project')
-@click.option('--dbt-project', default='./dbt_project.yml', help='dbt_project file, by default: ./dbt_project.yml')
+@click.option('--project-dir', default='.', help='Which directory to look in for the dbt_project.yml file. Default \
+              is the current directory.')
+@click.option('--dbt-project', default='dbt_project.yml', help='dbt_project file, by default: dbt_project.yml')
 @click.option('--extra-packages', help='packages.yml file, by default none')
 @click.option('--seeds-path', default='./seeds/', help='Path to seeds directory. By default: seeds/')
 @click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
               for a dbt server in GCP project\'s Cloud Run')
 @click.option('--elementary', is_flag=True, help='Set flag to run elementary report at the end of the job')
-def cli(user_command: str, manifest: str | None, dbt_project: str, extra_packages: str | None, seeds_path: str,
-        server_url: str | None, elementary: bool, args):
+def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: str, extra_packages: str | None,
+        seeds_path: str, server_url: str | None, elementary: bool, args):
+
+    args = ["\'"+arg+"\'" for arg in args]  # needed to handle case suche as --args '{key: value}'
+    dbt_command = user_command + ' ' + ' '.join(args)
+    click.echo(f'Command: dbt {dbt_command}')
 
     global SERVER_URL
     if server_url is None:
-        SERVER_URL = get_dbt_server_uri() + "/"
-        if SERVER_URL is None:
+        click.echo("Looking for dbt server available on Cloud Run...")
+        detected_server_url = get_dbt_server_uri(project_dir, dbt_project, dbt_command)
+        if detected_server_url is None:
             click.echo(click.style("ERROR", fg="red") + '\t' + 'No dbt server found in Cloud Run')
             return
+        else:
+            SERVER_URL = detected_server_url + "/"
     else:
         SERVER_URL = server_url + "/"
     click.echo('dbt server url: '+SERVER_URL)
 
-    dbt_cli_command(user_command, manifest, dbt_project, extra_packages, seeds_path, elementary, args)
+    dbt_cli_command(dbt_command, project_dir, manifest, dbt_project, extra_packages, seeds_path, elementary)
 
 
-def get_dbt_server_uri() -> str | None:
+def get_dbt_server_uri(project_dir: str, dbt_project: str, command: str) -> str | None:
+
+    target, profile = get_selected_target_and_profile(command)
+    project_metadata = get_projectid_and_location_from_profiles(project_dir, dbt_project, target, profile)
+    if project_metadata is not None:
+        global PROJECT_ID
+        global LOCATION
+        PROJECT_ID, LOCATION = project_metadata
+    else:
+        return
+
     cloud_run_services = cloud_run_service_list()
 
     for service in cloud_run_services:
@@ -61,12 +75,55 @@ def get_dbt_server_uri() -> str | None:
     return
 
 
+def get_projectid_and_location_from_profiles(project_dir: str, dbt_project: str, selected_target: str | None,
+                                             selected_profile: str | None) -> (tuple[str, str] | None):
+
+    if selected_profile is None:
+        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
+
+    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
+
+    if selected_profile in profiles_dict.keys():
+
+        if selected_target is None:
+            selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
+
+        profile_config = profiles_dict[selected_profile]['outputs']
+        if selected_target in profile_config.keys():
+            location = profile_config[selected_target]['location']
+            project_id = profile_config[selected_target]['project']
+            return project_id, location
+        else:
+            click.echo(click.style("ERROR", fg="red")+'\tTarget: "'+selected_target+'" \
+                       not found for profile '+selected_profile)
+    else:
+        click.echo(click.style("ERROR", fg="red") + '\tProfile: ' + selected_profile + ' not found in profiles.yml')
+    return
+
+
+def get_selected_target_and_profile(command: str) -> (str | None, str | None):
+
+    args_list = split_arg_string(command)
+    sub_command_click_context = args_to_context(args_list)
+    target = sub_command_click_context.params['target']
+    profile = sub_command_click_context.params['profile']
+    return target, profile
+
+
+def deduce_target_from_profiles(selected_profile_dict):
+    if 'target' in selected_profile_dict.keys():
+        return selected_profile_dict['target']
+    elif 'default' in selected_profile_dict['outputs'].keys():
+        return 'default'
+    else:
+        return selected_profile_dict['outputs'].keys()[0]
+
+
 def cloud_run_service_list() -> List[run_v2.types.service.Service]:
 
     client = run_v2.ServicesClient()
 
-    project, location = "stc-dbt-test-9e19", "us-central1"
-    parent_value = f"projects/{project}/locations/{location}"
+    parent_value = f"projects/{PROJECT_ID}/locations/{LOCATION}"
     request = run_v2.ListServicesRequest(
         parent=parent_value,
     )
@@ -91,20 +148,16 @@ def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool
         return False
 
 
-def dbt_cli_command(user_command: str, manifest: str | None, dbt_project: str, extra_packages: str | None,
-                    seeds_path: str, elementary: bool, args):
-
-    args = ["\'"+arg+"\'" for arg in args]  # needed to handle case suche as --args '{key: value}'
-
-    dbt_command = user_command + ' ' + ' '.join(args)
-    click.echo(f'Command: dbt {dbt_command}')
+def dbt_cli_command(dbt_command: str, project_dir: str, manifest: str | None, dbt_project: str,
+                    extra_packages: str | None, seeds_path: str, elementary: bool):
 
     if manifest is None:
-        compile_manifest()
+        compile_manifest(project_dir)
         manifest = "./target/manifest.json"
 
     click.echo('Sending request to server. Waiting for job creation...')
-    server_response = send_command(dbt_command, manifest, dbt_project, extra_packages, seeds_path, elementary)
+    server_response = send_command(dbt_command, project_dir, manifest, dbt_project, extra_packages,
+                                   seeds_path, elementary)
     results = parse_server_response(server_response)
 
     if results is None:
@@ -124,17 +177,17 @@ def dbt_cli_command(user_command: str, manifest: str | None, dbt_project: str, e
         stream_logs(uuid)
 
 
-def compile_manifest():
+def compile_manifest(project_dir: str):
     click.echo("Generating manifest.json")
-    dbtRunner().invoke(["parse"])
+    dbtRunner().invoke(["parse", "--project-dir", project_dir])
 
 
-def send_command(command: str, manifest: str, dbt_project: str, packages: str | None, seeds_path: str,
+def send_command(command: str, project_dir: str, manifest: str, dbt_project: str, packages: str | None, seeds_path: str,
                  elementary: bool) -> requests.Response:
     url = SERVER_URL + "dbt"
 
-    manifest_str = read_file(manifest)
-    dbt_project_str = read_file(dbt_project)
+    manifest_str = read_file(project_dir + '/' + manifest)
+    dbt_project_str = read_file(project_dir + '/' + dbt_project)
 
     data = {
             "user_command": command,
@@ -143,11 +196,11 @@ def send_command(command: str, manifest: str, dbt_project: str, packages: str | 
         }
 
     if 'seed' in command.split(' '):
-        seeds_dict = get_seeds(seeds_path, command)
+        seeds_dict = get_seeds(project_dir + "/" + seeds_path, command)
         data["seeds"] = seeds_dict
 
     if packages is not None:
-        packages_str = read_file(packages)
+        packages_str = read_file(project_dir + "/" + packages)
         data["packages"] = packages_str
 
     if elementary:
@@ -208,13 +261,12 @@ def stream_logs(uuid: str):
     while run_status == "running":
         time.sleep(1)
         run_status = get_run_status(uuid).run_status
-        last_log = show_last_logs(uuid)
+        stop = show_last_logs(uuid)
 
     if run_status == "success":
-        while "END JOB" not in last_log:
+        while not stop:
             time.sleep(1)
-            last_log = show_last_logs(uuid)
-        show_last_logs(uuid)
+            stop = show_last_logs(uuid)
     else:
         click.echo(click.style("ERROR", fg="red") + '\t' + "Job failed")
 
@@ -237,16 +289,15 @@ def get_last_logs(uuid: str) -> DbtResponseLogs:
     return results
 
 
-def show_last_logs(uuid: str) -> str:
+def show_last_logs(uuid: str) -> bool:
 
     logs = get_last_logs(uuid).run_logs
 
     for log in logs:
         show_log(log)
-    if len(logs) > 0:
-        return logs[-1]
-    else:
-        return ""
+        if "END JOB" in log:
+            return True
+    return False
 
 
 def show_log(log: str) -> ():
@@ -307,6 +358,16 @@ def read_file(filename) -> str:
     with open(filename, 'r') as f:
         file_str = f.read()
     return file_str
+
+
+def read_yml_file(filename: str) -> Dict[str, str]:
+    with open(filename, 'r') as stream:
+        try:
+            d = yaml.safe_load(stream)
+            return d
+        except yaml.YAMLError as e:
+            click.echo(click.style("ERROR", fg="red") + '\t' + "Incorrect profiles YAML file")
+            click.echo(e)
 
 
 def get_files_from_dir(dir_path) -> List[str]:

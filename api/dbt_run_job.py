@@ -146,7 +146,10 @@ def get_user_request_log_configuration(user_command: str) -> LogConfiguration:
     command_args_list = split_arg_string(user_command)
     command_context = cli.make_context(info_name='', args=command_args_list)
     command_params = command_context.params
-    return {"log_format": command_params['log_format'], "log_level": command_params['log_level']}
+    log_format, log_level = command_params['log_format'], command_params['log_level']
+    if command_params["quiet"]:
+        log_level = 'error'
+    return {"log_format": log_format, "log_level": log_level}
 
 
 def handle_exception(dbt_exception: BaseException | None):
