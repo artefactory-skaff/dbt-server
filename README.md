@@ -43,24 +43,3 @@ In ```api``` directory:
 ```poetry run python3 dbt_server.py --local```
 
 ```poetry run python3 client.py --local```
-
-## Use dbt-remote cli
-
-In ```cli``` directory, execute:
-```poetry run python3 -m pip install --editable .```
-
-Make sure you are in a dbt project (```dbt_project.yml``` should be in your current directory and ```manifest.json``` should be in ```./target```)
-Then run commands like ```poetry run dbt-remote run --select vbak_dbt```.
-
-Otherwise, you can specify both files' path: ```poetry run dbt-remote run --manifest ../test-files/manifest.json --select vbak_dbt --dbt_project ../test-files/dbt_project.yml```.
-
-You can precise the level of log you wish to see from the dbt execution. Ex: 
-```poetry run dbt-remote --log-level warn run --select vbak```
-
-Other examples:
-
-- run --select: ```poetry run dbt-remote --log-level info run --manifest ../test-files/elementary/manifest.json --select vbak_dbt --dbt_project ../test-files/elementary/dbt_project.yml --packages ../test-files/elementary/packages.yml --elementary --set_timer```
-
-without elementary: ```poetry run dbt-remote --log-level info run --manifest ../test-files/manifest.json --select vbak_dbt --dbt_project ../test-files/dbt_project.yml --set_timer```
-
-- list: ```poetry run dbt-remote --log-level debug list --manifest ../test-files/elementary/manifest.json --dbt_project ../test-files/elementary/dbt_project.yml --packages ../test-files/elementary/packages.yml --elementary --set_timer```

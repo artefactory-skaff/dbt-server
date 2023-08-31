@@ -14,23 +14,16 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import SeedNode
 from elementary.monitor.cli import report
 from fastapi import HTTPException
-from taskqueue import queueable
 
 sys.path.insert(1, './lib')
 
 from state import State
-from logger import DbtLogger
 from cloud_storage import write_to_bucket
+from set_environment import set_env_vars_job
 
+callback_lock = threading.Lock()
 
-BUCKET_NAME = os.getenv('BUCKET_NAME')
-DBT_COMMAND = os.environ.get("DBT_COMMAND")
-UUID = os.environ.get("UUID")
-ELEMENTARY = os.environ.get("ELEMENTARY")
-DBT_LOGGER = DbtLogger(local=False, server=False)
-DBT_LOGGER.uuid = UUID
-
-STATE = State(UUID)
+BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job()
 
 
 def prepare_and_execute_job(state: State) -> ():
@@ -75,6 +68,8 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
         state.run_status = "success"
     else:
         state.run_status = "failed"
+        log = "END JOB"
+        DBT_LOGGER.log("INFO", log)
         handle_exception(res_dbt.exception)
 
 
@@ -104,7 +99,6 @@ def upload_elementary_report(state: State) -> ():
     write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/elementary_report.html", elementary_report)
 
 
-@queueable
 def logger_callback(event: EventMsg):
     state = STATE
     log_configuration = get_user_request_log_configuration(state.user_command)
@@ -119,24 +113,28 @@ def logger_callback(event: EventMsg):
     match event.info.level:
         case "debug":
             if user_log_level == "debug":
-                DBT_LOGGER.log(event.info.level.upper(), msg)
+                with callback_lock:
+                    DBT_LOGGER.log(event.info.level.upper(), msg)
             else:
                 DBT_LOGGER.logger.debug(msg)
 
         case "info":
             if user_log_level in ["debug", "info"]:
-                DBT_LOGGER.log(event.info.level.upper(), msg)
+                with callback_lock:
+                    DBT_LOGGER.log(event.info.level.upper(), msg)
             else:
                 DBT_LOGGER.logger.info(msg)
 
         case "warn":
             if user_log_level in ["debug", "info", "warn"]:
-                DBT_LOGGER.log(event.info.level.upper(), msg)
+                with callback_lock:
+                    DBT_LOGGER.log(event.info.level.upper(), msg)
             else:
                 DBT_LOGGER.logger.warn(msg)
 
         case "error":
-            DBT_LOGGER.log(event.info.level.upper(), msg)
+            with callback_lock:
+                DBT_LOGGER.log(event.info.level.upper(), msg)
 
 
 LogConfiguration = TypedDict('LogConfiguration', {'log_format': str, 'log_level': str})
