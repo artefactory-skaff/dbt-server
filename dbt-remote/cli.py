@@ -3,17 +3,32 @@ import os
 import time
 from datetime import datetime, timezone
 import traceback
-from typing import Dict, List
+from typing import Dict, List, Optional
 import json
 import yaml
+from pydantic import BaseModel
 
-from google.cloud import run_v2
 import click
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner
+from google.cloud import run_v2
 
-from classes import DbtResponse, DbtResponseRunStatus, DbtResponseLogs
+
+class DbtResponse(BaseModel):
+    status_code: Optional[str] = None
+    uuid: Optional[str] = None
+    detail: Optional[str] = None
+
+
+class DbtResponseRunStatus(BaseModel):
+    status_code: Optional[str] = None
+    run_status: Optional[str] = None
+
+
+class DbtResponseLogs(BaseModel):
+    status_code: Optional[str] = None
+    run_logs: Optional[List[str]] = None
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True,),
@@ -46,112 +61,6 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
     click.echo('dbt-server url: '+SERVER_URL)
 
     dbt_cli_command(dbt_command, project_dir, manifest, dbt_project, extra_packages, seeds_path, elementary)
-
-
-def get_dbt_server_uri(project_dir: str, dbt_project: str, command: str) -> str:
-
-    selected_target, selected_profile = get_selected_target_and_profile(command)
-
-    project_id, location = get_projectid_and_location_from_profiles(project_dir, dbt_project,
-                                                                    selected_target, selected_profile)
-
-    cloud_run_services = get_cloud_run_service_list(project_id, location)
-    for service in cloud_run_services:
-        if check_if_server_is_dbt_server(service):
-            click.echo('Using Cloud Run `' + service.name + '` as dbt server')
-            click.echo('uri: ' + service.uri)
-            return service.uri
-
-    click.echo(click.style("ERROR", fg="red"))
-    raise click.ClickException('No dbt server found in Cloud Run')
-
-
-def get_selected_target_and_profile(command: str) -> (str | None, str | None):
-    try:
-        args_list = split_arg_string(command)
-        sub_command_click_context = args_to_context(args_list)
-        target = sub_command_click_context.params['target']
-        profile = sub_command_click_context.params['profile']
-        return target, profile
-    except Exception:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException("dbt command failed: " + command)
-
-
-def get_projectid_and_location_from_profiles(project_dir: str, dbt_project: str, selected_target: str | None,
-                                             selected_profile: str | None) -> tuple[str, str]:
-
-    if selected_profile is None:
-        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
-
-    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
-
-    if selected_profile in profiles_dict.keys():
-
-        if selected_target is None:
-            selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
-
-        profile_config = profiles_dict[selected_profile]['outputs']
-        if selected_target in profile_config.keys():
-
-            if 'location' not in profile_config[selected_target].keys():
-                click.echo(click.style("ERROR", fg="red"))
-                raise click.ClickException('Location not found for profile '+selected_profile+' and \
-                                           target '+selected_target)
-            location = profile_config[selected_target]['location']
-
-            if 'project' not in profile_config[selected_target].keys():
-                click.echo(click.style("ERROR", fg="red"))
-                raise click.ClickException('Project Id not found for profile '+selected_profile+' and \
-                                           target '+selected_target)
-            project_id = profile_config[selected_target]['project']
-
-            return project_id, location
-
-        else:
-            click.echo(click.style("ERROR", fg="red"))
-            raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
-    else:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
-
-
-def deduce_target_from_profiles(selected_profile_dict):
-    if 'target' in selected_profile_dict.keys():
-        return selected_profile_dict['target']
-    elif 'default' in selected_profile_dict['outputs'].keys():
-        return 'default'
-    else:
-        return selected_profile_dict['outputs'].keys()[0]
-
-
-def get_cloud_run_service_list(project_id: str, location: str) -> List[run_v2.types.service.Service]:
-
-    client = run_v2.ServicesClient()
-
-    parent_value = f"projects/{project_id}/locations/{location}"
-    request = run_v2.ListServicesRequest(
-        parent=parent_value,
-    )
-
-    service_list = client.list_services(request=request)
-    return service_list
-
-
-def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool:
-    url = service.uri + '/check'
-    res = requests.get(url)
-    if res.status_code == 200:
-        try:
-            check = json.loads(res.text)['response']
-            if 'Running dbt-server on port' in check:
-                return True
-            else:
-                return False
-        except Exception:
-            return False
-    else:
-        return False
 
 
 def dbt_cli_command(dbt_command: str, project_dir: str, manifest: str | None, dbt_project: str,
@@ -362,6 +271,120 @@ def read_file(filename) -> str:
     return file_str
 
 
+def get_files_from_dir(dir_path) -> List[str]:
+    filename_list: List[str] = list()
+    for file_path in os.listdir(dir_path):
+        if os.path.isfile(os.path.join(dir_path, file_path)):
+            filename_list.append(file_path)
+    return filename_list
+
+
+def get_dbt_server_uri(project_dir: str, dbt_project: str, command: str) -> str:
+
+    selected_target, selected_profile = get_selected_target_and_profile(command)
+
+    project_id, location = get_projectid_and_location_from_profiles(project_dir, dbt_project,
+                                                                    selected_target, selected_profile)
+
+    cloud_run_services = get_cloud_run_service_list(project_id, location)
+    for service in cloud_run_services:
+        if check_if_server_is_dbt_server(service):
+            click.echo('Using Cloud Run `' + service.name + '` as dbt server')
+            click.echo('uri: ' + service.uri)
+            return service.uri
+
+    click.echo(click.style("ERROR", fg="red"))
+    raise click.ClickException('No dbt server found in Cloud Run')
+
+
+def get_selected_target_and_profile(command: str) -> (str | None, str | None):
+    try:
+        args_list = split_arg_string(command)
+        sub_command_click_context = args_to_context(args_list)
+        target = sub_command_click_context.params['target']
+        profile = sub_command_click_context.params['profile']
+        return target, profile
+    except Exception:
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException("dbt command failed: " + command)
+
+
+def get_projectid_and_location_from_profiles(project_dir: str, dbt_project: str, selected_target: str | None,
+                                             selected_profile: str | None) -> tuple[str, str]:
+
+    if selected_profile is None:
+        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
+
+    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
+
+    if selected_profile in profiles_dict.keys():
+
+        if selected_target is None:
+            selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
+
+        profile_config = profiles_dict[selected_profile]['outputs']
+        if selected_target in profile_config.keys():
+
+            if 'location' not in profile_config[selected_target].keys():
+                click.echo(click.style("ERROR", fg="red"))
+                raise click.ClickException('Location not found for profile '+selected_profile+' and \
+                                           target '+selected_target)
+            location = profile_config[selected_target]['location']
+
+            if 'project' not in profile_config[selected_target].keys():
+                click.echo(click.style("ERROR", fg="red"))
+                raise click.ClickException('Project Id not found for profile '+selected_profile+' and \
+                                           target '+selected_target)
+            project_id = profile_config[selected_target]['project']
+
+            return project_id, location
+
+        else:
+            click.echo(click.style("ERROR", fg="red"))
+            raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
+    else:
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
+
+
+def deduce_target_from_profiles(selected_profile_dict):
+    if 'target' in selected_profile_dict.keys():
+        return selected_profile_dict['target']
+    elif 'default' in selected_profile_dict['outputs'].keys():
+        return 'default'
+    else:
+        return selected_profile_dict['outputs'].keys()[0]
+
+
+def get_cloud_run_service_list(project_id: str, location: str) -> List[run_v2.types.service.Service]:
+
+    client = run_v2.ServicesClient()
+
+    parent_value = f"projects/{project_id}/locations/{location}"
+    request = run_v2.ListServicesRequest(
+        parent=parent_value,
+    )
+
+    service_list = client.list_services(request=request)
+    return service_list
+
+
+def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool:
+    url = service.uri + '/check'
+    res = requests.get(url)
+    if res.status_code == 200:
+        try:
+            check = json.loads(res.text)['response']
+            if 'Running dbt-server on port' in check:
+                return True
+            else:
+                return False
+        except Exception:
+            return False
+    else:
+        return False
+
+
 def read_yml_file(filename: str) -> Dict[str, str]:
     with open(filename, 'r') as stream:
         try:
@@ -372,9 +395,5 @@ def read_yml_file(filename: str) -> Dict[str, str]:
             raise click.ClickException(e)
 
 
-def get_files_from_dir(dir_path) -> List[str]:
-    filename_list: List[str] = list()
-    for file_path in os.listdir(dir_path):
-        if os.path.isfile(os.path.join(dir_path, file_path)):
-            filename_list.append(file_path)
-    return filename_list
+if __name__ == '__main__':
+    cli()
