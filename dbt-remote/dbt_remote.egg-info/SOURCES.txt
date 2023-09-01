@@ -1,8 +1,0 @@
-cli.py
-setup.py
-dbt_remote.egg-info/PKG-INFO
-dbt_remote.egg-info/SOURCES.txt
-dbt_remote.egg-info/dependency_links.txt
-dbt_remote.egg-info/entry_points.txt
-dbt_remote.egg-info/requires.txt
-dbt_remote.egg-info/top_level.txt
