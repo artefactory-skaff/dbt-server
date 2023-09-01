@@ -5,6 +5,8 @@ import os
 import uuid
 import uvicorn
 import sys
+import traceback
+from fastapi import HTTPException
 
 sys.path.insert(1, './lib')
 
@@ -12,20 +14,12 @@ from dbt_classes import DbtCommand
 from command_processor import process_command
 from state import State
 from cloud_storage import get_blob_from_bucket
-from set_environment import set_env_vars
-from logger import DbtLogger
+from set_environment import set_env_vars, get_server_dbt_logger
 
 
 BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
 PORT = os.environ.get("PORT", "8001")
-
-if len(sys.argv) == 2 and sys.argv[1] == "--local":  # run locally:
-    LOCAL = True
-    DBT_LOGGER = DbtLogger(local=True, server=True)
-
-else:  # run on GCP:
-    LOCAL = False
-    DBT_LOGGER = DbtLogger(local=False, server=True)
+DBT_LOGGER = get_server_dbt_logger(sys.argv)
 
 app = FastAPI()
 
@@ -85,7 +79,11 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
         job=job,
         job_id=job_id,
     )
-    operation = client.create_job(request=request)
+    try:
+        operation = client.create_job(request=request)
+    except Exception:
+        traceback_str = traceback.format_exc()
+        raise HTTPException(status_code=400, detail="Cloud Run job creation failed" + traceback_str)
 
     log = "Waiting for job creation to complete..."
     DBT_LOGGER.log("INFO", log)
@@ -106,7 +104,11 @@ def launch_job(state: State, response_job: run_v2.types.Job):
     client = run_v2.JobsClient()
     request = run_v2.RunJobRequest(name=job_name,)
 
-    client.run_job(request=request)
+    try:
+        client.run_job(request=request)
+    except Exception:
+        traceback_str = traceback.format_exc()
+        raise HTTPException(status_code=400, detail="Cloud Run job start failed" + traceback_str)
     state.run_status = "running"
 
 

@@ -10,7 +10,7 @@ from dbt_classes import DbtCommand
 from cloud_storage import write_to_bucket, get_blob_from_bucket, get_all_blobs_from_folder
 
 
-BUCKET_NAME = os.getenv('BUCKET_NAME')
+BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')
 
 client = firestore.Client()
 dbt_collection = client.collection("dbt-status")
@@ -106,7 +106,8 @@ class State:
 
     def get_last_logs(self) -> List[str]:
         logs, byte_length = self.run_logs.get(self.log_starting_byte)
-        self.log_starting_byte += byte_length
+        if byte_length != 0:
+            self.log_starting_byte += byte_length + 1
         return logs
 
     def get_all_logs(self) -> List[str]:

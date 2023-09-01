@@ -11,39 +11,40 @@ from command_processor import get_arg_list_from_param
 
 test_dictionnary = {
     "list": {
-        "processed_command": "--debug --log-format json --log-level debug list --profiles-dir .",
+        "processed_command": "--debug --log-format json --log-level debug list --profiles-dir . --project-dir .",
         "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
-        "get_sub_command_args_list": ["--profiles-dir", "."]
+        "get_sub_command_args_list": ["--profiles-dir", ".", "--project-dir", "."]
     },
     "--debug --log-format json list --profiles-dir .": {
-        "processed_command": "--debug --log-format json --log-level debug list --profiles-dir .",
+        "processed_command": "--debug --log-format json --log-level debug list --profiles-dir . --project-dir .",
         "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
-        "get_sub_command_args_list": ["--profiles-dir", "."]
+        "get_sub_command_args_list": ["--profiles-dir", ".", "--project-dir", "."]
     },
     "--no-print --log-format text run --select model": {
-        "processed_command": "--no-print --log-format json --debug --log-level debug run --select model --profiles-dir .",
+        "processed_command": "--no-print --log-format json --debug --log-level debug run --select model --profiles-dir . --project-dir .",
         "get_command_args_list": ['--no-print', '--log-format', 'json', '--debug', "--log-level", "debug"],
-        "get_sub_command_args_list": ["--select", "model", "--profiles-dir", "."]
+        "get_sub_command_args_list": ["--select", "model", "--profiles-dir", ".", "--project-dir", "."]
     },
     "--log-level error run --select model1 model2": {
-        "processed_command": "--log-level debug --debug --log-format json run --select model1 model2 --profiles-dir .",
+        "processed_command": "--log-level debug --debug --log-format json run --select model1 model2 --profiles-dir . --project-dir .",
         "get_command_args_list": ['--log-level', 'debug', "--debug", "--log-format", "json"],
-        "get_sub_command_args_list": ["--select", "model1", "model2", "--profiles-dir", "."]
+        "get_sub_command_args_list": ["--select", "model1", "model2", "--profiles-dir", ".", "--project-dir", "."]
     },
     "--log-level warn --fail-fast --no-debug test": {
-        "processed_command": "--log-level debug --fail-fast --debug --log-format json test --profiles-dir .",
+        "processed_command": "--log-level debug --fail-fast --debug --log-format json test --profiles-dir . --project-dir .",
         "get_command_args_list": ['--log-level', 'debug', "--fail-fast", "--debug", "--log-format", "json"],
-        "get_sub_command_args_list": ["--profiles-dir", "."]
+        "get_sub_command_args_list": ["--profiles-dir", ".", "--project-dir", "."]
     },
     "test --vars '{key1: val1}'": {
-        "processed_command": "--debug --log-format json --log-level debug test --vars '{key1: val1}' --profiles-dir .",
+        "processed_command": "--debug --log-format json --log-level debug test --vars '{key1: val1}' --profiles-dir . --project-dir .",
         "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
-        "get_sub_command_args_list": ["--vars", "'{key1: val1}'", "--profiles-dir", "."]
+        "get_sub_command_args_list": ["--vars", "'{key1: val1}'", "--profiles-dir", ".", "--project-dir", "."]
     },
     "run-operation item_count --args '{vbeln_value: value}'": {
-        "processed_command": "--debug --log-format json --log-level debug run-operation --args '{vbeln_value: value}' item_count --profiles-dir .",
+        "processed_command": "--debug --log-format json --log-level debug run-operation --args '{vbeln_value: value}' item_count --profiles-dir . --project-dir .",
         "get_command_args_list": ["--debug", "--log-format", "json", "--log-level", "debug"],
-        "get_sub_command_args_list": ["--args", "'{vbeln_value: value}'", "item_count", "--profiles-dir", "."]
+        "get_sub_command_args_list": ["--args", "'{vbeln_value: value}'", "item_count", "--profiles-dir", ".",
+                                      "--project-dir", "."]
     }
 
 }
