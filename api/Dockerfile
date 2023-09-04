@@ -19,5 +19,5 @@ USER newuser
 
 RUN mkdir seeds
 # we run relevant script
-CMD ["/bin/bash", "-c", "if [[ \"$SCRIPT\" == \"dbt_run_job.py\" ]] ; then python3 dbt_run_job.py ; else python3 $SCRIPT ; fi"]
+CMD ["/bin/bash", "-c", "python3 $SCRIPT"]
 

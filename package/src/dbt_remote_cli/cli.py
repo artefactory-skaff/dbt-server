@@ -1,34 +1,16 @@
 import requests
 import os
-import time
-from datetime import datetime, timezone
 import traceback
-from typing import Dict, List, Optional
-import json
-import yaml
-from pydantic import BaseModel
+from typing import Dict, List, Any
 
 import click
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner
-from google.cloud import run_v2
 
-
-class DbtResponse(BaseModel):
-    status_code: Optional[str] = None
-    uuid: Optional[str] = None
-    detail: Optional[str] = None
-
-
-class DbtResponseRunStatus(BaseModel):
-    status_code: Optional[str] = None
-    run_status: Optional[str] = None
-
-
-class DbtResponseLogs(BaseModel):
-    status_code: Optional[str] = None
-    run_logs: Optional[List[str]] = None
+from dbt_remote_cli.dbt_server_detector import detect_dbt_server_uri
+from dbt_remote_cli.server_response_classes import DbtResponse
+from dbt_remote_cli.stream_logs import stream_logs
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True,),
@@ -44,27 +26,18 @@ class DbtResponseLogs(BaseModel):
 @click.option('--seeds-path', default='./seeds/', help='Path to seeds directory. By default: seeds/')
 @click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
               for a dbt server in GCP project\'s Cloud Run')
+@click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
+              detection. If none is given, dbt-remote will look for the location given in the profiles.yml.')
 @click.option('--elementary', is_flag=True, help='Set flag to run elementary report at the end of the job')
 def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: str, extra_packages: str | None,
-        seeds_path: str, server_url: str | None, elementary: bool, args):
+        seeds_path: str, server_url: str | None, location: str | None, elementary: bool, args):
 
-    args = ["\'"+arg+"\'" for arg in args]  # needed to handle case suche as --args '{key: value}'
-    dbt_command = user_command + ' ' + ' '.join(args)
+    dbt_command = assemble_dbt_command(user_command, args)
     click.echo(f'Command: dbt {dbt_command}')
 
     global SERVER_URL
-    if server_url is not None:
-        SERVER_URL = server_url + "/"
-    else:
-        click.echo("Looking for dbt server available on Cloud Run...")
-        SERVER_URL = get_dbt_server_uri(project_dir, dbt_project, dbt_command) + "/"
+    SERVER_URL = get_server_uri(dbt_command, project_dir, dbt_project, server_url, location)
     click.echo('dbt-server url: '+SERVER_URL)
-
-    dbt_cli_command(dbt_command, project_dir, manifest, dbt_project, extra_packages, seeds_path, elementary)
-
-
-def dbt_cli_command(dbt_command: str, project_dir: str, manifest: str | None, dbt_project: str,
-                    extra_packages: str | None, seeds_path: str, elementary: bool):
 
     if manifest is None:
         compile_manifest(project_dir)
@@ -73,19 +46,29 @@ def dbt_cli_command(dbt_command: str, project_dir: str, manifest: str | None, db
     click.echo('Sending request to server. Waiting for job creation...')
     server_response = send_command(dbt_command, project_dir, manifest, dbt_project, extra_packages,
                                    seeds_path, elementary)
-    results = parse_server_response(server_response)
 
-    if results.status_code != 202 or results.detail is not None:
-        error_msg = results.detail
-        click.echo(click.style("ERROR", fg="red") + '\t' + 'Status code: ' + str(results.status_code))
-        raise click.ClickException(error_msg)
+    uuid = get_job_uuid(server_response)
+    click.echo(f"Job created with uuid: {uuid}")
 
-    if results.uuid is not None:
-        uuid = results.uuid
-        click.echo(f"Job created with uuid: {uuid}")
-        click.echo('Waiting for job execution...')
+    click.echo('Waiting for job execution...')
+    stream_logs(SERVER_URL, uuid)
+    return 0
 
-        stream_logs(uuid)
+
+def assemble_dbt_command(user_command: str, args: Any) -> str:
+    args = ["\'"+arg+"\'" for arg in args]  # needed to handle case suche as --args '{key: value}'
+    dbt_command = user_command + ' ' + ' '.join(args)
+    return dbt_command
+
+
+def get_server_uri(dbt_command: str, project_dir: str, dbt_project: str, server_url: str | None,
+                   location: str | None) -> str:
+    if server_url is not None:
+        server_url = server_url + "/"
+    else:
+        click.echo("Looking for dbt server available on Cloud Run...")
+        server_url = detect_dbt_server_uri(project_dir, dbt_project, dbt_command, location) + "/"
+    return server_url
 
 
 def compile_manifest(project_dir: str):
@@ -149,12 +132,25 @@ def get_all_seeds(seed_files: List[str]) -> List[str]:
     return [seed_file.replace('.csv', '') for seed_file in seed_files]
 
 
+def get_job_uuid(server_response: requests.Response) -> str:
+    results = parse_server_response(server_response)
+
+    if results.status_code != 202 or results.detail is not None:
+        error_msg = results.detail
+        click.echo(click.style("ERROR", fg="red") + '\t' + 'Status code: ' + str(results.status_code))
+        raise click.ClickException(error_msg)
+
+    if results.uuid is not None:
+        uuid = results.uuid
+        return uuid
+
+
 def parse_server_response(res: requests.Response) -> DbtResponse:
     try:
         results = DbtResponse.parse_raw(res.text)
     except Exception:
         traceback_str = traceback.format_exc()
-        raise click.ClickException("Error in parse_server: " + traceback_str)
+        raise click.ClickException("Error in parse_server: " + traceback_str + "\n Original message: " + res.text)
 
     if dbtResponse_is_none(results):
         click.echo(click.style("ERROR", fg="red") + '\t' + 'Error in parsing: ')
@@ -163,101 +159,6 @@ def parse_server_response(res: requests.Response) -> DbtResponse:
     else:
         results.status_code = res.status_code
         return results
-
-
-def stream_logs(uuid: str):
-    run_status = get_run_status(uuid).run_status
-
-    while run_status == "running":
-        time.sleep(1)
-        run_status = get_run_status(uuid).run_status
-        stop = show_last_logs(uuid)
-
-    if run_status == "success":
-        while not stop:
-            time.sleep(1)
-            stop = show_last_logs(uuid)
-    else:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException("Job failed")
-
-
-def get_run_status(uuid: str) -> DbtResponseRunStatus:
-    url = SERVER_URL + "job/" + uuid
-    res = requests.get(url=url)
-
-    results = DbtResponseRunStatus.parse_raw(res.text)
-    results.status_code = res.status_code
-    return results
-
-
-def get_last_logs(uuid: str) -> DbtResponseLogs:
-    url = SERVER_URL + "job/" + uuid + '/last_logs'
-    res = requests.get(url=url)
-
-    results = DbtResponseLogs.parse_raw(res.text)
-    results.status_code = res.status_code
-    return results
-
-
-def show_last_logs(uuid: str) -> bool:
-
-    logs = get_last_logs(uuid).run_logs
-
-    for log in logs:
-        show_log(log)
-        if "END JOB" in log:
-            return True
-    return False
-
-
-def show_log(log: str) -> ():
-
-    parsed_log = parse_log(log)
-    if parsed_log is None:
-        return
-
-    log_level, log_content = parsed_log
-
-    if log_content == '':
-        click.echo('')
-        return
-
-    match (log_level):
-        case 'INFO':
-            log_color = 'green'
-        case 'WARN':
-            log_color = 'yellow'
-        case 'ERROR':
-            log_color = 'red'
-        case _:
-            log_color = 'black'
-
-    click.echo(click.style(log_level, fg=log_color) + '\t' + log_content)
-
-
-def parse_log(log: str) -> (tuple[str, str] | None):
-    if log == '':
-        click.echo('')
-        return
-
-    parsed_log = log.split('\t')
-
-    if len(parsed_log) < 3:
-        click.echo(click.style("ERROR", fg="red") + '\t' + "Error in log parsing:")
-        click.echo(log)
-        return
-
-    log_level = parsed_log[1]
-    log_content = '  '.join(parsed_log[2:])
-
-    return log_level, log_content
-
-
-def current_time() -> str:
-    now = datetime.now(timezone.utc)
-    dt_string = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    return dt_string
 
 
 def dbtResponse_is_none(results: DbtResponse):
@@ -277,122 +178,6 @@ def get_files_from_dir(dir_path) -> List[str]:
         if os.path.isfile(os.path.join(dir_path, file_path)):
             filename_list.append(file_path)
     return filename_list
-
-
-def get_dbt_server_uri(project_dir: str, dbt_project: str, command: str) -> str:
-
-    selected_target, selected_profile = get_selected_target_and_profile(command)
-
-    project_id, location = get_projectid_and_location_from_profiles(project_dir, dbt_project,
-                                                                    selected_target, selected_profile)
-
-    cloud_run_services = get_cloud_run_service_list(project_id, location)
-    for service in cloud_run_services:
-        if check_if_server_is_dbt_server(service):
-            click.echo('Using Cloud Run `' + service.name + '` as dbt server')
-            click.echo('uri: ' + service.uri)
-            return service.uri
-
-    click.echo(click.style("ERROR", fg="red"))
-    raise click.ClickException('No dbt server found in Cloud Run')
-
-
-def get_selected_target_and_profile(command: str) -> (str | None, str | None):
-    try:
-        args_list = split_arg_string(command)
-        sub_command_click_context = args_to_context(args_list)
-        target = sub_command_click_context.params['target']
-        profile = sub_command_click_context.params['profile']
-        return target, profile
-    except Exception:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException("dbt command failed: " + command)
-
-
-def get_projectid_and_location_from_profiles(project_dir: str, dbt_project: str, selected_target: str | None,
-                                             selected_profile: str | None) -> tuple[str, str]:
-
-    if selected_profile is None:
-        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
-
-    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
-
-    if selected_profile in profiles_dict.keys():
-
-        if selected_target is None:
-            selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
-
-        profile_config = profiles_dict[selected_profile]['outputs']
-        if selected_target in profile_config.keys():
-
-            if 'location' not in profile_config[selected_target].keys():
-                click.echo(click.style("ERROR", fg="red"))
-                raise click.ClickException('Location not found for profile '+selected_profile+' and \
-                                           target '+selected_target)
-            location = profile_config[selected_target]['location']
-
-            if 'project' not in profile_config[selected_target].keys():
-                click.echo(click.style("ERROR", fg="red"))
-                raise click.ClickException('Project Id not found for profile '+selected_profile+' and \
-                                           target '+selected_target)
-            project_id = profile_config[selected_target]['project']
-
-            return project_id, location
-
-        else:
-            click.echo(click.style("ERROR", fg="red"))
-            raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
-    else:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
-
-
-def deduce_target_from_profiles(selected_profile_dict):
-    if 'target' in selected_profile_dict.keys():
-        return selected_profile_dict['target']
-    elif 'default' in selected_profile_dict['outputs'].keys():
-        return 'default'
-    else:
-        return selected_profile_dict['outputs'].keys()[0]
-
-
-def get_cloud_run_service_list(project_id: str, location: str) -> List[run_v2.types.service.Service]:
-
-    client = run_v2.ServicesClient()
-
-    parent_value = f"projects/{project_id}/locations/{location}"
-    request = run_v2.ListServicesRequest(
-        parent=parent_value,
-    )
-
-    service_list = client.list_services(request=request)
-    return service_list
-
-
-def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool:
-    url = service.uri + '/check'
-    res = requests.get(url)
-    if res.status_code == 200:
-        try:
-            check = json.loads(res.text)['response']
-            if 'Running dbt-server on port' in check:
-                return True
-            else:
-                return False
-        except Exception:
-            return False
-    else:
-        return False
-
-
-def read_yml_file(filename: str) -> Dict[str, str]:
-    with open(filename, 'r') as stream:
-        try:
-            d = yaml.safe_load(stream)
-            return d
-        except yaml.YAMLError as e:
-            click.echo(click.style("ERROR", fg="red") + '\t' + "Incorrect profiles YAML file")
-            raise click.ClickException(e)
 
 
 if __name__ == '__main__':
