@@ -52,12 +52,13 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
 
     click.echo('Waiting for job execution...')
     stream_logs(SERVER_URL, uuid)
-    return 0
 
 
 def assemble_dbt_command(user_command: str, args: Any) -> str:
-    args = ["\'"+arg+"\'" for arg in args]  # needed to handle case suche as --args '{key: value}'
-    dbt_command = user_command + ' ' + ' '.join(args)
+    args = ["\'"+arg+"\'" for arg in args]  # needed to handle cases such as --args '{key: value}'
+    dbt_command = user_command
+    if args != [] and args is not None:
+        dbt_command += ' ' + ' '.join(args)
     return dbt_command
 
 
@@ -89,8 +90,8 @@ def send_command(command: str, project_dir: str, manifest: str, dbt_project: str
             "dbt_project": dbt_project_str
         }
 
-    if 'seed' in command.split(' '):
-        seeds_dict = get_seeds(project_dir + "/" + seeds_path, command)
+    if 'seed' in command.split(' ') or 'build' in command.split(' '):
+        seeds_dict = get_selected_seeds_dict(project_dir + "/" + seeds_path, command)
         data["seeds"] = seeds_dict
 
     if packages is not None:
@@ -104,10 +105,10 @@ def send_command(command: str, project_dir: str, manifest: str, dbt_project: str
     return res
 
 
-def get_seeds(seeds_path: str, command: str) -> Dict[str, str]:
+def get_selected_seeds_dict(seeds_path: str, command: str) -> Dict[str, str]:
 
     seeds_dict: Dict[str, str] = dict()
-    seed_files = get_files_from_dir(seeds_path)
+    seed_files = get_filenames_from_dir(seeds_path)
 
     selected_seeds = get_selected_nodes(command)
     if len(selected_seeds) == 0:  # if no seed is selected, the command is executed on all seeds
@@ -172,7 +173,7 @@ def read_file(filename) -> str:
     return file_str
 
 
-def get_files_from_dir(dir_path) -> List[str]:
+def get_filenames_from_dir(dir_path) -> List[str]:
     filename_list: List[str] = list()
     for file_path in os.listdir(dir_path):
         if os.path.isfile(os.path.join(dir_path, file_path)):

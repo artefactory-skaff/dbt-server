@@ -6,8 +6,8 @@ import traceback
 
 from google.cloud import firestore
 
-from dbt_classes import DbtCommand
-from cloud_storage import write_to_bucket, get_blob_from_bucket, get_all_blobs_from_folder
+from lib.dbt_classes import DbtCommand
+from lib.cloud_storage import write_to_bucket, get_blob_from_bucket, get_all_blobs_from_folder
 
 
 BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')

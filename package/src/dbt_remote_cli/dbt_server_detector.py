@@ -11,15 +11,7 @@ from google.cloud import run_v2
 
 def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, location: str | None) -> str:
 
-    selected_target, selected_profile = get_selected_target_and_profile(command)
-
-    if selected_profile is None:
-        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
-
-    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
-    project_id = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'project')
-    if location is None:
-        location = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'location')
+    project_id, location = identify_project_id_and_location(project_dir, dbt_project, command, location)
 
     cloud_run_services = get_cloud_run_service_list(project_id, location)
     for service in cloud_run_services:
@@ -32,56 +24,77 @@ def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, loca
     raise click.ClickException('No dbt server found in Cloud Run')
 
 
-def get_selected_target_and_profile(command: str) -> (str | None, str | None):
+def identify_project_id_and_location(project_dir: str, dbt_project: str, command: str,
+                                     location: str | None) -> (str, str):
+
+    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
+    selected_profile = get_selected_sub_command_conf_from_user_command(command, 'profile')
+    selected_target = get_selected_sub_command_conf_from_user_command(command, 'target')
+
+    if selected_profile is None:
+        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
+    if selected_profile not in profiles_dict.keys():
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
+
+    if selected_target is None:
+        selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
+    if selected_target not in profiles_dict[selected_profile]['outputs'].keys():
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
+
+    project_id = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'project')
+    if location is None:
+        location = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'location')
+
+    return project_id, location
+
+
+def get_selected_sub_command_conf_from_user_command(command: str, config_field_name: str) -> str | None:
+    """
+        config_field_name should be keys from sub_command context
+        ex: target, profile
+    """
     try:
         args_list = split_arg_string(command)
         sub_command_click_context = args_to_context(args_list)
-        target = sub_command_click_context.params['target']
-        profile = sub_command_click_context.params['profile']
-        return target, profile
+        if config_field_name not in sub_command_click_context.params.keys():
+            click.echo(click.style("ERROR", fg="red"))
+            raise click.ClickException(config_field_name + " not in context.params")
+        else:
+            return sub_command_click_context.params[config_field_name]
     except Exception:
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException("dbt command failed: " + command)
 
 
-def get_metadata_from_profiles_dict(profiles_dict: Dict[str, str], selected_profile: str, selected_target: str | None,
-                                    metadata_name: str) -> tuple[str, str]:
-
-    if selected_profile in profiles_dict.keys():
-
-        if selected_target is None:
-            selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
-
-        profile_config = profiles_dict[selected_profile]['outputs']
-        if selected_target in profile_config.keys():
-
-            if metadata_name not in profile_config[selected_target].keys():
-                click.echo(click.style("ERROR", fg="red"))
-                raise click.ClickException(metadata_name + ' not found for profile '+selected_profile+' and \
-                                           target '+selected_target)
-            metadata = profile_config[selected_target][metadata_name]
-            return metadata
-
-        else:
-            click.echo(click.style("ERROR", fg="red"))
-            raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
-    else:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
-
-
-def deduce_target_from_profiles(selected_profile_dict):
+def deduce_target_from_profiles(selected_profile_dict: Dict[str, str]) -> str:
     if 'target' in selected_profile_dict.keys():
         return selected_profile_dict['target']
     elif 'outputs' in selected_profile_dict.keys():
         if 'default' in selected_profile_dict['outputs'].keys():
             return 'default'
         else:
-            print(list(selected_profile_dict['outputs'].keys()))
             return list(selected_profile_dict['outputs'].keys())[0]
     else:
         click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Coulnd\'t find target in for given profile')
+        raise click.ClickException('Coulnd\'t find any target in for given profile')
+
+
+def get_metadata_from_profiles_dict(profiles_dict: Dict[str, str], selected_profile: str, selected_target: str,
+                                    metadata_name: str) -> str:
+    """
+        metadata_name corresponds to project/data information for a given profile and target
+        ex: location, project_id, dataset, type, etc.
+    """
+
+    profile_config = profiles_dict[selected_profile]['outputs'][selected_target]
+    if metadata_name not in profile_config.keys():
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException(metadata_name + ' not found for profile '+selected_profile+' and \
+                                    target '+selected_target)
+    metadata = profile_config[metadata_name]
+    return metadata
 
 
 def get_cloud_run_service_list(project_id: str, location: str) -> List[run_v2.types.service.Service]:
@@ -102,7 +115,7 @@ def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool
     url = service.uri + '/check'
     try:
         res = requests.get(url)
-    except Exception:
+    except Exception:  # request timeout or max retries
         return False
     if res.status_code == 200:
         try:
@@ -123,5 +136,5 @@ def read_yml_file(filename: str) -> Dict[str, str]:
             d = yaml.safe_load(stream)
             return d
         except yaml.YAMLError as e:
-            click.echo(click.style("ERROR", fg="red") + '\t' + "Incorrect profiles YAML file")
+            click.echo(click.style("ERROR", fg="red") + '\t' + filename + " is not a correct YAML file")
             raise click.ClickException(e)

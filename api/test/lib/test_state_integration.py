@@ -1,8 +1,6 @@
 import sys
-import os
 
 sys.path.insert(1, './lib')
-
 from state import State
 
 
@@ -25,9 +23,6 @@ def test_init_state():
 
     log_starting_byte = state.log_starting_byte
     assert log_starting_byte == 0
-
-# test_load_context: to do with regards to test_cloud_storage
-# test_get_context_to_local: to do with regards to test_cloud_storage
 
 
 def test_get_all_logs():

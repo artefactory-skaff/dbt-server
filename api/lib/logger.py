@@ -7,7 +7,7 @@ from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
 import os
 
-from state import State
+from lib.state import State
 
 
 class DbtLogger:

@@ -2,6 +2,7 @@ import requests
 import time
 from datetime import datetime, timezone
 import click
+import traceback
 
 from dbt_remote_cli.server_response_classes import DbtResponseLogs, DbtResponseRunStatus
 
@@ -19,6 +20,7 @@ def stream_logs(server_url: str, uuid: str):
             time.sleep(1)
             stop = show_last_logs(server_url, uuid)
     else:
+        show_last_logs(server_url, uuid)
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException("Job failed")
 
@@ -27,9 +29,13 @@ def get_run_status(server_url: str, uuid: str) -> DbtResponseRunStatus:
     url = server_url + "job/" + uuid
     res = requests.get(url=url)
 
-    results = DbtResponseRunStatus.parse_raw(res.text)
-    results.status_code = res.status_code
-    return results
+    try:
+        results = DbtResponseRunStatus.parse_raw(res.text)
+        results.status_code = res.status_code
+        return results
+    except Exception:
+        traceback_str = traceback.format_exc()
+        raise click.ClickException("Error in parsing: " + traceback_str + "\n Original message: " + res.text)
 
 
 def show_last_logs(server_url: str, uuid: str) -> bool:
@@ -47,9 +53,13 @@ def get_last_logs(server_url: str, uuid: str) -> DbtResponseLogs:
     url = server_url + "job/" + uuid + '/last_logs'
     res = requests.get(url=url)
 
-    results = DbtResponseLogs.parse_raw(res.text)
-    results.status_code = res.status_code
-    return results
+    try:
+        results = DbtResponseLogs.parse_raw(res.text)
+        results.status_code = res.status_code
+        return results
+    except Exception:
+        traceback_str = traceback.format_exc()
+        raise click.ClickException("Error in parsing: " + traceback_str + "\n Original message: " + res.text)
 
 
 def show_log(log: str) -> ():
@@ -79,7 +89,6 @@ def show_log(log: str) -> ():
 
 def parse_log(log: str) -> (tuple[str, str] | None):
     if log == '':
-        click.echo('')
         return
 
     parsed_log = log.split('\t')

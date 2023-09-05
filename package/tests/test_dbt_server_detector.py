@@ -1,5 +1,5 @@
 from src.dbt_remote_cli.dbt_server_detector import deduce_target_from_profiles, get_metadata_from_profiles_dict
-from src.dbt_remote_cli.dbt_server_detector import get_selected_target_and_profile
+from src.dbt_remote_cli.dbt_server_detector import get_selected_sub_command_conf_from_user_command
 
 
 def test_deduce_target_from_profiles():
@@ -55,19 +55,7 @@ def test_get_metadata_from_profiles_dict():
     assert project_id == "projectid"
     assert location == "location"
 
-    profile, target = "profile1", None
-    project_id = get_metadata_from_profiles_dict(profiles_dict, profile, target, 'project')
-    location = get_metadata_from_profiles_dict(profiles_dict, profile, target, 'location')
-    assert project_id == "projectid"
-    assert location == "location"
-
     profile, target = "profile2", "prod"
-    project_id = get_metadata_from_profiles_dict(profiles_dict, profile, target, 'project')
-    location = get_metadata_from_profiles_dict(profiles_dict, profile, target, 'location')
-    assert project_id == "projectid2"
-    assert location == "location2"
-
-    profile, target = "profile2", None
     project_id = get_metadata_from_profiles_dict(profiles_dict, profile, target, 'project')
     location = get_metadata_from_profiles_dict(profiles_dict, profile, target, 'location')
     assert project_id == "projectid2"
@@ -100,6 +88,7 @@ def test_get_selected_target_and_profile():
 
     for command in commands_dict.keys():
         expected_target, expected_profile = commands_dict[command]["target"], commands_dict[command]["profile"]
-        computed_target, computed_profile = get_selected_target_and_profile(command)
+        computed_target = get_selected_sub_command_conf_from_user_command(command, 'target')
+        computed_profile = get_selected_sub_command_conf_from_user_command(command, 'profile')
         assert computed_target == expected_target
         assert computed_profile == expected_profile

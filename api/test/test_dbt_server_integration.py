@@ -4,10 +4,8 @@ import time
 
 sys.path.insert(1, './')
 from dbt_server import create_job, launch_job
-
-sys.path.insert(2, './lib')
-from state import State
-from dbt_classes import DbtCommand
+from lib.state import State
+from lib.dbt_classes import DbtCommand
 
 
 def test_create_job():
