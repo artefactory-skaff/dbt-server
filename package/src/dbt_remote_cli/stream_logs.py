@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 import click
 import traceback
 
-from dbt_remote_cli.server_response_classes import DbtResponseLogs, DbtResponseRunStatus
+from package.src.dbt_remote_cli.server_response_classes import DbtResponseLogs, DbtResponseRunStatus
 
 
-def stream_logs(server_url: str, uuid: str):
+def stream_logs(server_url: str, uuid: str) -> ():
     run_status = get_run_status(server_url, uuid).run_status
 
     while run_status == "running":
@@ -23,6 +23,7 @@ def stream_logs(server_url: str, uuid: str):
         show_last_logs(server_url, uuid)
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException("Job failed")
+    return
 
 
 def get_run_status(server_url: str, uuid: str) -> DbtResponseRunStatus:
