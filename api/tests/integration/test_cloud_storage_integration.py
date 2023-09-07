@@ -1,7 +1,6 @@
 import sys
-import os
 
-sys.path.insert(1, './lib')
+sys.path.insert(1, './api/lib')
 
 from cloud_storage import write_to_bucket, get_blob_from_bucket, get_all_blobs_from_folder
 

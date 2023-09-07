@@ -2,10 +2,11 @@ import sys
 from google.cloud import run_v2
 import time
 
-sys.path.insert(1, './')
+sys.path.insert(1, './api')
+sys.path.insert(2, './api/lib')
 from dbt_server import create_job, launch_job
-from lib.state import State
-from lib.dbt_classes import DbtCommand
+from state import State
+from dbt_classes import DbtCommand
 
 
 def test_create_job():

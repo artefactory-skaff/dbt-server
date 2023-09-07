@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(1, './lib')
+sys.path.insert(1, './api/lib')
 from state import State
 
 

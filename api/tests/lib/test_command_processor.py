@@ -3,7 +3,7 @@ from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from typing import Dict
 
-sys.path.insert(1, './lib')
+sys.path.insert(1, './api/lib')
 
 from command_processor import process_command, get_sub_command_args_list, get_command_args_list
 from command_processor import get_arg_list_from_param

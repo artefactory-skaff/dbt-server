@@ -15,9 +15,9 @@ from dbt.contracts.graph.nodes import SeedNode
 from elementary.monitor.cli import report
 from fastapi import HTTPException
 
-from lib.state import State
-from lib.cloud_storage import write_to_bucket
-from lib.set_environment import set_env_vars_job
+from state import State
+from cloud_storage import write_to_bucket
+from set_environment import set_env_vars_job
 
 callback_lock = threading.Lock()
 

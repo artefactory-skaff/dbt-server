@@ -1,7 +1,7 @@
 import sys
 import os
 
-sys.path.insert(1, './lib')
+sys.path.insert(1, './api/lib')
 
 from set_environment import set_env_vars, set_env_vars_job
 from logger import DbtLogger

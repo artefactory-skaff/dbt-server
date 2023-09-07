@@ -1,6 +1,7 @@
 import sys
 
-sys.path.insert(1, './')
+sys.path.insert(1, './api')
+sys.path.insert(2, './api/lib')
 from dbt_run_job import get_user_request_log_configuration
 
 

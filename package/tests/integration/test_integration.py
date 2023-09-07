@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(1, './package/')
 from src.dbt_remote_cli.dbt_server_detector import check_if_server_is_dbt_server, get_cloud_run_service_list
 
 
