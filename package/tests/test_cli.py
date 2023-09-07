@@ -47,6 +47,7 @@ def test_parse_server_response():
 
 def test_get_selected_nodes():
 
+    project_dir = " --project-dir ."
     commands_dict = {
         "run": {
             "select": []
@@ -64,5 +65,5 @@ def test_get_selected_nodes():
 
     for command in commands_dict.keys():
         expected_target = commands_dict[command]["select"]
-        computed_target = get_selected_nodes(command)
+        computed_target = get_selected_nodes(command+project_dir)
         assert computed_target == expected_target

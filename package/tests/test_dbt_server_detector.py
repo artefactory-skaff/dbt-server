@@ -63,6 +63,7 @@ def test_get_metadata_from_profiles_dict():
 
 
 def test_get_selected_target_and_profile():
+    project_dir = " --project-dir /home/runner/work/dbt-server/dbt-server"
     commands_dict = {
         "run": {
             "target": None,
@@ -88,7 +89,7 @@ def test_get_selected_target_and_profile():
 
     for command in commands_dict.keys():
         expected_target, expected_profile = commands_dict[command]["target"], commands_dict[command]["profile"]
-        computed_target = get_selected_sub_command_conf_from_user_command(command, 'target')
-        computed_profile = get_selected_sub_command_conf_from_user_command(command, 'profile')
+        computed_target = get_selected_sub_command_conf_from_user_command(command+project_dir, 'target')
+        computed_profile = get_selected_sub_command_conf_from_user_command(command+project_dir, 'profile')
         assert computed_target == expected_target
         assert computed_profile == expected_profile
