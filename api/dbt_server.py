@@ -8,11 +8,11 @@ import sys
 import traceback
 from fastapi import HTTPException
 
-from dbt_classes import DbtCommand
-from command_processor import process_command
-from state import State
-from cloud_storage import get_blob_from_bucket
-from set_environment import set_env_vars, get_server_dbt_logger
+from lib.dbt_classes import DbtCommand
+from lib.command_processor import process_command
+from lib.state import State
+from lib.cloud_storage import get_blob_from_bucket
+from lib.set_environment import set_env_vars, get_server_dbt_logger
 
 
 BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
