@@ -74,6 +74,8 @@ jobs:
 
       - run: mkdir .dbt
       - run: cp api/profiles.yml .dbt/
+      - run: pwd
+      - run: ls -la .dbt/
 
       - name: Test package/ with pytest
         run: poetry run pytest package/tests --ignore package/tests/integration
