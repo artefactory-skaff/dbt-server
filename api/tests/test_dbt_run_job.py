@@ -38,5 +38,3 @@ def test_get_user_request_log_configuration():
         expected_results = user_commands_dict[command]
         assert results["log_format"] == expected_results["log_format"]
         assert results["log_level"] == expected_results["log_level"]
-
-    return 0

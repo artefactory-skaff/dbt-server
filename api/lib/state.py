@@ -4,22 +4,12 @@ from datetime import date, datetime, timezone
 import logging
 import traceback
 
-from google.cloud import firestore
-from google.oauth2.credentials import Credentials
-
 from lib.dbt_classes import DbtCommand
 from lib.cloud_storage import write_to_bucket, get_blob_from_bucket, get_all_blobs_from_folder
-
+from lib.firestore import connect_firestore_collection
 
 BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')
-SERVICE_ACCOUNT_KEY = os.getenv('SERVICE_ACCOUNT_KEY', default='')
-if SERVICE_ACCOUNT_KEY != '':
-    print('using gcp credentials from json file')
-    cred = Credentials(token=SERVICE_ACCOUNT_KEY)
-    client = firestore.Client(credentials=cred)
-else:
-    client = firestore.Client()
-dbt_collection = client.collection("dbt-status")
+dbt_collection = connect_firestore_collection()
 
 
 class State:
