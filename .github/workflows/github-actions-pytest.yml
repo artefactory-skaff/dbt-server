@@ -72,8 +72,8 @@ jobs:
           workload_identity_provider: 'projects/956787288/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
           service_account: 'stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com'
 
-      - run: mkdir .dbt
-      - run: cp api/profiles.yml .dbt/
+      # - run: mkdir .dbt
+      # - run: cp api/profiles.yml .dbt/
       - run: pwd
       - run: ls -la .dbt/
 
