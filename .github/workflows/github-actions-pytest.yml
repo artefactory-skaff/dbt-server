@@ -62,8 +62,14 @@ jobs:
       # they'll be installed and working.
       - run: poetry install --no-interaction
 
-      # And finally run tests. I'm using pytest and all my pytest config is in my `pyproject.toml`
-      # so this line is super-simple. But it could be as complex as you need.
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          workload_identity_provider: 'projects/956787288/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
+          service_account: 'stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com'
+
+
       - name: Test api/ with pytest
         run: poetry run pytest api/tests --ignore api/tests/integration
 
