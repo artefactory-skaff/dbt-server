@@ -71,8 +71,9 @@ jobs:
         with:
           workload_identity_provider: 'projects/956787288/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
           service_account: 'stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com'
-          token_format: 'id_token'
-          id_token_audience: 'https://token.actions.githubusercontent.com'
+          # token_format: 'id_token'
+          # id_token_audience: 'https://token.actions.githubusercontent.com'
+          token_format: 'access_token'
 
       - name: Init .dbt for click execution
         run: |
@@ -86,5 +87,5 @@ jobs:
 
       - name: Test api/ with pytest
         env:
-            SERVICE_ACCOUNT_KEY: ${{ steps.auth.outputs.id_token }}
+            SERVICE_ACCOUNT_KEY: ${{ steps.auth.outputs.access_token }}
         run: poetry run pytest api/tests --ignore api/tests/integration

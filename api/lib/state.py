@@ -15,7 +15,7 @@ BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')
 SERVICE_ACCOUNT_KEY = os.getenv('SERVICE_ACCOUNT_KEY', default='')
 if SERVICE_ACCOUNT_KEY != '':
     print('using gcp credentials from json file')
-    cred = Credentials(SERVICE_ACCOUNT_KEY)
+    cred = Credentials(token=SERVICE_ACCOUNT_KEY)
     client = firestore.Client(credentials=cred)
 else:
     client = firestore.Client()
