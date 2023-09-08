@@ -60,6 +60,7 @@ jobs:
         with:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NB }}/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
           service_account: '${{ secrets.SERVICE_ACCOUNT_NAME }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          token_format: 'access_token'
 
       # - name: Publish docker image on GCP Artifact Registry
       #   run: gcloud builds submit ./api/ --region=us-central1 --tag us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-dbt/server-image:dev
