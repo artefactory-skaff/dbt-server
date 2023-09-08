@@ -30,5 +30,7 @@ runs:
 
     - run: poetry install --no-interaction --no-root
       if: steps.cache-deps.outputs.cache-hit != 'true'
+      shell: bash
 
     - run: poetry install --no-interaction
+      shell: bash
