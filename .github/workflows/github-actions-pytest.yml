@@ -9,35 +9,36 @@ jobs:
       contents: 'read'
       id-token: 'write'
     steps:
-      - uses: actions/checkout@v2
+    
+      # - uses: actions/checkout@v2
 
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.11.4
+      # - uses: actions/setup-python@v2
+      #   with:
+      #     python-version: 3.11.4
 
-      - name: cache poetry install
-        uses: actions/cache@v2
-        with:
-          path: ~/.local
-          key: poetry-1.5.1-0
+      # - name: cache poetry install
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ~/.local
+      #     key: poetry-1.5.1-0
 
-      - uses: snok/install-poetry@v1
-        with:
-          version: 1.5.1
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+      # - uses: snok/install-poetry@v1
+      #   with:
+      #     version: 1.5.1
+      #     virtualenvs-create: true
+      #     virtualenvs-in-project: true
 
-      - name: cache deps
-        id: cache-deps
-        uses: actions/cache@v2
-        with:
-          path: .venv
-          key: pydeps-${{ hashFiles('**/poetry.lock') }}
+      # - name: cache deps
+      #   id: cache-deps
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .venv
+      #     key: pydeps-${{ hashFiles('**/poetry.lock') }}
 
-      - run: poetry install --no-interaction --no-root
-        if: steps.cache-deps.outputs.cache-hit != 'true'
+      # - run: poetry install --no-interaction --no-root
+      #   if: steps.cache-deps.outputs.cache-hit != 'true'
 
-      - run: poetry install --no-interaction
+      # - run: poetry install --no-interaction
 
   # test:
   #   runs-on: ubuntu-latest
@@ -51,6 +52,11 @@ jobs:
       # - uses: actions/setup-python@v2
       #   with:
       #     python-version: 3.11.4
+      - name: Get repo
+        uses: actions/checkout@v3.0.2
+      - name: Install Python and Poetry
+        uses: ./.github/actions/poetry
+     
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v0.4.0'
@@ -73,10 +79,14 @@ jobs:
             SERVICE_ACCOUNT_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: poetry run pytest api/tests --ignore api/tests/integration
   
-  # build:
-  #   runs-on: ubuntu-latest
-  #   needs: [init, test]
-  #   steps:
+  build:
+    runs-on: ubuntu-latest
+    needs: [init, test]
+    steps:
+      - name: Get repo
+        uses: actions/checkout@v3.0.2
+      - name: Install Python and Poetry
+        uses: ./.github/actions/poetry
       - name: Build package
         run: poetry build
       # - name: Publish to registry
@@ -93,8 +103,8 @@ jobs:
   #         workload_identity_provider: 'projects/956787288/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
   #         service_account: 'stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com'
 
-      - name: Publish docker image on GCP Artifact Registry
-        run: gcloud builds submit ./api/ --region=us-central1 --tag us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev
+      # - name: Publish docker image on GCP Artifact Registry
+      #   run: gcloud builds submit ./api/ --region=us-central1 --tag us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev
       
-      - name: Deploy docker image on Cloud Run
-        run: gcloud run deploy server-dev --image us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev --platform managed --region us-central1 --service-account=stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com --set-env-vars=BUCKET_NAME='dbt-stc-test' --set-env-vars=DOCKER_IMAGE='us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev' --set-env-vars=SERVICE_ACCOUNT='stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com' --set-env-vars=PROJECT_ID='stc-dbt-test-9e19' --set-env-vars=LOCATION='us-central1'
+      # - name: Deploy docker image on Cloud Run
+      #   run: gcloud run deploy server-dev --image us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev --platform managed --region us-central1 --service-account=stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com --set-env-vars=BUCKET_NAME='dbt-stc-test' --set-env-vars=DOCKER_IMAGE='us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev' --set-env-vars=SERVICE_ACCOUNT='stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com' --set-env-vars=PROJECT_ID='stc-dbt-test-9e19' --set-env-vars=LOCATION='us-central1'
