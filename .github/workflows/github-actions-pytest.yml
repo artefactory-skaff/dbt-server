@@ -3,7 +3,7 @@ name: dbt-remote Python package
 on: [push]
 
 jobs:
-  test:
+  init:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -11,41 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # If you wanted to use multiple Python versions, you'd have specify a matrix in the job and
-      # reference the matrixe python version here.
       - uses: actions/setup-python@v2
         with:
           python-version: 3.11.4
 
-      # Cache the installation of Poetry itself, e.g. the next step. This prevents the workflow
-      # from installing Poetry every time, which can be slow. Note the use of the Poetry version
-      # number in the cache key, and the "-0" suffix: this allows you to invalidate the cache
-      # manually if/when you want to upgrade Poetry, or if something goes wrong. This could be
-      # mildly cleaner by using an environment variable, but I don't really care.
       - name: cache poetry install
         uses: actions/cache@v2
         with:
           path: ~/.local
           key: poetry-1.5.1-0
 
-      # Install Poetry. You could do this manually, or there are several actions that do this.
-      # `snok/install-poetry` seems to be minimal yet complete, and really just calls out to
-      # Poetry's default install script, which feels correct. I pin the Poetry version here
-      # because Poetry does occasionally change APIs between versions and I don't want my
-      # actions to break if it does.
-      #
-      # The key configuration value here is `virtualenvs-in-project: true`: this creates the
-      # venv as a `.venv` in your testing directory, which allows the next step to easily
-      # cache it.
       - uses: snok/install-poetry@v1
         with:
           version: 1.5.1
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      # Cache your dependencies (i.e. all the stuff in your `pyproject.toml`). Note the cache
-      # key: if you're using multiple Python versions, or multiple OSes, you'd need to include
-      # them in the cache key. I'm not, so it can be simple and just depend on the poetry.lock.
       - name: cache deps
         id: cache-deps
         uses: actions/cache@v2
@@ -53,18 +34,17 @@ jobs:
           path: .venv
           key: pydeps-${{ hashFiles('**/poetry.lock') }}
 
-      # Install dependencies. `--no-root` means "install all dependencies but not the project
-      # itself", which is what you want to avoid caching _your_ code. The `if` statement
-      # ensures this only runs on a cache miss.
       - run: poetry install --no-interaction --no-root
         if: steps.cache-deps.outputs.cache-hit != 'true'
 
-      # Now install _your_ project. This isn't necessary for many types of projects -- particularly
-      # things like Django apps don't need this. But it's a good idea since it fully-exercises the
-      # pyproject.toml and makes that if you add things like console-scripts at some point that
-      # they'll be installed and working.
       - run: poetry install --no-interaction
 
+  test:
+    needs: init
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v0.4.0'
@@ -82,8 +62,31 @@ jobs:
       - name: Test package/ with pytest
         run: poetry run pytest package/tests --ignore package/tests/integration
 
-
       - name: Test api/ with pytest
         env:
             SERVICE_ACCOUNT_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: poetry run pytest api/tests --ignore api/tests/integration
+  
+  build:
+    needs: [init, test]
+    steps:
+      - name: Build package
+        run: poetry build
+      # - name: Publish to registry
+      #   run: poetry publish --username $PYPI_USERNAME --password $PYPI_PASSWORD
+  
+  deploy:
+    needs: [init, test, build]
+    steps:
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          workload_identity_provider: 'projects/956787288/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
+          service_account: 'stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com'
+
+      - name: Publish docker image on GCP Artifact Registry
+        run: gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev
+      
+      - name: Deploy docker image on Cloud Run
+        run: gcloud run deploy server-dev --image us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev --platform managed --region us-central1 --service-account=stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com --set-env-vars=BUCKET_NAME='dbt-stc-test' --set-env-vars=DOCKER_IMAGE='us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:dev' --set-env-vars=SERVICE_ACCOUNT='stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com' --set-env-vars=PROJECT_ID='stc-dbt-test-9e19' --set-env-vars=LOCATION='us-central1'
