@@ -45,7 +45,13 @@ def run_command(dbt_command: DbtCommand):
     response_job = create_job(state, dbt_command)
     launch_job(state, response_job)
 
-    return {"uuid": request_uuid}
+    run_status_link = f"{dbt_command.server_url}job/{request_uuid}"
+    last_logs_link = f"{dbt_command.server_url}job/{request_uuid}/last_logs"
+    links = {"run_status": run_status_link, "last_logs": last_logs_link}
+    return {
+        "uuid": request_uuid,
+        "links": links,
+        }
 
 
 def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
@@ -139,7 +145,13 @@ def get_report(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     print(int(os.environ.get("PORT", 8001)))
-    return {"response": "Running dbt-server on port "+PORT}
+    server_url = ""
+    command_link = server_url + "dbt"
+    links = {"command": command_link}
+    return {
+        "response": "Running dbt-server on port "+PORT,
+        "links": links
+        }
 
 
 if __name__ == "__main__":

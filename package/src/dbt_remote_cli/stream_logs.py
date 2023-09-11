@@ -7,28 +7,27 @@ import traceback
 from package.src.dbt_remote_cli.server_response_classes import DbtResponseLogs, DbtResponseRunStatus
 
 
-def stream_logs(server_url: str, uuid: str) -> ():
-    run_status = get_run_status(server_url, uuid).run_status
+def stream_logs(run_status_link: str, last_logs_link: str) -> ():
+    run_status = get_run_status(run_status_link).run_status
 
     while run_status == "running":
         time.sleep(1)
-        run_status = get_run_status(server_url, uuid).run_status
-        stop = show_last_logs(server_url, uuid)
+        run_status = get_run_status(run_status_link).run_status
+        stop = show_last_logs(last_logs_link)
 
     if run_status == "success":
         while not stop:
             time.sleep(1)
-            stop = show_last_logs(server_url, uuid)
+            stop = show_last_logs(last_logs_link)
     else:
-        show_last_logs(server_url, uuid)
+        show_last_logs(last_logs_link)
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException("Job failed")
     return
 
 
-def get_run_status(server_url: str, uuid: str) -> DbtResponseRunStatus:
-    url = server_url + "job/" + uuid
-    res = requests.get(url=url)
+def get_run_status(run_status_link: str) -> DbtResponseRunStatus:
+    res = requests.get(url=run_status_link)
 
     try:
         results = DbtResponseRunStatus.parse_raw(res.text)
@@ -39,9 +38,9 @@ def get_run_status(server_url: str, uuid: str) -> DbtResponseRunStatus:
         raise click.ClickException("Error in parsing: " + traceback_str + "\n Original message: " + res.text)
 
 
-def show_last_logs(server_url: str, uuid: str) -> bool:
+def show_last_logs(last_logs_link: str) -> bool:
 
-    logs = get_last_logs(server_url, uuid).run_logs
+    logs = get_last_logs(last_logs_link).run_logs
 
     for log in logs:
         show_log(log)
@@ -50,9 +49,8 @@ def show_last_logs(server_url: str, uuid: str) -> bool:
     return False
 
 
-def get_last_logs(server_url: str, uuid: str) -> DbtResponseLogs:
-    url = server_url + "job/" + uuid + '/last_logs'
-    res = requests.get(url=url)
+def get_last_logs(last_logs_link: str) -> DbtResponseLogs:
+    res = requests.get(url=last_logs_link)
 
     try:
         results = DbtResponseLogs.parse_raw(res.text)

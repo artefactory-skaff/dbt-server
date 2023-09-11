@@ -47,11 +47,15 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
     server_response = send_command(dbt_command, project_dir, manifest, dbt_project, extra_packages,
                                    seeds_path, elementary)
 
-    uuid = get_job_uuid(server_response)
+    uuid, links = get_job_uuid_and_links(server_response)
     click.echo(f"Job created with uuid: {uuid}")
+    click.echo("Job links:")
+    click.echo(links)
 
     click.echo('Waiting for job execution...')
-    stream_logs(SERVER_URL, uuid)
+    run_status_link = links['run_status']
+    last_logs_link = links['last_logs']
+    stream_logs(run_status_link, last_logs_link)
 
 
 def assemble_dbt_command(user_command: str, args: Any) -> str:
@@ -85,6 +89,7 @@ def send_command(command: str, project_dir: str, manifest: str, dbt_project: str
     dbt_project_str = read_file(project_dir + '/' + dbt_project)
 
     data = {
+            "server_url": SERVER_URL,
             "user_command": command,
             "manifest": manifest_str,
             "dbt_project": dbt_project_str
@@ -133,7 +138,7 @@ def get_all_seeds(seed_files: List[str]) -> List[str]:
     return [seed_file.replace('.csv', '') for seed_file in seed_files]
 
 
-def get_job_uuid(server_response: requests.Response) -> str:
+def get_job_uuid_and_links(server_response: requests.Response) -> (str, Dict[str, str]):
     results = parse_server_response(server_response)
 
     if results.status_code != 202 or results.detail is not None:
@@ -143,7 +148,8 @@ def get_job_uuid(server_response: requests.Response) -> str:
 
     if results.uuid is not None:
         uuid = results.uuid
-        return uuid
+        links = results.links
+        return uuid, links
 
 
 def parse_server_response(res: requests.Response) -> DbtResponse:

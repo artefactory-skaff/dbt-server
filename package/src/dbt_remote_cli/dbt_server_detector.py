@@ -1,12 +1,14 @@
 import requests
 from typing import Dict, List
-import json
 import yaml
+import traceback
 
 import click
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from google.cloud import run_v2
+
+from package.src.dbt_remote_cli.server_response_classes import DbtResponseCheck
 
 
 def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, location: str | None) -> str:
@@ -119,8 +121,8 @@ def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool
         return False
     if res.status_code == 200:
         try:
-            check = json.loads(res.text)['response']
-            if 'Running dbt-server on port' in check:
+            parsed_response = parse_check_server_response(res)
+            if 'Running dbt-server on port' in parsed_response.response:
                 return True
             else:
                 return False
@@ -128,6 +130,17 @@ def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool
             return False
     else:
         return False
+
+
+def parse_check_server_response(res: requests.Response) -> DbtResponseCheck:
+    try:
+        results = DbtResponseCheck.parse_raw(res.text)
+    except Exception:
+        traceback_str = traceback.format_exc()
+        raise click.ClickException("Error in parse_check_server: " + traceback_str + "\n Original message: " + res.text)
+
+    results.status_code = res.status_code
+    return results
 
 
 def read_yml_file(filename: str) -> Dict[str, str]:
