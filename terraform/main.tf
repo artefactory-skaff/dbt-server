@@ -16,11 +16,6 @@ variable "project_id" {
   default = "stc-dbt-test-9e19"
 }
 
-variable "service_account" {
-  type = string
-  default = "stc-dbt-terraform-sa@stc-dbt-test-9e19.iam.gserviceaccount.com"
-}
-
 variable "docker_image" {
   type = string
   default = "us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image"
@@ -28,14 +23,42 @@ variable "docker_image" {
 
 variable "bucket_name" {
   type = string
-  default = "dbt-stc-test2"
+  default = "dbt-stc-test-eu"
+}
+
+variable "location" {
+  type = string
+  default = "europe-west9"
+}
+
+
+resource "google_service_account" "terraform-job-sa" {
+  account_id = "terraform-job-sa"
+  display_name = "terraform-job-sa"
+}
+
+resource "google_project_iam_member" "terraform-job-sa-permissions" {
+  for_each = toset([
+    "roles/datastore.user",
+    "roles/logging.logWriter",
+    "roles/logging.viewer",
+    "roles/storage.admin",
+
+    "roles/bigquery.dataEditor",
+    "roles/bigquery.jobUser",
+    "roles/bigquery.dataViewer",
+    "roles/bigquery.metadataViewer",
+  ])
+  role = each.key
+  member = "serviceAccount:${google_service_account.terraform-job-sa.email}"
+  project = var.project_id
 }
 
 
 
 resource "google_storage_bucket" "static" {
-  name          = var.bucket_name
-  location      = "EU"
+  name          = "dbt-stc-test-eu"
+  location      = "EUROPE-WEST9"
   storage_class = "STANDARD"
 
   uniform_bucket_level_access = true
@@ -51,7 +74,7 @@ resource "google_firestore_document" "first_status" {
   project     = var.project_id
   collection  = "dbt-status"
   document_id = "0"
-  fields      = "{\"cloud_storage_folder\":{\"stringValue\":\"2023-09-08-0\"},\"log_starting_byte\":{\"stringValue\":\"0\"},\"run_status\":{\"stringValue\":\"started\"},\"user_command\":{\"stringValue\":\"\"},\"uuid\":{\"stringValue\":\"0\"}}"
+  fields      = "{\"cloud_storage_folder\":{\"stringValue\":\"2023-09-08\"},\"log_starting_byte\":{\"stringValue\":\"0\"},\"run_status\":{\"stringValue\":\"started\"},\"user_command\":{\"stringValue\":\"\"},\"uuid\":{\"stringValue\":\"0\"}}"
 }
 
 
@@ -66,7 +89,7 @@ resource "google_project_service" "run_api" {
 # dbt-server dev on Cloud Run
 resource "google_cloud_run_service" "server_dev" {
   name = "server-dev-tf"
-  location = "europe-west9"
+  location = var.location
 
   template {
     spec {
@@ -81,8 +104,8 @@ resource "google_cloud_run_service" "server_dev" {
           value = "${var.docker_image}:dev"
         }
         env {
-          name = "SERVICE_ACCOUNT"
-          value = var.service_account
+          name = "SERVICE_ACCOUNT" // this service account is used by the dbt job
+          value = google_service_account.terraform-job-sa.email
         }
         env {
           name = "PROJECT_ID"
@@ -90,7 +113,7 @@ resource "google_cloud_run_service" "server_dev" {
         }
         env {
           name = "LOCATION"
-          value = "europe-west9"
+          value = var.location
         }
       }
     } 
@@ -101,7 +124,7 @@ resource "google_cloud_run_service" "server_dev" {
     latest_revision = true
   }
 
-  depends_on = [google_project_service.run_api]
+  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions]
 }
 
 resource "google_cloud_run_service_iam_member" "run_all_users_dev" {
@@ -116,7 +139,7 @@ resource "google_cloud_run_service_iam_member" "run_all_users_dev" {
 # dbt-server prod on Cloud Run
 resource "google_cloud_run_service" "server_prod" {
   name = "server-prod-tf"
-  location = "europe-west9"
+  location = var.location
 
   template {
     spec {
@@ -132,7 +155,7 @@ resource "google_cloud_run_service" "server_prod" {
         }
         env {
           name = "SERVICE_ACCOUNT"
-          value = var.service_account
+          value = google_service_account.terraform-job-sa.email
         }
         env {
           name = "PROJECT_ID"
@@ -140,7 +163,7 @@ resource "google_cloud_run_service" "server_prod" {
         }
         env {
           name = "LOCATION"
-          value = "europe-west9"
+          value = var.location
         }
       }
     } 
@@ -151,7 +174,7 @@ resource "google_cloud_run_service" "server_prod" {
     latest_revision = true
   }
 
-  depends_on = [google_project_service.run_api]
+  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions]
 }
 
 resource "google_cloud_run_service_iam_member" "run_all_users_prod" {
