@@ -1,14 +1,18 @@
-from google.cloud import storage
-from google.cloud.storage import Bucket, Client
 from functools import cache
 from typing import Dict
+
+from google.cloud import storage
+from google.cloud.storage import Bucket, Client
+from google.api_core import exceptions
+from google.api_core.retry import Retry
 
 
 def write_to_bucket(bucket_name: str, blob_name: str, data: str) -> ():
     storage_client = connect_client()
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
-    blob.upload_from_string(data)
+    retry_policy = define_retry_policy()  # handle 429 error with exponential backoff
+    blob.upload_from_string(data, num_retries=5, retry=retry_policy)
 
 
 def get_blob_from_bucket(bucket_name: str, blob_name: str, start_byte: int = 0) -> bytes:
@@ -42,3 +46,18 @@ def get_blob_size(bucket: Bucket, blob_name: str) -> int:
 def connect_client() -> Client:
     storage_client = storage.Client()
     return storage_client
+
+
+def define_retry_policy():
+    _MY_RETRIABLE_TYPES = [
+        exceptions.TooManyRequests,  # 429
+        exceptions.InternalServerError,  # 500
+        exceptions.BadGateway,  # 502
+        exceptions.ServiceUnavailable,  # 503
+    ]
+
+    def is_retryable(exc):
+        return isinstance(exc, _MY_RETRIABLE_TYPES)
+
+    retry_policy = Retry(predicate=is_retryable)
+    retry_policy = retry_policy.with_delay(initial=1.5, multiplier=1.2, maximum=45.0)

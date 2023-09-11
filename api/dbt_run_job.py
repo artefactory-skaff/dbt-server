@@ -33,6 +33,10 @@ def prepare_and_execute_job(state: State) -> ():
 
     run_dbt_command(state, manifest, DBT_COMMAND)
 
+    with callback_lock:
+        log = "Command successfully executed"
+        DBT_LOGGER.log("INFO", log)
+
     if ELEMENTARY == 'True':
         generate_elementary_report()
         upload_elementary_report(state)
@@ -71,7 +75,8 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
             upload_elementary_report(state)
 
         log = "END JOB"
-        DBT_LOGGER.log("INFO", log)
+        with callback_lock:
+            DBT_LOGGER.log("INFO", log)
         handle_exception(res_dbt.exception)
 
 

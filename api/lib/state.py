@@ -3,7 +3,6 @@ from typing import List, Dict
 from datetime import date, datetime, timezone
 import logging
 import traceback
-import time
 
 from lib.dbt_classes import DbtCommand
 from lib.cloud_storage import write_to_bucket, get_blob_from_bucket, get_all_blobs_from_folder
@@ -11,8 +10,6 @@ from lib.firestore import connect_firestore_collection
 
 BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')
 dbt_collection = connect_firestore_collection()
-
-logging_wait_time = 1
 
 
 class State:
@@ -146,7 +143,6 @@ class DbtRunLogs:
     def log(self, logs: List[str]) -> ():
         new_log_file = '\n'.join(logs)
         try:
-            time.sleep(logging_wait_time)
             write_to_bucket(BUCKET_NAME, self.log_file, new_log_file)
         except Exception:
             traceback_str = traceback.format_exc()
