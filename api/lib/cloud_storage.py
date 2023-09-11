@@ -8,9 +8,7 @@ def write_to_bucket(bucket_name: str, blob_name: str, data: str) -> ():
     storage_client = connect_client()
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
-
-    with blob.open("w") as f:
-        f.write(data)
+    blob.upload_from_string(data)
 
 
 def get_blob_from_bucket(bucket_name: str, blob_name: str, start_byte: int = 0) -> bytes:
