@@ -32,6 +32,26 @@ variable "location" {
 }
 
 
+resource "google_service_account" "terraform-server-sa" {
+  account_id = "terraform-server-sa"
+  display_name = "terraform-server-sa"
+}
+
+resource "google_project_iam_member" "terraform-server-sa-permissions" {
+  for_each = toset([
+    "roles/datastore.owner",
+    "roles/logging.logWriter",
+    "roles/logging.viewer",
+    "roles/storage.admin",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser"
+  ])
+  role = each.key
+  member = "serviceAccount:${google_service_account.terraform-server-sa.email}"
+  project = var.project_id
+}
+
+
 resource "google_service_account" "terraform-job-sa" {
   account_id = "terraform-job-sa"
   display_name = "terraform-job-sa"
@@ -93,6 +113,7 @@ resource "google_cloud_run_service" "server_dev" {
 
   template {
     spec {
+      service_account_name = google_service_account.terraform-server-sa.email
       containers {
         image = "${var.docker_image}:dev"
         env {
@@ -116,7 +137,7 @@ resource "google_cloud_run_service" "server_dev" {
           value = var.location
         }
       }
-    } 
+    }
   }
 
   traffic {
@@ -124,7 +145,7 @@ resource "google_cloud_run_service" "server_dev" {
     latest_revision = true
   }
 
-  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions]
+  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions, google_project_iam_member.terraform-server-sa-permissions]
 }
 
 resource "google_cloud_run_service_iam_member" "run_all_users_dev" {
@@ -143,6 +164,7 @@ resource "google_cloud_run_service" "server_prod" {
 
   template {
     spec {
+      service_account_name = google_service_account.terraform-server-sa.email
       containers {
         image = "${var.docker_image}:prod"
         env {
@@ -174,7 +196,7 @@ resource "google_cloud_run_service" "server_prod" {
     latest_revision = true
   }
 
-  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions]
+  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions, google_project_iam_member.terraform-server-sa-permissions]
 }
 
 resource "google_cloud_run_service_iam_member" "run_all_users_prod" {

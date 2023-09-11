@@ -65,6 +65,11 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
         state.run_status = "success"
     else:
         state.run_status = "failed"
+
+        if ELEMENTARY == 'True':
+            generate_elementary_report()
+            upload_elementary_report(state)
+
         log = "END JOB"
         DBT_LOGGER.log("INFO", log)
         handle_exception(res_dbt.exception)
