@@ -1,37 +1,3 @@
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "4.81.0"
-    }
-  }
-}
-
-provider "google" {
-  project     = "stc-dbt-test-9e19"
-}
-
-variable "project_id" {
-  type = string
-  default = "stc-dbt-test-9e19"
-}
-
-variable "docker_image" {
-  type = string
-  default = "us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image"
-}
-
-variable "bucket_name" {
-  type = string
-  default = "dbt-stc-test-eu"
-}
-
-variable "location" {
-  type = string
-  default = "europe-west9"
-}
-
-
 resource "google_service_account" "terraform-server-sa" {
   account_id = "terraform-server-sa"
   display_name = "terraform-server-sa"
@@ -204,14 +170,4 @@ resource "google_cloud_run_service_iam_member" "run_all_users_prod" {
   location = google_cloud_run_service.server_prod.location
   role     = "roles/run.invoker"
   member   = "allUsers"
-}
-
-
-
-output "server_dev_url" {
-  value = google_cloud_run_service.server_dev.status[0].url
-}
-
-output "server_prod_url" {
-  value = google_cloud_run_service.server_prod.status[0].url
 }
