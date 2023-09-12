@@ -67,3 +67,4 @@ Ex: ```poetry run dbt-remote seeds --seeds-path test/seeds```
 - build with local server url: 
 
 ```poetry run dbt-remote build --server-url http://0.0.0.0:8001```
+

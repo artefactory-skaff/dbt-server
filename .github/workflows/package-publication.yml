@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  test:
+  package-test:
     runs-on: ubuntu-latest
     steps:
       - name: Get repo
@@ -24,9 +24,9 @@ jobs:
       - name: Test package/ with pytest
         run: poetry run pytest package/tests --ignore package/tests/integration
   
-  build:
+  publish:
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [package-test]
     steps:
       - name: Get repo
         uses: actions/checkout@v3.0.2
@@ -34,8 +34,6 @@ jobs:
         uses: ./.github/actions/poetry
       - name: Add repository
         run: poetry config repositories.testpypi https://test.pypi.org/legacy/
-      - name: Get version tag
-        run: poetry version $(git describe --tags --abbrev=0)
       - name: Build package
         run: poetry build
       - name: Publish to registry
