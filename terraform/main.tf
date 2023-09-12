@@ -43,7 +43,7 @@ resource "google_project_iam_member" "terraform-job-sa-permissions" {
 
 
 resource "google_storage_bucket" "static" {
-  name          = "dbt-stc-test-eu"
+  name          = var.bucket_name
   location      = "EUROPE-WEST9"
   storage_class = "STANDARD"
 
@@ -64,110 +64,40 @@ resource "google_firestore_document" "first_status" {
 }
 
 
-
 resource "google_project_service" "run_api" {
+  project = var.project_id
   service = "run.googleapis.com"
-
-  disable_on_destroy = true
+  disable_on_destroy = false
 }
 
 
 # dbt-server dev on Cloud Run
-resource "google_cloud_run_service" "server_dev" {
-  name     = "server-dev-tf"
-  location = var.location
+module "server_dev" {
+  source = "./modules/dbt-server"
 
-  template {
-    spec {
-      service_account_name = google_service_account.terraform-server-sa.email
-      containers {
-        image = "${var.docker_image}:dev"
-        env {
-          name  = "BUCKET_NAME"
-          value = var.bucket_name
-        }
-        env {
-          name  = "DOCKER_IMAGE"
-          value = "${var.docker_image}:dev"
-        }
-        env {
-          name  = "SERVICE_ACCOUNT" // this service account is used by the dbt job
-          value = google_service_account.terraform-job-sa.email
-        }
-        env {
-          name  = "PROJECT_ID"
-          value = var.project_id
-        }
-        env {
-          name  = "LOCATION"
-          value = var.location
-        }
-      }
-    }
-  }
+  server_name     = "server-dev-tf"
+  bucket_name     = var.bucket_name
+  docker_image    = "${var.docker_image}:dev"
+  location        = var.location
+  project_id      = var.project_id
+  server_sa_email = google_service_account.terraform-server-sa.email
+  job_sa_email    = google_service_account.terraform-job-sa.email
 
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-
-  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions, google_project_iam_member.terraform-server-sa-permissions]
+  depends_on = [google_project_service.run_api]
 }
-
-resource "google_cloud_run_service_iam_member" "run_all_users_dev" {
-  service  = google_cloud_run_service.server_dev.name
-  location = google_cloud_run_service.server_dev.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
 
 
 # dbt-server prod on Cloud Run
-resource "google_cloud_run_service" "server_prod" {
-  name     = "server-prod-tf"
-  location = var.location
+module "server_prod" {
+  source = "./modules/dbt-server"
 
-  template {
-    spec {
-      service_account_name = google_service_account.terraform-server-sa.email
-      containers {
-        image = "${var.docker_image}:prod"
-        env {
-          name  = "BUCKET_NAME"
-          value = var.bucket_name
-        }
-        env {
-          name  = "DOCKER_IMAGE"
-          value = "${var.docker_image}:prod"
-        }
-        env {
-          name  = "SERVICE_ACCOUNT"
-          value = google_service_account.terraform-job-sa.email
-        }
-        env {
-          name  = "PROJECT_ID"
-          value = var.project_id
-        }
-        env {
-          name  = "LOCATION"
-          value = var.location
-        }
-      }
-    }
-  }
+  server_name     = "server-prod-tf"
+  bucket_name     = var.bucket_name
+  docker_image    = "${var.docker_image}:prod"
+  location        = var.location
+  project_id      = var.project_id
+  server_sa_email = google_service_account.terraform-server-sa.email
+  job_sa_email    = google_service_account.terraform-job-sa.email
 
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-
-  depends_on = [google_project_service.run_api, google_project_iam_member.terraform-job-sa-permissions, google_project_iam_member.terraform-server-sa-permissions]
-}
-
-resource "google_cloud_run_service_iam_member" "run_all_users_prod" {
-  service  = google_cloud_run_service.server_prod.name
-  location = google_cloud_run_service.server_prod.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  depends_on = [google_project_service.run_api]
 }
