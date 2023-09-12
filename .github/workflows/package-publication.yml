@@ -15,20 +15,29 @@ jobs:
       - name: Install Python and Poetry
         uses: ./.github/actions/poetry
 
+      - name: Init .dbt for click execution
+        run: |
+          mkdir ../../../.dbt
+          cp api/profiles.yml /home/runner/.dbt
+          ls -la /home/runner/.dbt
+
       - name: Test package/ with pytest
         run: poetry run pytest package/tests --ignore package/tests/integration
   
   build:
     runs-on: ubuntu-latest
+    needs: [test]
     steps:
       - name: Get repo
         uses: actions/checkout@v3.0.2
       - name: Install Python and Poetry
         uses: ./.github/actions/poetry
-      - name: Build package
-        run: poetry build
       - name: Add repository
         run: poetry config repositories.testpypi https://test.pypi.org/legacy/
+      - name: Get version tag
+        run: poetry version $(git describe --tags --abbrev=0)
+      - name: Build package
+        run: poetry build
       - name: Publish to registry
         run: poetry publish --repository testpypi -u __token__ -p ${{ secrets.PYPI_TOKEN }} --skip-existing
   
