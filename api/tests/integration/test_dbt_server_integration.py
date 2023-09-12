@@ -12,6 +12,7 @@ from dbt_classes import DbtCommand
 def test_create_job():
     state = State("0000")
     dbt_command = DbtCommand(
+        server_url="https://dbt-server.com",
         user_command="test",
         processed_command="test",
         manifest="manifest",
@@ -28,6 +29,7 @@ def test_create_job():
 def test_launch_job():
     state = State("0000")
     dbt_command = DbtCommand(
+        server_url="https://dbt-server.com",
         user_command="test",
         processed_command="test",
         manifest="manifest",

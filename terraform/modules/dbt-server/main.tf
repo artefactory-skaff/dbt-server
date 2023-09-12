@@ -1,7 +1,3 @@
-# resource "google_project_service" "run_api" {
-#   service = "run.googleapis.com"
-# }
-
 resource "google_cloud_run_service" "server" {
   name     = var.server_name
   location = var.location
