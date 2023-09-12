@@ -8,5 +8,5 @@ terraform {
 }
 
 provider "google" {
-  project     = "stc-dbt-test-9e19"
+  project = "stc-dbt-test-9e19"
 }

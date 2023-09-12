@@ -14,21 +14,25 @@ from package.src.dbt_remote_cli.stream_logs import stream_logs
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True,),
-               help="Enter dbt command, ex: dbt-remote run --select test")
+               help="Run dbt commands on a dbt server.\n\n Commands: list, build, run, run-operation, compile, \
+test, seed, snapshot.")
 @click.argument('user_command')
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), \
-              by default: none and the cli compiles one from current dbt project')
+by default: none and the cli compiles one from current dbt project')
 @click.option('--project-dir', default='.', help='Which directory to look in for the dbt_project.yml file. Default \
-              is the current directory.')
+is the current directory.')
 @click.option('--dbt-project', default='dbt_project.yml', help='dbt_project file, by default: dbt_project.yml')
-@click.option('--extra-packages', help='packages.yml file, by default none')
-@click.option('--seeds-path', default='./seeds/', help='Path to seeds directory. By default: seeds/')
+@click.option('--extra-packages', help='packages.yml file, by default none. Add this option is necessary to use\
+external packages such as elementary.')
+@click.option('--seeds-path', default='./seeds/', help='Path to seeds directory, this option is needed if you run `dbt\
+-remote seed`. By default: seeds/')
 @click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
-              for a dbt server in GCP project\'s Cloud Run')
+for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location\
+.')
 @click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
-              detection. If none is given, dbt-remote will look for the location given in the profiles.yml.')
-@click.option('--elementary', is_flag=True, help='Set flag to run elementary report at the end of the job')
+detection. If none is given, dbt-remote will look for the location given in the profiles.yml.')
+@click.option('--elementary', is_flag=True, help='Set this flag to run elementary report at the end of the job')
 def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: str, extra_packages: str | None,
         seeds_path: str, server_url: str | None, location: str | None, elementary: bool, args):
 
@@ -49,13 +53,10 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
 
     uuid, links = get_job_uuid_and_links(server_response)
     click.echo(f"Job created with uuid: {uuid}")
-    click.echo("Job links:")
-    click.echo(links)
+    click.echo(f"Job links: {links}")
 
     click.echo('Waiting for job execution...')
-    run_status_link = links['run_status']
-    last_logs_link = links['last_logs']
-    stream_logs(run_status_link, last_logs_link)
+    stream_logs(links)
 
 
 def assemble_dbt_command(user_command: str, args: Any) -> str:

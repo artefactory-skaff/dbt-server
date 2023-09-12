@@ -7,6 +7,7 @@ import click
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from google.cloud import run_v2
+from google.api_core.exceptions import PermissionDenied
 
 from package.src.dbt_remote_cli.server_response_classes import DbtResponseCheck
 
@@ -23,7 +24,8 @@ def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, loca
             return service.uri
 
     click.echo(click.style("ERROR", fg="red"))
-    raise click.ClickException('No dbt server found in Cloud Run')
+    raise click.ClickException(f'No dbt server found in Cloud Run for given project_id ({project_id}) and \
+location ({location})')
 
 
 def identify_project_id_and_location(project_dir: str, dbt_project: str, command: str,
@@ -109,7 +111,15 @@ def get_cloud_run_service_list(project_id: str, location: str) -> List[run_v2.ty
         parent=parent_value,
     )
 
-    service_list = client.list_services(request=request)
+    try:
+        service_list = client.list_services(request=request)
+    except PermissionDenied:
+        traceback_str = traceback.format_exc()
+        click.echo(traceback_str)
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException(f'Permission denied on location `{location}` for project `{project_id}`. \
+Please check the server location and specify the correct --location argument.\
+\n Ex: `--location us-central1` instead of `--location US`')
     return service_list
 
 

@@ -8,7 +8,7 @@ import sys
 import traceback
 from fastapi import HTTPException
 
-from lib.dbt_classes import DbtCommand
+from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
 from lib.state import State
 from lib.cloud_storage import get_blob_from_bucket
@@ -45,13 +45,13 @@ def run_command(dbt_command: DbtCommand):
     response_job = create_job(state, dbt_command)
     launch_job(state, response_job)
 
-    run_status_link = f"{dbt_command.server_url}job/{request_uuid}"
-    last_logs_link = f"{dbt_command.server_url}job/{request_uuid}/last_logs"
-    links = {"run_status": run_status_link, "last_logs": last_logs_link}
     return {
         "uuid": request_uuid,
-        "links": links,
-        }
+        "links": [
+            FollowUpLink("run_status", f"{dbt_command.server_url}job/{request_uuid}"),
+            FollowUpLink("last_logs", f"{dbt_command.server_url}job/{request_uuid}/last_logs"),
+        ]
+    }
 
 
 def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
@@ -145,12 +145,8 @@ def get_report(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     print(int(os.environ.get("PORT", 8001)))
-    server_url = ""
-    command_link = server_url + "dbt"
-    links = {"command": command_link}
     return {
         "response": "Running dbt-server on port "+PORT,
-        "links": links
         }
 
 

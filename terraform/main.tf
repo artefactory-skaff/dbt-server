@@ -1,5 +1,5 @@
 resource "google_service_account" "terraform-server-sa" {
-  account_id = "terraform-server-sa"
+  account_id   = "terraform-server-sa"
   display_name = "terraform-server-sa"
 }
 
@@ -12,14 +12,14 @@ resource "google_project_iam_member" "terraform-server-sa-permissions" {
     "roles/run.developer",
     "roles/iam.serviceAccountUser"
   ])
-  role = each.key
-  member = "serviceAccount:${google_service_account.terraform-server-sa.email}"
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.terraform-server-sa.email}"
   project = var.project_id
 }
 
 
 resource "google_service_account" "terraform-job-sa" {
-  account_id = "terraform-job-sa"
+  account_id   = "terraform-job-sa"
   display_name = "terraform-job-sa"
 }
 
@@ -35,8 +35,8 @@ resource "google_project_iam_member" "terraform-job-sa-permissions" {
     "roles/bigquery.dataViewer",
     "roles/bigquery.metadataViewer",
   ])
-  role = each.key
-  member = "serviceAccount:${google_service_account.terraform-job-sa.email}"
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.terraform-job-sa.email}"
   project = var.project_id
 }
 
@@ -74,7 +74,7 @@ resource "google_project_service" "run_api" {
 
 # dbt-server dev on Cloud Run
 resource "google_cloud_run_service" "server_dev" {
-  name = "server-dev-tf"
+  name     = "server-dev-tf"
   location = var.location
 
   template {
@@ -83,23 +83,23 @@ resource "google_cloud_run_service" "server_dev" {
       containers {
         image = "${var.docker_image}:dev"
         env {
-          name = "BUCKET_NAME"
+          name  = "BUCKET_NAME"
           value = var.bucket_name
         }
         env {
-          name = "DOCKER_IMAGE"
+          name  = "DOCKER_IMAGE"
           value = "${var.docker_image}:dev"
         }
         env {
-          name = "SERVICE_ACCOUNT" // this service account is used by the dbt job
+          name  = "SERVICE_ACCOUNT" // this service account is used by the dbt job
           value = google_service_account.terraform-job-sa.email
         }
         env {
-          name = "PROJECT_ID"
+          name  = "PROJECT_ID"
           value = var.project_id
         }
         env {
-          name = "LOCATION"
+          name  = "LOCATION"
           value = var.location
         }
       }
@@ -125,7 +125,7 @@ resource "google_cloud_run_service_iam_member" "run_all_users_dev" {
 
 # dbt-server prod on Cloud Run
 resource "google_cloud_run_service" "server_prod" {
-  name = "server-prod-tf"
+  name     = "server-prod-tf"
   location = var.location
 
   template {
@@ -134,27 +134,27 @@ resource "google_cloud_run_service" "server_prod" {
       containers {
         image = "${var.docker_image}:prod"
         env {
-          name = "BUCKET_NAME"
+          name  = "BUCKET_NAME"
           value = var.bucket_name
         }
         env {
-          name = "DOCKER_IMAGE"
+          name  = "DOCKER_IMAGE"
           value = "${var.docker_image}:prod"
         }
         env {
-          name = "SERVICE_ACCOUNT"
+          name  = "SERVICE_ACCOUNT"
           value = google_service_account.terraform-job-sa.email
         }
         env {
-          name = "PROJECT_ID"
+          name  = "PROJECT_ID"
           value = var.project_id
         }
         env {
-          name = "LOCATION"
+          name  = "LOCATION"
           value = var.location
         }
       }
-    } 
+    }
   }
 
   traffic {
