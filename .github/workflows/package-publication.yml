@@ -1,0 +1,34 @@
+name: dbt-remote Python package
+
+on:
+  push:
+    paths:
+      - package/**
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get repo
+        uses: actions/checkout@v3.0.2
+      - name: Install Python and Poetry
+        uses: ./.github/actions/poetry
+
+      - name: Test package/ with pytest
+        run: poetry run pytest package/tests --ignore package/tests/integration
+  
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get repo
+        uses: actions/checkout@v3.0.2
+      - name: Install Python and Poetry
+        uses: ./.github/actions/poetry
+      - name: Build package
+        run: poetry build
+      - name: Add repository
+        run: poetry config repositories.testpypi https://test.pypi.org/legacy/
+      - name: Publish to registry
+        run: poetry publish --repository testpypi -u __token__ -p ${{ secrets.PYPI_TOKEN }} --skip-existing
+  

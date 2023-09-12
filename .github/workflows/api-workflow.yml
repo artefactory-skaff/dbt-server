@@ -1,6 +1,9 @@
 name: dbt-remote Python package
 
-on: [push]
+on:
+  push:
+    paths:
+      - api/**
 
 jobs:
 
@@ -29,26 +32,10 @@ jobs:
           cp api/profiles.yml /home/runner/.dbt
           ls -la /home/runner/.dbt
 
-      - name: Test package/ with pytest
-        run: poetry run pytest package/tests --ignore package/tests/integration
-
       - name: Test api/ with pytest
         env:
             SERVICE_ACCOUNT_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: poetry run pytest api/tests --ignore api/tests/integration
-  
-  build:
-    runs-on: ubuntu-latest
-    needs: [test]
-    steps:
-      - name: Get repo
-        uses: actions/checkout@v3.0.2
-      - name: Install Python and Poetry
-        uses: ./.github/actions/poetry
-      - name: Build package
-        run: poetry build
-      # - name: Publish to registry
-      #   run: poetry publish --username $PYPI_USERNAME --password $PYPI_PASSWORD
   
   deploy:
     runs-on: ubuntu-latest
