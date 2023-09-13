@@ -4,11 +4,11 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry]
-name = "dbt_remote_cli"
-version = "0.1.6"
+name = "dbt_remote"
+version = "0.0.0"
 description = "cli to run dbt commands on GCP Cloud Run Jobs using dbt-server."
 authors = ["emma.galliere <emma.galliere@artefact.com>"]
-readme = ["package/README.md", "api/README.md", "README.md"]
+readme = ["package/README.md", "api/README.md"]
 packages = [
     { include = "package" }
 ]
@@ -42,9 +42,9 @@ uvicorn = "0.23.1"
 
 
 [tool.poetry.scripts]
-dbt-remote = 'package.src.dbt_remote_cli.cli:cli'
+dbt-remote = 'package.src.dbt_remote.cli:cli'
 
 [tool.pytest.ini_options]
 pythonpath = [
-  ".", "package", "package/src", "package/src/dbt_remote_cli"
+  ".", "package", "package/src", "package/src/dbt_remote", "api"
 ]

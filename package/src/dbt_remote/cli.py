@@ -8,9 +8,9 @@ from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner
 
-from package.src.dbt_remote_cli.dbt_server_detector import detect_dbt_server_uri
-from package.src.dbt_remote_cli.server_response_classes import DbtResponse
-from package.src.dbt_remote_cli.stream_logs import stream_logs
+from package.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
+from package.src.dbt_remote.server_response_classes import DbtResponse
+from package.src.dbt_remote.stream_logs import stream_logs
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True,),
