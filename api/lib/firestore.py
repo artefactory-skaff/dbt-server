@@ -3,7 +3,7 @@ from google.cloud import firestore
 from google.oauth2.credentials import Credentials
 
 
-def connect_firestore_collection():
+def connect_firestore_collection() -> firestore.CollectionReference:
     SERVICE_ACCOUNT_TOKEN = os.getenv('SERVICE_ACCOUNT_KEY', default='')
     if SERVICE_ACCOUNT_TOKEN != '':
         cred = Credentials(token=SERVICE_ACCOUNT_TOKEN)

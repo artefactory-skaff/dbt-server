@@ -8,12 +8,17 @@ from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metad
 import os
 
 from lib.state import State
+from lib.cloud_storage import CloudStorage
+from google.cloud import firestore
 
 
 class DbtLogger:
 
-    def __init__(self, local: bool = False, server: bool = False):
+    def __init__(self, cloud_storage_instance: CloudStorage, dbt_collection: firestore.CollectionReference,
+                 local: bool = False, server: bool = False):
         self.logger = init_logger(local, server)
+        self.cloud_storage_instance = cloud_storage_instance
+        self.dbt_collection = dbt_collection
 
     @property
     def uuid(self):
@@ -22,7 +27,7 @@ class DbtLogger:
     @uuid.setter
     def uuid(self, new_uuid: str):
         self._uuid = new_uuid
-        self.state = State(self._uuid)
+        self.state = State(self._uuid, self.cloud_storage_instance, self.dbt_collection)
 
     def log(self, severity: str, new_log: str):
         log_level = get_log_level(severity)

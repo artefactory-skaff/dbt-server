@@ -11,13 +11,14 @@ from fastapi import HTTPException
 from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
 from lib.state import State
-from lib.cloud_storage import get_blob_from_bucket
+from lib.cloud_storage import CloudStorage, connect_client
 from lib.set_environment import set_env_vars, get_server_dbt_logger
+from lib.firestore import connect_firestore_collection
 
 
 BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
 PORT = os.environ.get("PORT", "8001")
-DBT_LOGGER = get_server_dbt_logger(sys.argv)
+DBT_LOGGER = get_server_dbt_logger(CloudStorage(connect_client()), connect_firestore_collection(), sys.argv)
 
 app = FastAPI()
 
@@ -26,7 +27,7 @@ app = FastAPI()
 def run_command(dbt_command: DbtCommand):
 
     request_uuid = str(uuid.uuid4())
-    state = State(request_uuid)
+    state = State(request_uuid, CloudStorage(connect_client()), connect_firestore_collection())
     state.init_state()
     state.run_status = "pending"
     DBT_LOGGER.uuid = request_uuid
@@ -118,23 +119,24 @@ def launch_job(state: State, response_job: run_v2.types.Job):
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
 def get_job_state(uuid: str):
-    job_state = State(uuid)
+    job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
     run_status = job_state.run_status
     return {"run_status": run_status}
 
 
 @app.get("/job/{uuid}/last_logs", status_code=status.HTTP_200_OK)
 def get_last_logs(uuid: str):
-    job_state = State(uuid)
+    job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
     logs = job_state.get_last_logs()
     return {"run_logs": logs}
 
 
 @app.get("/job/{uuid}/report", status_code=status.HTTP_200_OK)
 def get_report(uuid: str):
-    state = State(uuid)
+    state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    cloud_storage_instance = CloudStorage(connect_client())
     cloud_storage_folder = state.storage_folder
-    report = get_blob_from_bucket(BUCKET_NAME, cloud_storage_folder+'/elementary_report.html')
+    report = cloud_storage_instance.get_blob_from_bucket(BUCKET_NAME, cloud_storage_folder+'/elementary_report.html')
     _ = report
 
     google_console_url = 'https://console.cloud.google.com/storage/browser/_details'

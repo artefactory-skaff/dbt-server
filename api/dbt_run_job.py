@@ -15,12 +15,14 @@ from elementary.monitor.cli import report
 from fastapi import HTTPException
 
 from lib.state import State
-from lib.cloud_storage import write_to_bucket
+from lib.cloud_storage import CloudStorage, connect_client
 from lib.set_environment import set_env_vars_job
+from lib.firestore import connect_firestore_collection
 
 callback_lock = threading.Lock()
 
-BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job()
+BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
+                                                                                 connect_firestore_collection())
 
 
 def prepare_and_execute_job(state: State) -> ():
@@ -103,7 +105,10 @@ def upload_elementary_report(state: State) -> ():
 
     with open('edr_target/elementary_report.html', 'r') as f:
         elementary_report = f.read()
-    write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/elementary_report.html", elementary_report)
+
+    cloud_storage_instance = CloudStorage(connect_client())
+    cloud_storage_instance.write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/elementary_report.html",
+                                           elementary_report)
 
 
 def logger_callback(event: EventMsg):
