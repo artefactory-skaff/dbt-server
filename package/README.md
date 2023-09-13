@@ -1,4 +1,4 @@
-This package aims to run [dbt][dbt-url] commands on a remote server hosted on GCP. To function, it requires to host a dbt-server and to install the cli
+This package aims to run [dbt][dbt-url] commands remotely (on Cloud Run jobs on GCP). To function, it requires to host a ```dbt-server``` (which will create the Cloud Run jobs) and to install the cli (which will send the user commands to the ```dbt-server```).
 
 # dbt-remote cli
 
