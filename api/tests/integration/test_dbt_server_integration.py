@@ -7,10 +7,12 @@ sys.path.insert(2, './api/lib')
 from dbt_server import create_job, launch_job
 from state import State
 from dbt_classes import DbtCommand
+from cloud_storage import CloudStorage, connect_client
+from firestore import connect_firestore_collection
 
 
 def test_create_job():
-    state = State("0000")
+    state = State("0000", CloudStorage(connect_client()), connect_firestore_collection())
     dbt_command = DbtCommand(
         server_url="https://dbt-server.com",
         user_command="test",
@@ -27,7 +29,7 @@ def test_create_job():
 
 
 def test_launch_job():
-    state = State("0000")
+    state = State("0000", CloudStorage(connect_client()), connect_firestore_collection())
     dbt_command = DbtCommand(
         server_url="https://dbt-server.com",
         user_command="test",

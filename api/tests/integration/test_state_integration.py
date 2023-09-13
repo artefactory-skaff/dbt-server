@@ -2,11 +2,13 @@ import sys
 
 sys.path.insert(1, './api/lib')
 from state import State
+from cloud_storage import CloudStorage, connect_client
+from firestore import connect_firestore_collection
 
 
 def test_init_state():
 
-    state = State("0000")
+    state = State("0000", CloudStorage(connect_client()), connect_firestore_collection())
     state.init_state()
 
     uuid = state.uuid
@@ -18,7 +20,7 @@ def test_init_state():
     user_command = state.user_command
     assert user_command == ""
 
-    cloud_storage_folder = state.storage_folder
+    cloud_storage_folder = state.cloud_storage_folder
     assert cloud_storage_folder == ""
 
     log_starting_byte = state.log_starting_byte
@@ -27,7 +29,7 @@ def test_init_state():
 
 def test_get_all_logs():
 
-    state = State("0000")
+    state = State("0000", CloudStorage(connect_client()), connect_firestore_collection())
     state.init_state()
     state.log('INFO', 'log1')
 
@@ -40,7 +42,7 @@ def test_get_all_logs():
 
 def test_get_last_logs():
 
-    state = State("0000")
+    state = State("0000", CloudStorage(connect_client()), connect_firestore_collection())
     state.init_state()
     state.log('INFO', 'log1')
 
