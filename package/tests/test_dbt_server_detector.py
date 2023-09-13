@@ -1,5 +1,5 @@
-from src.dbt_remote_cli.dbt_server_detector import deduce_target_from_profiles, get_metadata_from_profiles_dict
-from src.dbt_remote_cli.dbt_server_detector import get_selected_sub_command_conf_from_user_command
+from src.dbt_remote.dbt_server_detector import deduce_target_from_profiles, get_metadata_from_profiles_dict
+from src.dbt_remote.dbt_server_detector import get_selected_sub_command_conf_from_user_command
 
 
 def test_deduce_target_from_profiles():

@@ -1,4 +1,4 @@
-from src.dbt_remote_cli.stream_logs import parse_log
+from src.dbt_remote.stream_logs import parse_log
 
 
 def test_parse_log():

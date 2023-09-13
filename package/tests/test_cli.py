@@ -1,4 +1,4 @@
-from src.dbt_remote_cli.cli import assemble_dbt_command, parse_server_response, get_selected_nodes
+from src.dbt_remote.cli import assemble_dbt_command, parse_server_response, get_selected_nodes
 
 
 def test_assemble_dbt_command():
