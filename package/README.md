@@ -10,15 +10,15 @@ This package aims to run [dbt][dbt-url] commands on a remote server hosted on GC
 
 ### Before running
 
-Before running ```dbt-remote```, make sure you have at least one running ```dbt-server``` of your GCP project Cloud Run (it should be in the same project as the BigQuery data you want to process). If not, see set up [here](../api/README.md#dbt-server).
+Before running ```dbt-remote```, make sure you have at least one running ```dbt-server``` of your GCP project Cloud Run (it should be in the same project as the BigQuery data you want to process). If not, see set up [here](#dbt-server).
 
-Make sure you are in a dbt project (```dbt_project.yml``` should be in your current directory and ```manifest.json``` should be in ```./target```). Otherwise, you can specify the path to a dbt project using ```--project-dir path/to/project```. Finally, if needed, you can specify path to ```manifest.json``` and ```dbt_project.yml``` : 
+Make sure you are in a dbt project: ```dbt_project.yml``` should be in your current directory and ```manifest.json``` should be in ```./target```. Otherwise, you can specify the path to a dbt project using ```--project-dir path/to/project```. Finally, if needed, you can specify path to ```manifest.json``` and ```dbt_project.yml``` : 
 
 ```sh
 dbt-remote run --manifest test-files/manifest.json --select my_model --dbt_project test-files/dbt_project.yml
 ```
 
-Be careful: if you already specified a ```project-dir```, the ```manifest``` and ```dbt_project``` paths should be **relative** to the ```project-dir```)
+Be careful: if you already specified a ```project-dir```, the ```manifest``` and ```dbt_project``` paths should be **relative** to the ```project-dir```.
 
 
 
@@ -53,7 +53,7 @@ For example if your project uses ```elementary```, you should add this option.
 
 **Elementary**
 
-If you want to produce an elementary report at the end of the run, you can add the ```--elementary``` flag. You may also need to specify ```--extra-packages``` if elementary is not install on your Cloud Run job by default (check ```requirements.txt```).
+If you want to produce an [elementary][elementary-url] report at the end of the run, you can add the ```--elementary``` flag. You may also need to specify ```--extra-packages``` if elementary is not install on your Cloud Run job by default (check ```requirements.txt```).
 
 
 **Seeds path:**
@@ -66,7 +66,7 @@ Ex: ```dbt-remote seeds --seeds-path test/seeds```
 
 ## More dbt-remote command examples
 
-- run --select with elementary: 
+- run vbak_dbt model with Elementary report: 
 
 ```sh
 dbt-remote --log-level info run --manifest project/manifest.json --select vbak_dbt --dbt_project project/dbt_project.yml --extra-packages project/packages.yml --elementary
@@ -90,3 +90,4 @@ dbt-remote build --server-url http://0.0.0.0:8001
 
    [git-repo-url]: <https://github.com/artefactory-fr/dbt-server>
    [dbt-url]: <https://www.getdbt.com/>
+   [elementary-url]: <https://www.elementary-data.com/>
