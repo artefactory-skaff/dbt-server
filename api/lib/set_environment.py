@@ -1,5 +1,6 @@
 import os
 from typing import List
+from google.cloud.logging import Client
 
 from lib.state import State
 from lib.logger import DbtLogger
@@ -18,24 +19,25 @@ def set_env_vars() -> tuple[str | None, str | None, str | None, str | None, str 
 
 
 def set_env_vars_job(cloud_storage_instance: CloudStorage,
-                     dbt_collection: firestore.CollectionReference) -> tuple[str | None, str | None, str | None,
-                                                                             str | None, DbtLogger, State]:
+                     dbt_collection: firestore.CollectionReference,
+                     logging_client: Client) -> tuple[str | None, str | None, str | None,
+                                                      str | None, DbtLogger, State]:
     BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')
     DBT_COMMAND = os.environ.get("DBT_COMMAND", default='')
     UUID = os.environ.get("UUID", default='0000')
     ELEMENTARY = os.environ.get("ELEMENTARY", default='False')
     DBT_LOGGER = DbtLogger(cloud_storage_instance=cloud_storage_instance, dbt_collection=dbt_collection,
-                           local=False, server=False)
+                           logging_client=logging_client, local=False, server=False)
     DBT_LOGGER.uuid = UUID
     STATE = State(UUID, cloud_storage_instance, dbt_collection)
     return BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE
 
 
 def get_server_dbt_logger(client_storage_instance: CloudStorage, dbt_collection: firestore.CollectionReference,
-                          argv: List[str]) -> DbtLogger:
+                          logging_client: Client, argv: List[str]) -> DbtLogger:
     local = False
     if len(argv) == 2 and argv[1] == "--local":  # run locally:
         local = True
     DBT_LOGGER = DbtLogger(cloud_storage_instance=client_storage_instance, dbt_collection=dbt_collection,
-                           local=local, server=True)
+                           logging_client=logging_client, local=local, server=True)
     return DBT_LOGGER

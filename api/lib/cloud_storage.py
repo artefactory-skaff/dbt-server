@@ -26,8 +26,8 @@ class CloudStorage:
         blob_size = get_blob_size(bucket, blob_name)
 
         if blob_size is not None and blob_size > start_byte:
-            blob = blob.download_as_bytes(client=None, start=start_byte)
-            return blob
+            blob_bytes = blob.download_as_bytes(client=None, start=start_byte)
+            return blob_bytes
         else:
             return b''
 

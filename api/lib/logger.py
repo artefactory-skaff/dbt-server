@@ -1,7 +1,7 @@
 import logging
 from logging import Logger
 # https://stackoverflow.com/questions/2183233/how-to-add-a-custom-loglevel-to-pythons-logging-facility/35804945#35804945
-import google.cloud.logging
+from google.cloud.logging import Client
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
@@ -15,8 +15,8 @@ from google.cloud import firestore
 class DbtLogger:
 
     def __init__(self, cloud_storage_instance: CloudStorage, dbt_collection: firestore.CollectionReference,
-                 local: bool = False, server: bool = False):
-        self.logger = init_logger(local, server)
+                 logging_client: Client = None, local: bool = False, server: bool = False):
+        self.logger = init_logger(logging_client, local, server)
         self.cloud_storage_instance = cloud_storage_instance
         self.dbt_collection = dbt_collection
 
@@ -36,21 +36,23 @@ class DbtLogger:
             self.state.log(severity.upper(), new_log)
 
 
-def init_logger(local: bool, server: bool) -> Logger:
+def init_logger(logging_client: Client | None, local: bool, server: bool) -> Logger:
     _addGcloudLoggingLevel()
     logger = logging.getLogger(__name__)
 
     if not local:
+        if logging_client is None:
+            raise Exception("No Cloud Logging client given and not running locally")
         if server:
-            handler = server_cloud_handler()
+            handler = server_cloud_handler(logging_client)
         else:
-            handler = job_cloud_handler()
+            handler = job_cloud_handler(logging_client)
         logger.addHandler(handler)
 
     return logger
 
 
-def server_cloud_handler():
+def server_cloud_handler(logging_client: Client):
 
     region = retrieve_metadata_server(_REGION_ID)
     project = retrieve_metadata_server(_PROJECT_NAME)
@@ -62,13 +64,12 @@ def server_cloud_handler():
             "project_id": project,
         }
     )
-    client = google.cloud.logging.Client()
-    handler = CloudLoggingHandler(client, resource=cr_job_resource)
+    handler = CloudLoggingHandler(logging_client, resource=cr_job_resource)
 
     return handler
 
 
-def job_cloud_handler():
+def job_cloud_handler(logging_client: Client):
 
     region = retrieve_metadata_server(_REGION_ID)
     project = retrieve_metadata_server(_PROJECT_NAME)
@@ -85,8 +86,7 @@ def job_cloud_handler():
         }
     )
     labels = {"uuid": uuid}
-    client = google.cloud.logging.Client()
-    handler = CloudLoggingHandler(client, resource=cr_job_resource, labels=labels)
+    handler = CloudLoggingHandler(logging_client, resource=cr_job_resource, labels=labels)
 
     return handler
 

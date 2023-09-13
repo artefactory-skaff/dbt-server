@@ -1,6 +1,7 @@
 
 from fastapi import FastAPI, status
 from google.cloud import run_v2
+from google.cloud import logging
 import os
 import uuid
 import uvicorn
@@ -18,7 +19,8 @@ from lib.firestore import connect_firestore_collection
 
 BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
 PORT = os.environ.get("PORT", "8001")
-DBT_LOGGER = get_server_dbt_logger(CloudStorage(connect_client()), connect_firestore_collection(), sys.argv)
+DBT_LOGGER = get_server_dbt_logger(CloudStorage(connect_client()), connect_firestore_collection(),
+                                   logging.Client(), sys.argv)
 
 app = FastAPI()
 
@@ -135,7 +137,7 @@ def get_last_logs(uuid: str):
 def get_report(uuid: str):
     state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
     cloud_storage_instance = CloudStorage(connect_client())
-    cloud_storage_folder = state.storage_folder
+    cloud_storage_folder = state.cloud_storage_folder
     report = cloud_storage_instance.get_blob_from_bucket(BUCKET_NAME, cloud_storage_folder+'/elementary_report.html')
     _ = report
 

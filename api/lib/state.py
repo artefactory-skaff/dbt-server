@@ -70,20 +70,20 @@ class State:
         status_ref.update({"log_starting_byte": new_log_starting_byte})
 
     @property
-    def storage_folder(self) -> str:
+    def cloud_storage_folder(self) -> str:
         status_ref = self.dbt_collection.document(self._uuid)
         cloud_storage_folder = status_ref.get().to_dict()["cloud_storage_folder"]
         return cloud_storage_folder
 
-    @storage_folder.setter
-    def storage_folder(self, cloud_storage_folder: str):
+    @cloud_storage_folder.setter
+    def cloud_storage_folder(self, cloud_storage_folder: str):
         status_ref = self.dbt_collection.document(self._uuid)
         status_ref.update({"cloud_storage_folder": cloud_storage_folder})
 
     def load_context(self, dbt_command: DbtCommand) -> ():
         cloud_storage_folder = generate_folder_name(self._uuid)
         logging.info('cloud_storage_folder ' + cloud_storage_folder)
-        self.storage_folder = cloud_storage_folder
+        self.cloud_storage_folder = cloud_storage_folder
         self.cloud_storage_instance.write_to_bucket(BUCKET_NAME,
                                                     cloud_storage_folder+"/manifest.json", dbt_command.manifest)
         self.cloud_storage_instance.write_to_bucket(BUCKET_NAME,
@@ -97,7 +97,7 @@ class State:
                 self.cloud_storage_instance.write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/"+seed_name, seed_str)
 
     def get_context_to_local(self) -> ():
-        cloud_storage_folder = self.storage_folder
+        cloud_storage_folder = self.cloud_storage_folder
         logging.info("load data from folder " + cloud_storage_folder)
         blob_context_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME, cloud_storage_folder)
         write_files(blob_context_files)

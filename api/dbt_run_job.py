@@ -5,6 +5,7 @@ from typing import TypedDict
 import threading
 import time
 
+from google.cloud import logging
 from click.parser import split_arg_string
 from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
 from dbt.events.base_types import EventMsg
@@ -22,7 +23,8 @@ from lib.firestore import connect_firestore_collection
 callback_lock = threading.Lock()
 
 BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
-                                                                                 connect_firestore_collection())
+                                                                                 connect_firestore_collection(),
+                                                                                 logging.Client())
 
 
 def prepare_and_execute_job(state: State) -> ():
@@ -101,7 +103,7 @@ def upload_elementary_report(state: State) -> ():
     log = "Uploading report..."
     DBT_LOGGER.log("INFO", log)
 
-    cloud_storage_folder = state.storage_folder
+    cloud_storage_folder = state.cloud_storage_folder
 
     with open('edr_target/elementary_report.html', 'r') as f:
         elementary_report = f.read()
