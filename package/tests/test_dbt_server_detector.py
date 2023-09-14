@@ -1,5 +1,7 @@
 from src.dbt_remote.dbt_server_detector import deduce_target_from_profiles, get_metadata_from_profiles_dict
 from src.dbt_remote.dbt_server_detector import get_selected_sub_command_conf_from_user_command
+from src.dbt_remote.dbt_server_detector import check_if_server_is_dbt_server
+from unittest.mock import Mock
 
 
 def test_deduce_target_from_profiles():
@@ -93,3 +95,48 @@ def test_get_selected_target_and_profile():
         computed_profile = get_selected_sub_command_conf_from_user_command(command+project_dir, 'profile')
         assert computed_target == expected_target
         assert computed_profile == expected_profile
+
+
+def test_check_if_server_is_dbt_server(requests_mock):
+    server_url = "https://test-server.test"
+    service_mock = Mock(name="service_mock")
+    service_mock.uri = server_url
+
+    check_list = [
+        {
+            "url": server_url+'/check',
+            "status_code": 200,
+            "json": {'response': 'Running dbt-server on port 8001'},
+            "is_dbt_server": True
+        },
+        {
+            "url": server_url+'/check',
+            "status_code": 201,
+            "json": {'response': 'Running dbt-server on port 8001'},
+            "is_dbt_server": False
+        },
+        {
+            "url": server_url+'/check',
+            "status_code": 200,
+            "json": {'response': 'other msg'},
+            "is_dbt_server": False
+        },
+        {
+            "url": server_url+'/check',
+            "status_code": 200,
+            "json": {'other key': 'other msg'},
+            "is_dbt_server": False
+        },
+        {
+            "url": server_url+'/check',
+            "status_code": 200,
+            "json": "not a json",
+            "is_dbt_server": False
+        },
+    ]
+
+    for check in check_list:
+        request_mock = requests_mock.get(check["url"], status_code=check["status_code"], json=check["json"])
+        assert check_if_server_is_dbt_server(service_mock) == check["is_dbt_server"]
+        assert request_mock.last_request.method == 'GET'
+        assert request_mock.last_request.url == check["url"]

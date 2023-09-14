@@ -7,6 +7,7 @@ import click
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner
+from google.cloud import run_v2
 
 from package.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from package.src.dbt_remote.server_response_classes import DbtResponse
@@ -39,16 +40,16 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
     dbt_command = assemble_dbt_command(user_command, args)
     click.echo(f'Command: dbt {dbt_command}')
 
-    global SERVER_URL
-    SERVER_URL = get_server_uri(dbt_command, project_dir, dbt_project, server_url, location)
-    click.echo('dbt-server url: '+SERVER_URL)
+    cloud_run_client = run_v2.ServicesClient()
+    server_url = get_server_uri(dbt_command, project_dir, dbt_project, server_url, location, cloud_run_client)
+    click.echo('dbt-server url: '+server_url)
 
     if manifest is None:
         compile_manifest(project_dir)
         manifest = "./target/manifest.json"
 
     click.echo('Sending request to server. Waiting for job creation...')
-    server_response = send_command(dbt_command, project_dir, manifest, dbt_project, extra_packages,
+    server_response = send_command(server_url, dbt_command, project_dir, manifest, dbt_project, extra_packages,
                                    seeds_path, elementary)
 
     uuid, links = get_job_uuid_and_links(server_response)
@@ -68,12 +69,12 @@ def assemble_dbt_command(user_command: str, args: Any) -> str:
 
 
 def get_server_uri(dbt_command: str, project_dir: str, dbt_project: str, server_url: str | None,
-                   location: str | None) -> str:
+                   location: str | None, cloud_run_client: run_v2.ServicesClient) -> str:
     if server_url is not None:
         server_url = server_url + "/"
     else:
         click.echo("Looking for dbt server available on Cloud Run...")
-        server_url = detect_dbt_server_uri(project_dir, dbt_project, dbt_command, location) + "/"
+        server_url = detect_dbt_server_uri(project_dir, dbt_project, dbt_command, location, cloud_run_client) + "/"
     return server_url
 
 
@@ -82,15 +83,15 @@ def compile_manifest(project_dir: str):
     dbtRunner().invoke(["parse", "--project-dir", project_dir])
 
 
-def send_command(command: str, project_dir: str, manifest: str, dbt_project: str, packages: str | None, seeds_path: str,
-                 elementary: bool) -> requests.Response:
-    url = SERVER_URL + "dbt"
+def send_command(server_url: str, command: str, project_dir: str, manifest: str, dbt_project: str, packages: str | None,
+                 seeds_path: str, elementary: bool) -> requests.Response:
+    url = server_url + "dbt"
 
     manifest_str = read_file(project_dir + '/' + manifest)
     dbt_project_str = read_file(project_dir + '/' + dbt_project)
 
     data = {
-            "server_url": SERVER_URL,
+            "server_url": server_url,
             "user_command": command,
             "manifest": manifest_str,
             "dbt_project": dbt_project_str

@@ -21,11 +21,11 @@ def test_check_if_server_is_dbt_server():
 
 
 def test_get_cloud_run_service_list():
-    project_id, location = "stc-dbt-test-9e19", "us-central1"
+    project_id, location = "stc-dbt-test-9e19", "europe-west9"
     services = get_cloud_run_service_list(project_id, location)
 
     test_dbt_server_is_present = False
     for service in services:
-        if service.name == "projects/stc-dbt-test-9e19/locations/us-central1/services/server-dev":
+        if service.name == "projects/stc-dbt-test-9e19/locations/europe-west9/services/server-dev":
             test_dbt_server_is_present = True
     assert test_dbt_server_is_present

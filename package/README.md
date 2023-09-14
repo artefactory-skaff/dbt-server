@@ -10,7 +10,7 @@ This package aims to run [dbt][dbt-url] commands remotely (on Cloud Run jobs on 
 
 ### Before running
 
-Before running ```dbt-remote```, make sure you have at least one running ```dbt-server``` of your GCP project Cloud Run (it should be in the same project as the BigQuery data you want to process). If not, see set up [here](#dbt-server).
+Before running ```dbt-remote```, make sure you have at least one running ```dbt-server``` of your GCP project Cloud Run (it should be in the same project as the BigQuery data you want to process). If no ```dbt-server``` is set up yet, see #dbt-server section below.
 
 Make sure you are in a dbt project: ```dbt_project.yml``` should be in your current directory and ```manifest.json``` should be in ```./target```. Otherwise, you can specify the path to a dbt project using ```--project-dir path/to/project```. Finally, if needed, you can specify path to ```manifest.json``` and ```dbt_project.yml``` : 
 

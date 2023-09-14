@@ -12,11 +12,12 @@ from google.api_core.exceptions import PermissionDenied
 from package.src.dbt_remote.server_response_classes import DbtResponseCheck
 
 
-def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, location: str | None) -> str:
+def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, location: str | None,
+                          cloud_run_client: run_v2.ServicesClient) -> str:
 
     project_id, location = identify_project_id_and_location(project_dir, dbt_project, command, location)
 
-    cloud_run_services = get_cloud_run_service_list(project_id, location)
+    cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
     for service in cloud_run_services:
         if check_if_server_is_dbt_server(service):
             click.echo('Using Cloud Run `' + service.name + '` as dbt server')
@@ -101,10 +102,9 @@ def get_metadata_from_profiles_dict(profiles_dict: Dict[str, str], selected_prof
     return metadata
 
 
-def get_cloud_run_service_list(project_id: str, location: str) -> List[run_v2.types.service.Service]:
+def get_cloud_run_service_list(project_id: str, location: str,
+                               client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
     click.echo(f"Cloud Run location: {location}")
-
-    client = run_v2.ServicesClient()
 
     parent_value = f"projects/{project_id}/locations/{location}"
     request = run_v2.ListServicesRequest(
