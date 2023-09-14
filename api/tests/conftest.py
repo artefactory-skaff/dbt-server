@@ -37,3 +37,13 @@ def MockState():
     mock_dbt_collection.document.return_value = mock_document
 
     return mock_dbt_collection, mock_document
+
+
+@fixture
+def MockLogging():
+    mock_logger = Mock(name="mock_logger")
+
+    mock_logging = Mock(name="mock_logging")  # patch('api.dbt_server.Client')
+    mock_logging.logger.return_value = mock_logger
+
+    return mock_logging

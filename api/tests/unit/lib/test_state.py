@@ -1,9 +1,7 @@
-import sys
 from unittest.mock import call
 
-sys.path.insert(1, './api/lib')
-from state import State, current_date_time, generate_folder_name
-from dbt_classes import DbtCommand
+from api.lib.state import State, current_date_time, generate_folder_name
+from api.lib.dbt_classes import DbtCommand
 
 
 def test_init_state(MockCloudStorage, MockState):

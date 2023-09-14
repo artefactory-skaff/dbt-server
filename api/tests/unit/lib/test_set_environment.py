@@ -1,10 +1,6 @@
-import sys
 import os
-from unittest.mock import Mock
 
-sys.path.insert(1, './api/lib')
-
-from set_environment import set_env_vars, set_env_vars_job
+from api.lib.set_environment import set_env_vars, set_env_vars_job
 
 
 def test_set_env_vars():
@@ -14,18 +10,18 @@ def test_set_env_vars():
     os.environ['SERVICE_ACCOUNT'] = 'ACCOUNT'
     os.environ['PROJECT_ID'] = 'ID'
 
-    assert set_env_vars() == ('BUCKET', 'IMAGE', 'ACCOUNT', 'ID', 'us-central1')
+    assert set_env_vars() == ('BUCKET', 'IMAGE', 'ACCOUNT', 'ID', 'europe-west9')
 
     os.environ['LOCATION'] = 'LOCATION'
 
     assert set_env_vars() == ('BUCKET', 'IMAGE', 'ACCOUNT', 'ID', 'LOCATION')
 
 
-def test_set_env_vars_job(MockCloudStorage, MockState):
+def test_set_env_vars_job(MockLogging, MockCloudStorage, MockState):
     mock_gcs_client, _, _, _ = MockCloudStorage
     mock_dbt_collection, _ = MockState
     uuid = "UUID"
-    mock_logging_client = Mock(name='mock_logging_client')
+    mock_logging_client = MockLogging
 
     os.environ['BUCKET_NAME'] = 'BUCKET'
     os.environ['DBT_COMMAND'] = 'COMMAND'

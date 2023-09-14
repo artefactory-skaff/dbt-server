@@ -1,7 +1,4 @@
-import sys
-
-sys.path.insert(1, './api/lib')
-from cloud_storage import CloudStorage
+from api.lib.cloud_storage import CloudStorage
 
 
 def test_get_blob_from_bucket(MockCloudStorage):

@@ -120,7 +120,7 @@ def launch_job(state: State, response_job: run_v2.types.Job):
 
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
-def get_job_state(uuid: str):
+def get_job_status(uuid: str):
     job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
     run_status = job_state.run_status
     return {"run_status": run_status}
@@ -136,10 +136,7 @@ def get_last_logs(uuid: str):
 @app.get("/job/{uuid}/report", status_code=status.HTTP_200_OK)
 def get_report(uuid: str):
     state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
-    cloud_storage_instance = CloudStorage(connect_client())
     cloud_storage_folder = state.cloud_storage_folder
-    report = cloud_storage_instance.get_blob_from_bucket(BUCKET_NAME, cloud_storage_folder+'/elementary_report.html')
-    _ = report
 
     google_console_url = 'https://console.cloud.google.com/storage/browser/_details'
     url = f'{google_console_url}/{BUCKET_NAME}/{cloud_storage_folder}/elementary_report.html'

@@ -33,12 +33,12 @@ jobs:
           ls -la /home/runner/.dbt
 
       - name: Run unit tests on api/ with pytest
-        run: poetry run pytest api/tests/unit
+        run: poetry run pytest api/tests/unit -W ignore::DeprecationWarning
 
       # - name: Run integration tests on api/ with pytest
       #   env:
       #       SERVICE_ACCOUNT_TOKEN: ${{ steps.auth.outputs.access_token }}
-      #   run: poetry run pytest api/tests/integration
+      #   run: poetry run pytest api/tests/integration -W ignore::DeprecationWarning
   
   deploy:
     runs-on: ubuntu-latest

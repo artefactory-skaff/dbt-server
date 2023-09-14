@@ -14,7 +14,7 @@ def set_env_vars() -> tuple[str | None, str | None, str | None, str | None, str 
                              default='us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image:prod')
     SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT', default='stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com')
     PROJECT_ID = os.getenv('PROJECT_ID', default='stc-dbt-test-9e19')
-    LOCATION = os.getenv('LOCATION', default='us-central1')
+    LOCATION = os.getenv('LOCATION', default='europe-west9')
     return BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION
 
 

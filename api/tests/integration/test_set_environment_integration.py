@@ -16,7 +16,7 @@ def test_set_env_vars():
     os.environ['SERVICE_ACCOUNT'] = 'ACCOUNT'
     os.environ['PROJECT_ID'] = 'ID'
 
-    assert set_env_vars() == ('BUCKET', 'IMAGE', 'ACCOUNT', 'ID', 'us-central1')
+    assert set_env_vars() == ('BUCKET', 'IMAGE', 'ACCOUNT', 'ID', 'europe-west9')
 
     os.environ['LOCATION'] = 'LOCATION'
 

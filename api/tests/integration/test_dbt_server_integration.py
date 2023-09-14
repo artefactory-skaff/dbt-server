@@ -1,14 +1,17 @@
-import sys
-from google.cloud import run_v2
 import time
+from datetime import datetime, timedelta
 
-sys.path.insert(1, './api')
-sys.path.insert(2, './api/lib')
-from dbt_server import create_job, launch_job
-from state import State
-from dbt_classes import DbtCommand
-from cloud_storage import CloudStorage, connect_client
-from firestore import connect_firestore_collection
+from google.cloud import run_v2
+from fastapi.testclient import TestClient
+
+from api.dbt_server import app, create_job, launch_job
+from api.lib.state import State, current_date_time
+from api.lib.dbt_classes import DbtCommand
+from api.lib.cloud_storage import CloudStorage, connect_client
+from api.lib.firestore import connect_firestore_collection
+
+
+client = TestClient(app)
 
 
 def test_create_job():
@@ -22,7 +25,7 @@ def test_create_job():
     )
 
     job = create_job(state, dbt_command)
-    assert job.name == "projects/stc-dbt-test-9e19/locations/us-central1/jobs/u0000"
+    assert job.name == "projects/stc-dbt-test-9e19/locations/europe-west9/jobs/u0000"
     assert check_job_creation(job)  # return True if client.get_job does not fail
 
     delete_job(job.name)
@@ -78,3 +81,72 @@ def delete_job(job_name: str):
 
     print("Waiting for deletion to complete...")
     operation.result()
+
+
+def test_get_job_status():
+    uuid = "test"
+    state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+
+    state.init_state()
+    response = client.get(f"/job/{uuid}")
+    assert response.status_code == 200
+    assert response.json() == {"run_status": "created"}
+
+    state.run_status = "pending"
+
+    response = client.get(f"/job/{uuid}")
+    assert response.status_code == 200
+    assert response.json() == {"run_status": "pending"}
+
+
+def test_get_last_logs():
+    uuid = "test"
+    state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    state.init_state()
+
+    response = client.get(f"/job/{uuid}/last_logs")
+    assert response.status_code == 200
+
+    dt_time = current_date_time()
+    logs = [dt_time+'\tINFO\tInit']
+    logs_server = response.json()["run_logs"]
+    assert are_logs_equal(logs, logs_server, timedelta(seconds=10))
+
+
+def are_logs_equal(logs_1: list[str], logs_2: list[str], timedelta: timedelta) -> bool:
+    if len(logs_1) != len(logs_2):
+        return False
+    for i in range(len(logs_1)):
+        date_1, date_2 = logs_1[i].split('\t')[0], logs_2[i].split('\t')[0]
+        if not are_dates_in_timedelta(date_1, date_2, timedelta):
+            return False
+        if logs_1[i].split('\t')[1:] != logs_2[i].split('\t')[1:]:
+            return False
+    return True
+
+
+def are_dates_in_timedelta(date_str_1: str, date_str_2: str, timedelta: timedelta) -> bool:
+    date_format = '%Y-%m-%dT%H:%M:%SZ'
+    date_obj_1 = datetime.strptime(date_str_1, date_format)
+    date_obj_2 = datetime.strptime(date_str_2, date_format)
+
+    if date_obj_1 > date_obj_2 and (date_obj_1 - date_obj_2) <= timedelta:
+        return True
+    elif date_obj_1 < date_obj_2 and (date_obj_2 - date_obj_1) <= timedelta:
+        return True
+    else:
+        return False
+
+
+def test_get_report():
+    uuid = "test"
+    state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    state.init_state()
+
+    response = client.get(f"/job/{uuid}/report")
+
+    cloud_storage_folder = ''  # state '0000' is just initialized
+    url = f'https://console.cloud.google.com/storage/browser/_details/dbt-stc-test/{cloud_storage_folder}/elementary_report.html'
+
+    assert response.status_code == 200
+    assert response.json() == {"url": url}
