@@ -22,7 +22,12 @@ PORT = os.environ.get("PORT", "8001")
 DBT_LOGGER = get_server_dbt_logger(CloudStorage(connect_client()), connect_firestore_collection(),
                                    logging.Client(), sys.argv)
 
-app = FastAPI()
+app = FastAPI(
+    title="dbt-server",
+    description="A server to run dbt commands in the cloud",
+    version="0.0.1",
+    docs_url="/docs"
+)
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)

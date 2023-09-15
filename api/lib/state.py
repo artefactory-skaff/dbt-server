@@ -8,7 +8,7 @@ from google.cloud import firestore
 from lib.dbt_classes import DbtCommand
 from lib.cloud_storage import CloudStorage
 
-BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test')
+BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test-eu')
 
 
 class State:

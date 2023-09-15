@@ -22,7 +22,7 @@ def test_init_state(MockCloudStorage, MockState):
         }
     mock_dbt_collection.document.assert_called_once_with(uuid)
     mock_document.set.assert_called_once_with(initial_state)
-    mock_gcs_client.write_to_bucket.assert_called_once_with('dbt-stc-test',
+    mock_gcs_client.write_to_bucket.assert_called_once_with('dbt-stc-test-eu',
                                                             f'logs/{uuid}.txt', dt_time+"\tINFO\tInit")
 
 
@@ -39,8 +39,8 @@ def test_load_context(MockCloudStorage, MockState):
                 manifest='manifest',
                 dbt_project='dbt_project',
             ),
-            "calls": [call('dbt-stc-test', f'{cloud_storage_folder}/manifest.json', 'manifest'),
-                      call('dbt-stc-test', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project')]
+            "calls": [call('dbt-stc-test-eu', f'{cloud_storage_folder}/manifest.json', 'manifest'),
+                      call('dbt-stc-test-eu', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project')]
         },
         {
             "command": DbtCommand(
@@ -52,11 +52,11 @@ def test_load_context(MockCloudStorage, MockState):
                 packages='packages',
                 seeds={'seed1': 'seed1', 'seed2': 'seed2'},
             ),
-            "calls": [call('dbt-stc-test', f'{cloud_storage_folder}/manifest.json', 'manifest'),
-                      call('dbt-stc-test', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project'),
-                      call('dbt-stc-test', f'{cloud_storage_folder}/packages.yml', 'packages'),
-                      call('dbt-stc-test', f'{cloud_storage_folder}/seed1', 'seed1'),
-                      call('dbt-stc-test', f'{cloud_storage_folder}/seed2', 'seed2')]
+            "calls": [call('dbt-stc-test-eu', f'{cloud_storage_folder}/manifest.json', 'manifest'),
+                      call('dbt-stc-test-eu', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project'),
+                      call('dbt-stc-test-eu', f'{cloud_storage_folder}/packages.yml', 'packages'),
+                      call('dbt-stc-test-eu', f'{cloud_storage_folder}/seed1', 'seed1'),
+                      call('dbt-stc-test-eu', f'{cloud_storage_folder}/seed2', 'seed2')]
         },
     ]
 
@@ -82,7 +82,7 @@ def test_get_last_logs(MockCloudStorage, MockState):
     state = State(uuid, mock_gcs_client, mock_dbt_collection)
     state.get_last_logs()
 
-    mock_gcs_client.get_blob_from_bucket.assert_called_once_with('dbt-stc-test', f'logs/{uuid}.txt', 0)
+    mock_gcs_client.get_blob_from_bucket.assert_called_once_with('dbt-stc-test-eu', f'logs/{uuid}.txt', 0)
 
 
 def test_log(MockCloudStorage, MockState):
@@ -97,4 +97,4 @@ def test_log(MockCloudStorage, MockState):
     dt_time = current_date_time()
     new_log = 'hello world\n' + (dt_time + "\tINFO\ttest log")
 
-    mock_gcs_client.write_to_bucket.assert_called_once_with('dbt-stc-test', f'logs/{uuid}.txt', new_log)
+    mock_gcs_client.write_to_bucket.assert_called_once_with('dbt-stc-test-eu', f'logs/{uuid}.txt', new_log)

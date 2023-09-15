@@ -7,7 +7,7 @@ from cloud_storage import CloudStorage, connect_client
 def test_write_to_bucket_and_get_blob_from_bucket():
     gcs = CloudStorage(connect_client())
 
-    bucket_name = 'dbt-stc-test'
+    bucket_name = 'dbt-stc-test-eu'
     blob_name = 'test/test'
     data = 'hello world'
 
@@ -26,7 +26,7 @@ def test_write_to_bucket_and_get_blob_from_bucket():
 def test_get_all_blobs_from_folder():
     gcs = CloudStorage(connect_client())
 
-    bucket_name = 'dbt-stc-test'
+    bucket_name = 'dbt-stc-test-eu'
     blob_name = 'test/test'
     data = 'hello world'
     gcs.write_to_bucket(bucket_name, blob_name, data)
