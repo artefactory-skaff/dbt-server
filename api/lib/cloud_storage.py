@@ -1,66 +1,129 @@
 from functools import cache
 from typing import Dict
 
-from google.cloud import storage
-# from google.cloud.storage import Bucket, Client
-from google.api_core import exceptions
-from google.api_core.retry import Retry
+from config import Settings
+
+
+settings = Settings()
 
 
 class CloudStorage:
+    def __init__(self, service):
+        self.service = service
 
-    def __init__(self, client: storage.Client):
-        self.client = client
+    @cache
+    @property
+    def client(self):
+        return self.service.client
 
-    def write_to_bucket(self, bucket_name: str, blob_name: str, data: str) -> ():
-        storage_client = self.client
-        bucket = storage_client.bucket(bucket_name)
-        blob = bucket.blob(blob_name)
-        retry_policy = define_retry_policy()  # handle 429 error with exponential backoff
+    def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
+        self.service.write_file(bucket_name, file_name, data)
+
+    def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
+        return self.service.get_file(bucket_name, file_name, start_byte)
+
+    def get_file_console_url(self, bucket_name: str, file_name: str) -> str:
+        return self.service.get_file_console_url(bucket_name, file_name)
+
+    def get_files_in_folder(
+        self, bucket_name: str, folder_name: str
+    ) -> Dict[str, bytes]:
+        return self.service.get_files_in_folder(bucket_name, folder_name)
+
+
+class GoogleCloudStorage:
+    from google.cloud import storage
+    from google.api_core import exceptions
+    from google.api_core.retry import Retry
+
+    def __init__(self):
+        self.client = storage.Client()
+
+    def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
+        # Implement Google Cloud Storage specific logic here
+        blob = self.client.bucket(bucket_name).blob(file_name)
+        retry_policy = (
+            define_retry_policy()
+        )  # handle 429 error with exponential backoff
         blob.upload_from_string(data, num_retries=5, retry=retry_policy)
 
-    def get_blob_from_bucket(self, bucket_name: str, blob_name: str, start_byte: int = 0) -> bytes:
-        storage_client = self.client
-        bucket = storage_client.get_bucket(bucket_name)
-        blob = bucket.blob(blob_name)
-        blob_size = get_blob_size(bucket, blob_name)
-
-        if blob_size is not None and blob_size > start_byte:
+    def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
+        # Implement Google Cloud Storage specific logic here
+        blob = self.client.get_bucket(bucket_name).get_blob(file_name)
+        if blob.size is not None and blob.size > start_byte:
             blob_bytes = blob.download_as_bytes(client=None, start=start_byte)
             return blob_bytes
         else:
-            return b''
+            return b""
 
-    def get_all_blobs_from_folder(self, bucket_name: str, folder_name: str) -> Dict[str, bytes]:
-        storage_client = self.client
+    def get_file_console_url(self, bucket_name: str, file_name: str) -> str:
+        blob_client = self.client.bucket(bucket_name).blob(file_name)
+        console_url = "https://console.cloud.google.com/storage/browser/_details"
+        return f"{console_url}/{bucket_name}/{blob_client.path}"
+
+    def get_files_in_folder(
+        self, bucket_name: str, folder_name: str
+    ) -> Dict[str, bytes]:
+        # Implement Google Cloud Storage specific logic here
         blobs = {}
-        for blob in storage_client.list_blobs(bucket_name, prefix=folder_name):
-            file_name = blob.name.split('/')[-1]
-            blobs[file_name] = blob.download_as_bytes(client=None)
+        for blob in self.client.list_blobs(bucket_name, prefix=folder_name):
+            blobs[blob.name] = blob.download_as_bytes(client=None)
         return blobs
 
+    @staticmethod
+    def define_retry_policy(self):
+        _MY_RETRIABLE_TYPES = [
+            exceptions.TooManyRequests,  # 429
+            exceptions.InternalServerError,  # 500
+            exceptions.BadGateway,  # 502
+            exceptions.ServiceUnavailable,  # 503
+        ]
 
-@cache
-def connect_client() -> storage.Client:
-    storage_client = storage.Client()
-    return storage_client
+        def is_retryable(exc):
+            return isinstance(exc, _MY_RETRIABLE_TYPES)
+
+        retry_policy = Retry(predicate=is_retryable)
+        retry_policy = retry_policy.with_delay(
+            initial=1.5, multiplier=1.2, maximum=45.0
+        )
 
 
-def get_blob_size(bucket: storage.Bucket, blob_name: str) -> int:
-    blob = bucket.get_blob(blob_name)
-    return blob.size
+class AzureBlobStorage:
+    from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+
+    def __init__(self):
+        self.client = BlobServiceClient.from_connection_string(
+            settings.azure.blob_storage_connection_string
+        )
+
+    def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
+        blob_client = self.client.get_blob_client(bucket_name, file_name)
+        blob_client.upload_blob(data)
+
+    def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
+        blob_client = self.client.get_blob_client(bucket_name, file_name)
+        download_stream = blob_client.download_blob(offset=start_byte)
+        data = download_stream.readall()
+        return data if isinstance(data, bytes) else bytes(data, "utf-8")
+
+    def get_file_console_url(self, bucket_name: str, file_name: str) -> str:
+        blob_client = self.client.get_blob_client(bucket_name, file_name)
+        return blob_client.url
+
+    def get_files_in_folder(
+        self, bucket_name: str, folder_name: str
+    ) -> Dict[str, bytes]:
+        container_client = self.client.get_container_client(bucket_name)
+        blob_list = container_client.list_blobs(name_starts_with=folder_name)
+        return {blob.name: self.get_file(bucket_name, blob.name) for blob in blob_list}
 
 
-def define_retry_policy():
-    _MY_RETRIABLE_TYPES = [
-        exceptions.TooManyRequests,  # 429
-        exceptions.InternalServerError,  # 500
-        exceptions.BadGateway,  # 502
-        exceptions.ServiceUnavailable,  # 503
-    ]
-
-    def is_retryable(exc):
-        return isinstance(exc, _MY_RETRIABLE_TYPES)
-
-    retry_policy = Retry(predicate=is_retryable)
-    retry_policy = retry_policy.with_delay(initial=1.5, multiplier=1.2, maximum=45.0)
+class CloudStorageFactory:
+    @staticmethod
+    def create(service_type):
+        if service_type == "GoogleCloudStorage":
+            return GoogleCloudStorage()
+        elif service_type == "AzureBlobStorage":
+            return AzureBlobStorage()
+        else:
+            raise ValueError("Invalid service type")

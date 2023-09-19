@@ -10,20 +10,20 @@ import traceback
 
 def process_command(command: str) -> str:
     """
-        Ouputs the dbt command the job should invoke.
-        Example:
+    Ouputs the dbt command the job should invoke.
+    Example:
 
-        command: 'list'
-        output: '--debug --log-format json --log-level debug list --profiles-dir .'
+    command: 'list'
+    output: '--debug --log-format json --log-level debug list --profiles-dir .'
 
-        command: '--no-debug --log-format text --log-level error list'
-        output: '--debug --log-format json --log-level debug list --profiles-dir .'
+    command: '--no-debug --log-format text --log-level error list'
+    output: '--debug --log-format json --log-level debug list --profiles-dir .'
 
-        command: '--log-level error run --select model1 model2'
-        output: '--debug --log-format json --log-level debug run --select model1 model2 --profiles-dir .'
+    command: '--log-level error run --select model1 model2'
+    output: '--debug --log-format json --log-level debug run --select model1 model2 --profiles-dir .'
 
-        command: "test --vars '{key1: val1}'"
-        output: "--debug --log-format json --log-level debug test --vars '{key1: val1}' --profiles-dir ."
+    command: "test --vars '{key1: val1}'"
+    output: "--debug --log-format json --log-level debug test --vars '{key1: val1}' --profiles-dir ."
 
     """
 
@@ -36,7 +36,7 @@ def process_command(command: str) -> str:
     sub_command_args = get_sub_command_args_list(args_list, sub_command_click_context)
 
     sub_command_name = get_sub_command_name(sub_command_click_context)
-    processed_command = ' '.join(command_args + [sub_command_name] + sub_command_args)
+    processed_command = " ".join(command_args + [sub_command_name] + sub_command_args)
     return processed_command
 
 
@@ -50,24 +50,27 @@ def get_sub_command_name(sub_command_click_context: Context) -> str:
 
 
 def get_command_args_list(command_args_list: List[str]) -> List[str]:
-
-    default_context = cli.make_context(info_name='', args=[''])
+    default_context = cli.make_context(info_name="", args=[""])
     default_params_dict = default_context.params
 
-    command_context = cli.make_context(info_name='', args=command_args_list)
+    command_context = cli.make_context(info_name="", args=command_args_list)
     command_context.command.parse_args(default_context, command_args_list)
     command_params_dict = override_command_params(command_context.params)
 
-    command_params_key_diff = get_key_differences_between_dict(default_params_dict, command_params_dict)
-    command_args = get_args_list_from_params_dict(command_params_key_diff, command_params_dict)
+    command_params_key_diff = get_key_differences_between_dict(
+        default_params_dict, command_params_dict
+    )
+    command_args = get_args_list_from_params_dict(
+        command_params_key_diff, command_params_dict
+    )
     return command_args
 
 
 def override_command_params(params: Dict[str, str]) -> Dict[str, str]:
-    params['log_format'] = 'json'
-    params['log_level'] = 'debug'
-    params['debug'] = True
-    params['quiet'] = False
+    params["log_format"] = "json"
+    params["log_level"] = "debug"
+    params["debug"] = True
+    params["quiet"] = False
     return params
 
 
@@ -77,11 +80,14 @@ def get_sub_command_click_context(args_list: List[str]) -> Context:
         return sub_command_click_context
     except Exception:
         traceback_str = traceback.format_exc()
-        raise HTTPException(status_code=400, detail="dbt command failed: " + traceback_str)
+        raise HTTPException(
+            status_code=400, detail="dbt command failed: " + traceback_str
+        )
 
 
-def get_sub_command_args_list(args_list: List[str], command_click_context: Context) -> List[str]:
-
+def get_sub_command_args_list(
+    args_list: List[str], command_click_context: Context
+) -> List[str]:
     sub_command: Command = command_click_context.command
     default_params_dict = get_sub_command_default_params(sub_command)
 
@@ -89,14 +95,18 @@ def get_sub_command_args_list(args_list: List[str], command_click_context: Conte
     sub_command_params_dict = sub_command_context.params
     sub_command_params_dict = override_sub_command_params(sub_command_params_dict)
 
-    sub_command_params_key_diff = get_key_differences_between_dict(default_params_dict, sub_command_params_dict)
-    sub_command_args = get_args_list_from_params_dict(sub_command_params_key_diff, sub_command_params_dict)
+    sub_command_params_key_diff = get_key_differences_between_dict(
+        default_params_dict, sub_command_params_dict
+    )
+    sub_command_args = get_args_list_from_params_dict(
+        sub_command_params_key_diff, sub_command_params_dict
+    )
     return sub_command_args
 
 
 def override_sub_command_params(args: Dict[str, Any]) -> Dict[str, Any]:
-    args['profiles_dir'] = "."
-    args['project_dir'] = "."
+    args["profiles_dir"] = "."
+    args["project_dir"] = "."
     return args
 
 
@@ -108,17 +118,19 @@ def get_sub_command_default_params(command: Command) -> Dict[str, Any]:
     return default_params
 
 
-def get_args_list_from_params_dict(command_key_diff: List[str], command_params_dict: Dict[str, Any]) -> List[str]:
+def get_args_list_from_params_dict(
+    command_key_diff: List[str], command_params_dict: Dict[str, Any]
+) -> List[str]:
     """
-        Example:
+    Example:
 
-        -   command_key_diff: ['profiles_dir']
-            command_args_dict: {'profiles_dir': '.', 'other_key': 'value'}
-            output: ['--profiles-dir', '.']
+    -   command_key_diff: ['profiles_dir']
+        command_args_dict: {'profiles_dir': '.', 'other_key': 'value'}
+        output: ['--profiles-dir', '.']
 
-        -   command_key_diff: ['select']
-            command_args_dict: {'select': ('model1', 'model2'), 'other_key': 'value'}
-            output: ['--select', 'model1', 'model2']
+    -   command_key_diff: ['select']
+        command_args_dict: {'select': ('model1', 'model2'), 'other_key': 'value'}
+        output: ['--select', 'model1', 'model2']
 
     """
 
@@ -129,32 +141,35 @@ def get_args_list_from_params_dict(command_key_diff: List[str], command_params_d
     return args_list
 
 
-def get_key_differences_between_dict(default_dict: Dict[str, Any], new_dict: Dict[str, Any]) -> List[str]:
+def get_key_differences_between_dict(
+    default_dict: Dict[str, Any], new_dict: Dict[str, Any]
+) -> List[str]:
     diff_key_list = []
     for key in new_dict.keys():
-        if (key not in default_dict.keys()) or (key in default_dict.keys() and default_dict[key] != new_dict[key]):
+        if (key not in default_dict.keys()) or (
+            key in default_dict.keys() and default_dict[key] != new_dict[key]
+        ):
             diff_key_list.append(key)
     return diff_key_list
 
 
 def get_arg_list_from_param(param, value) -> List[str]:
     """
-        Example:
-        - param: 'select'       value: '(model,)'       -> ['--select', 'my_model']
-        - param: 'profiles_dir' value: '.'              -> ['--profiles_dir', '.']
-        - param: 'debug'        value: False            -> ['--no-debug']
-        - param: 'vars'         value: {"key": "val"}   -> ['--vars', "'{key: val}'"]
+    Example:
+    - param: 'select'       value: '(model,)'       -> ['--select', 'my_model']
+    - param: 'profiles_dir' value: '.'              -> ['--profiles_dir', '.']
+    - param: 'debug'        value: False            -> ['--no-debug']
+    - param: 'vars'         value: {"key": "val"}   -> ['--vars', "'{key: val}'"]
 
     """
     key_arg = param_name_to_key_arg_name(param)
 
     match (value):
-
         case bool():
             if value:
                 return [key_arg]
             else:
-                no_key_arg = '--no-'+param.replace('_', '-')
+                no_key_arg = "--no-" + param.replace("_", "-")
                 return [no_key_arg]
 
         case tuple():
@@ -164,14 +179,14 @@ def get_arg_list_from_param(param, value) -> List[str]:
             return arg_list
 
         case dict():
-            dict_value_str = "'"+str(value).replace("'", '')+"'"  # '{key1: val1}'
+            dict_value_str = "'" + str(value).replace("'", "") + "'"  # '{key1: val1}'
             return [key_arg, dict_value_str]
 
         case int():
             return [key_arg, str(value)]
 
         case str():
-            if key_arg == '--macro':
+            if key_arg == "--macro":
                 return [value]
             return [key_arg, value]
 
@@ -180,4 +195,4 @@ def get_arg_list_from_param(param, value) -> List[str]:
 
 
 def param_name_to_key_arg_name(param: str) -> str:
-    return '--'+param.replace('_', '-')
+    return "--" + param.replace("_", "-")

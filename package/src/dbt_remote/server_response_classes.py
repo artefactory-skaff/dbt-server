@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class FollowUpLink:
     """Links sent back by the dbt-server."""
+
     action_name: str
     link: str
 

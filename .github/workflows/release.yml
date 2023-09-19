@@ -1,0 +1,59 @@
+name: Continuous Deployment
+on:
+  release:
+    types: [published]
+
+jobs:
+
+  api:
+
+    strategy:
+      matrix:
+        cloud: ["gcp", "azure"]
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Login to Github Container Registry and setup Docker Tag
+      uses: ./.github/actions/docker
+
+    - name: Build and push
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./docker/Dockerfile-api-${{ matrix.cloud }}
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:${{ matrix.cloud }}-${{ steps.tag.outputs.tag_name }}
+          ghcr.io/${{ github.repository }}:${{ matrix.cloud }}-latest
+        cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:${{ matrix.cloud }}-latest
+        cache-to: type=inline
+
+  package:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Login to Github Container Registry and setup Docker Tag
+      uses: ./.github/actions/docker
+
+    - name: Build and push
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./docker/Dockerfile-package
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:package-${{ steps.tag.outputs.tag_name }}
+          ghcr.io/${{ github.repository }}:package-latest
+        cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:package-latest
+        cache-to: type=inline
+
+    - name: Install Python and Poetry
+      uses: ./.github/actions/poetry
+    - name: Add repository
+      run: poetry config repositories.testpypi https://test.pypi.org/legacy/
+    - name: Publish to registry
+      run: poetry publish --build --repository testpypi --dry-run
