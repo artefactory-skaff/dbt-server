@@ -1,47 +1,4 @@
-resource "google_service_account" "terraform-server-sa" {
-  account_id   = "terraform-server-sa"
-  display_name = "terraform-server-sa"
-}
-
-resource "google_project_iam_member" "terraform-server-sa-permissions" {
-  for_each = toset([
-    "roles/datastore.owner",
-    "roles/logging.logWriter",
-    "roles/logging.viewer",
-    "roles/storage.admin",
-    "roles/run.developer",
-    "roles/iam.serviceAccountUser"
-  ])
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.terraform-server-sa.email}"
-  project = var.project_id
-}
-
-
-resource "google_service_account" "terraform-job-sa" {
-  account_id   = "terraform-job-sa"
-  display_name = "terraform-job-sa"
-}
-
-resource "google_project_iam_member" "terraform-job-sa-permissions" {
-  for_each = toset([
-    "roles/datastore.user",
-    "roles/logging.logWriter",
-    "roles/logging.viewer",
-    "roles/storage.admin",
-
-    "roles/bigquery.dataEditor",
-    "roles/bigquery.jobUser",
-    "roles/bigquery.dataViewer",
-    "roles/bigquery.metadataViewer",
-  ])
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.terraform-job-sa.email}"
-  project = var.project_id
-}
-
-
-
+# GCS bucket
 resource "google_storage_bucket" "static" {
   name          = var.bucket_name
   location      = "EUROPE-WEST9"
@@ -50,12 +7,12 @@ resource "google_storage_bucket" "static" {
   uniform_bucket_level_access = true
 }
 
+# Firestore
 resource "google_project_service" "firestore" {
   project = var.project_id
   service = "firestore.googleapis.com"
 }
 
-# not necessary:
 resource "google_firestore_document" "first_status" {
   project     = var.project_id
   collection  = "dbt-status"
@@ -64,14 +21,14 @@ resource "google_firestore_document" "first_status" {
 }
 
 
+# Enable Cloud Run API
 resource "google_project_service" "run_api" {
-  project = var.project_id
-  service = "run.googleapis.com"
+  project            = var.project_id
+  service            = "run.googleapis.com"
   disable_on_destroy = false
 }
 
-
-# dbt-server dev on Cloud Run
+# dbt-server (dev) on Cloud Run
 module "server_dev" {
   source = "./modules/dbt-server"
 
@@ -86,8 +43,7 @@ module "server_dev" {
   depends_on = [google_project_service.run_api]
 }
 
-
-# dbt-server prod on Cloud Run
+# dbt-server (prod) on Cloud Run
 module "server_prod" {
   source = "./modules/dbt-server"
 

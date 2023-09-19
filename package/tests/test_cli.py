@@ -19,6 +19,82 @@ def test_assemble_dbt_command():
     assert assemble_dbt_command(user_command, args) == expected_dbt_command
 
 
+def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSystem):
+    server_url = "https://test-server.test/"
+
+    send_command_list = [
+        {
+            "command": "command",
+            "project_dir": "project_dir",
+            "manifest": "manifest",
+            "dbt_project": "dbt_project",
+            "packages": None,
+            "seeds_path": "seeds_path",
+            "elementary": False,
+            "data": {
+                "server_url": server_url,
+                "user_command": "command",
+                "manifest": "data...",
+                "dbt_project": "data...",
+            },
+        },
+        {
+            "command": "command",
+            "project_dir": "project_dir",
+            "manifest": "manifest",
+            "dbt_project": "dbt_project",
+            "packages": "packages",
+            "seeds_path": "seeds_path",
+            "elementary": True,
+            "data": {
+                "server_url": server_url,
+                "user_command": "command",
+                "manifest": "data...",
+                "dbt_project": "data...",
+                "packages": "data...",
+                "elementary": True,
+            },
+        },
+        {
+            "command": "seed --select my_seed",
+            "project_dir": "project_dir",
+            "manifest": "manifest",
+            "dbt_project": "dbt_project",
+            "packages": None,
+            "seeds_path": "seeds_path",
+            "elementary": False,
+            "data": {
+                "server_url": server_url,
+                "user_command": "seed --select my_seed",
+                "manifest": "data...",
+                "dbt_project": "data...",
+                "seeds": {"seeds/my_seed.csv": "data..."},
+            },
+        },
+    ]
+
+    send_command_requests_mock = MockSendCommandRequest
+    MockDbtFileSystem
+
+    for context_dict in send_command_list:
+        with PatchBuiltInOpen:
+            res = send_command(
+                server_url,
+                context_dict["command"],
+                context_dict["project_dir"],
+                context_dict["manifest"],
+                context_dict["dbt_project"],
+                context_dict["packages"],
+                context_dict["seeds_path"],
+                context_dict["elementary"],
+            )
+
+        assert send_command_requests_mock.last_request.method == "POST"
+        assert send_command_requests_mock.last_request.url == server_url + "dbt"
+        assert send_command_requests_mock.last_request.json() == context_dict["data"]
+        assert res.json() == {"name": "awesome-mock"}
+
+
 class TestResponseServer:
     def __init__(self, new_text, new_status):
         self._text = new_text
@@ -34,13 +110,48 @@ class TestResponseServer:
 
 
 def test_parse_server_response():
-    res_dict = {
-        '{"uuid": "0000"}': {"uuid": "0000", "detail": None},
-        '{"detail": "detail"}': {"uuid": None, "detail": "detail"},
-    }
-    for server_response in res_dict.keys():
-        dbt_response = parse_server_response(TestResponseServer(server_response, 200))
-        assert dbt_response.uuid == res_dict[server_response]["uuid"]
+    response_list = [
+        {
+            "status_code": 200,
+            "str": '{"uuid": "0000", "links": [{"action_name": "action", "link": "link"}]}',
+            "expected_parsed_response": {
+                "status_code": 200,
+                "uuid": "0000",
+                "detail": None,
+                "links": [{"action_name": "action", "link": "link"}],
+            },
+        },
+        {
+            "status_code": 400,
+            "str": '{"detail": "detail"}',
+            "expected_parsed_response": {
+                "status_code": 400,
+                "uuid": None,
+                "detail": "detail",
+                "links": None,
+            },
+        },
+    ]
+
+    for test_case in response_list:
+        server_response = parse_server_response(
+            TestResponseServer(test_case["str"], test_case["status_code"])
+        )
+        expected_response = test_case["expected_parsed_response"]
+
+        assert server_response.status_code == expected_response["status_code"]
+        assert server_response.uuid == expected_response["uuid"]
+        assert server_response.detail == expected_response["detail"]
+
+        assert (
+            server_response.links is None and expected_response["links"] is None
+        ) or (len(server_response.links) == len(expected_response["links"]))
+        if server_response.links is not None:
+            for i in range(len(server_response.links)):
+                expected_link = expected_response["links"][i]
+                actual_link = server_response.links[i]
+                assert actual_link.action_name == expected_link["action_name"]
+                assert actual_link.link == expected_link["link"]
 
 
 def test_get_selected_nodes():
