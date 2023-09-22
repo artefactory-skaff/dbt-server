@@ -1,6 +1,17 @@
 import os
+import json
 from typing import Dict, Any
-from config import Settings
+from api.config import Settings
+
+try:
+    from google.cloud import firestore
+except ImportError:
+    firestore = None
+try:
+    from azure.cosmos import CosmosClient, exceptions
+except ImportError:
+    CosmosClient = None
+    exceptions = None
 
 
 settings = Settings()
@@ -20,8 +31,30 @@ class MetadataDocument:
         self.service.update(data)
 
 
+class LocalDocument:
+
+    def __init__(self, collection_name, document_id):
+        self.path = f"{collection_name}/{document_id}"
+
+
+    def get(self) -> Dict[str, Any]:
+        with open(self.path, "r") as file:
+            return json.load(file)
+        
+    def create(self, data: Dict[str, Any]) -> None:
+        with open(self.path, "w") as file:
+            json.dump(data, file)
+
+    def update(self, data: Dict[str, Any]) -> None:
+        old_data = {}
+        with open(self.path, "r") as file:
+            old_data = json.load(file)
+        new_data = old_data | data
+        with open(self.path, "w") as file:
+            json.dump(new_data, file)
+
+
 class FirestoreDocument:
-    from google.cloud import firestore
 
     def __init__(self, collection_name, document_id):
         self.document = (
@@ -39,7 +72,6 @@ class FirestoreDocument:
 
 
 class CosmosDBDocument:
-    from azure.cosmos import CosmosClient, exceptions
 
     def __init__(self, collection_name, document_id):
         self.client = CosmosClient(
@@ -83,5 +115,7 @@ class MetadataDocumentFactory:
             return FirestoreDocument(collection_name, document_id)
         elif service_type == "CosmosDB":
             return CosmosDBDocument(collection_name, document_id)
+        elif service_type == "Local":
+            return LocalDocument(collection_name, document_id)
         else:
             raise ValueError("Invalid service type")

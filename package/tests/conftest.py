@@ -1,3 +1,4 @@
+import os
 import pytest
 import unittest
 from unittest.mock import patch
@@ -5,8 +6,8 @@ from unittest.mock import patch
 
 @pytest.fixture
 def MockSendCommandRequest(requests_mock):
-    server_url = "https://test-server.test/"
-    mock = requests_mock.post(server_url + "dbt", json={"name": "awesome-mock"})
+    server_url = "https://test-server.test"
+    mock = requests_mock.post(f"{server_url}/dbt", json={"name": "awesome-mock"})
     return mock
 
 
@@ -15,8 +16,10 @@ def PatchBuiltInOpen():
     return patch("builtins.open", unittest.mock.mock_open(read_data="data..."))
 
 
-@pytest.fixture
-def MockDbtFileSystem(fs):
-    fs.create_file("project_dir/seeds_path/my_seed.csv")
-    fs.create_file(".dbt")
-    fs.create_file("/home/runner/.dbt")
+def pytest_configure(config):
+    os.system("mkdir ./data")
+    os.system("mkdir ./data/document")
+    os.system("mkdir ./data/storage")
+
+def pytest_unconfigure(config):
+    os.system("rm -rf ./data")

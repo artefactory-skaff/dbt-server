@@ -17,12 +17,14 @@ RUN pip install poetry
 RUN mkdir package/
 RUN touch package/__init__.py
 RUN touch package/README.md
+RUN mkdir api/
+RUN touch api/__init__.py
 COPY pyproject.toml ./
 COPY poetry.lock ./
 RUN mkdir seeds
 
 RUN python -m poetry install --no-interaction --only gcp
 
-ADD api/ ./
+ADD api/ api/
 
 CMD ["python", "-m", "poetry", "run", "python", "-m", "$SCRIPT"]

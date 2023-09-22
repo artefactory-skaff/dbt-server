@@ -1,7 +1,26 @@
 from typing import Dict, Any
+import traceback
+import subprocess
 
-from config import Settings
-from clients import LOGGER
+from fastapi import HTTPException
+try:
+    from google.cloud import run_v2
+except ImportError:
+    run_v2 = None
+try:
+    from azure.containerinstance import ContainerInstanceManagementClient
+    from azure.mgmt.resource import ResourceManagementClient, SubscriptionClient
+    from azure.identity import DefaultAzureCredential
+except ImportError:
+    ContainerInstanceManagementClient = None
+    ResourceManagementClient, SubscriptionClient = None, None
+    DefaultAzureCredential = None
+
+
+from api.config import Settings
+from api.clients import LOGGER
+from api.lib.state import State
+from api.lib.dbt_classes import DbtCommand
 
 
 settings = Settings()
@@ -15,13 +34,33 @@ class Job:
         return self.service.create(state, dbt_command)
 
     def launch(self, state: State, job_name: str) -> None:
-        self.service.launch(data)
+        self.service.launch(state, job_name)
+
+
+class LocalJob:
+
+    def create(self, state: State, dbt_command: DbtCommand) -> str:
+        task_container = {
+            "image": settings.docker_image,
+            "env": [
+                {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
+                {"name": "UUID", "value": state.uuid},
+                {"name": "SCRIPT", "value": "dbt_run_job.py"},
+                {"name": "BUCKET_NAME", "value": settings.bucket_name},
+                {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
+            ],
+        }
+        env_vars = ' '.join([f'-e {var["name"]}={var["value"]}' for var in task_container["env"]])
+        command = f'docker run -d {env_vars} {task_container["image"]}'
+        subprocess.Popen(command, shell=True)
+
+    def launch(self, state: State, job_name: str) -> None:
+        state.run_status = "running"
 
 
 class CloudRunJob:
-    from google.cloud import run_v2
 
-    def create(self, state: State, dbt_command: DbtCommand) -> Self:
+    def create(self, state: State, dbt_command: DbtCommand) -> str:
         LOGGER.log(
             "INFO",
             f"Creating cloud run job {state.uuid} with command '{dbt_command.processed_command}'",
@@ -39,11 +78,11 @@ class CloudRunJob:
         }
         # job_id must start with a letter and cannot contain '-'
         job_id = "u" + state.uuid.replace("-", "")
-        job_parent = "projects/" + PROJECT_ID + "/locations/" + LOCATION
+        job_parent = "projects/" + settings.gcp.project_id + "/locations/" + settings.gcp.location
         job = run_v2.Job()
         job.template.template.max_retries = 0
         job.template.template.containers = [task_container]
-        job.template.template.service_account = SERVICE_ACCOUNT
+        job.template.template.service_account = settings.gcp.service_account
         request = run_v2.CreateJobRequest(
             parent=job_parent,
             job=job,
@@ -77,12 +116,9 @@ class CloudRunJob:
         state.run_status = "running"
 
 
-class AzureContainerJob:
-    from azure.containerinstance import ContainerInstanceManagementClient
-    from azure.mgmt.resource import ResourceManagementClient, SubscriptionClient
-    from azure.identity import DefaultAzureCredential
+class ContainerAppsJob:
 
-    def create(self, state: State, dbt_command: DbtCommand) -> Self:
+    def create(self, state: State, dbt_command: DbtCommand) -> str:
         LOGGER.log(
             "INFO",
             f"Creating Azure Container job {state.uuid} with command '{dbt_command.processed_command}'",
@@ -139,5 +175,7 @@ class JobFactory:
             return CloudRunJob()
         elif service_type == "ContainerAppsJob":
             return ContainerAppsJob()
+        elif service_type == "LocalJob":
+            return LocalJob()
         else:
             raise ValueError("Invalid service type")

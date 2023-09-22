@@ -9,6 +9,8 @@ USER package
 RUN pip install poetry
 
 RUN mkdir package/
+RUN mkdir api/
+RUN touch api/__init__.py
 COPY pyproject.toml ./
 COPY poetry.lock ./
 

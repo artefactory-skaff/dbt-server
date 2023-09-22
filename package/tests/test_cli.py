@@ -1,7 +1,12 @@
+import pytest
+
+import src
+
 from src.dbt_remote.cli import (
     assemble_dbt_command,
     parse_server_response,
     get_selected_nodes,
+    send_command,
 )
 
 
@@ -19,17 +24,18 @@ def test_assemble_dbt_command():
     assert assemble_dbt_command(user_command, args) == expected_dbt_command
 
 
-def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSystem):
-    server_url = "https://test-server.test/"
+def test_send_command(MockSendCommandRequest, PatchBuiltInOpen):
+
+    server_url = "https://test-server.test"
 
     send_command_list = [
         {
             "command": "command",
-            "project_dir": "project_dir",
+            "project_dir": ".",
             "manifest": "manifest",
             "dbt_project": "dbt_project",
             "packages": None,
-            "seeds_path": "seeds_path",
+            "seeds_path": "data",
             "elementary": False,
             "data": {
                 "server_url": server_url,
@@ -40,11 +46,11 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
         },
         {
             "command": "command",
-            "project_dir": "project_dir",
+            "project_dir": ".",
             "manifest": "manifest",
             "dbt_project": "dbt_project",
             "packages": "packages",
-            "seeds_path": "seeds_path",
+            "seeds_path": "data",
             "elementary": True,
             "data": {
                 "server_url": server_url,
@@ -57,24 +63,23 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
         },
         {
             "command": "seed --select my_seed",
-            "project_dir": "project_dir",
+            "project_dir": ".",
             "manifest": "manifest",
             "dbt_project": "dbt_project",
             "packages": None,
-            "seeds_path": "seeds_path",
+            "seeds_path": "data",
             "elementary": False,
             "data": {
                 "server_url": server_url,
                 "user_command": "seed --select my_seed",
                 "manifest": "data...",
                 "dbt_project": "data...",
-                "seeds": {"seeds/my_seed.csv": "data..."},
+                "seeds": {},
             },
         },
     ]
 
     send_command_requests_mock = MockSendCommandRequest
-    MockDbtFileSystem
 
     for context_dict in send_command_list:
         with PatchBuiltInOpen:
@@ -90,7 +95,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             )
 
         assert send_command_requests_mock.last_request.method == "POST"
-        assert send_command_requests_mock.last_request.url == server_url + "dbt"
+        assert send_command_requests_mock.last_request.url == f"{server_url}/dbt"
         assert send_command_requests_mock.last_request.json() == context_dict["data"]
         assert res.json() == {"name": "awesome-mock"}
 

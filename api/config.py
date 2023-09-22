@@ -1,3 +1,4 @@
+from enum import Enum
 import uuid
 from typing import Optional
 from pydantic import BaseModel, model_validator
@@ -7,21 +8,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class LoggingServiceEnum(str, Enum):
     azure_monitor = "AzureMonitor"
     google_cloud_logging = "GoogleCloudLogging"
+    local = "Local"
 
 
 class CloudStorageServiceEnum(str, Enum):
     azure_blob_storage = "AzureBlobStorage"
     google_cloud_storage = "GoogleCloudStorage"
+    local_storage = "LocalStorage"
 
 
 class MetadataDocumentServiceEnum(str, Enum):
     cosmos_db = "CosmosDB"
     firestore = "Firestore"
+    local = "Local"
 
 
 class JobServiceEnum(str, Enum):
     container_apps_job = "ContainerAppsJob"
     cloud_run_job = "CloudRunJob"
+    local_job = "LocalJob"
 
 
 class GCPSettings(BaseModel):

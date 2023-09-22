@@ -4,6 +4,7 @@ import json
 from typing import TypedDict
 import threading
 import time
+from functools import partial
 
 from click.parser import split_arg_string
 from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
@@ -14,18 +15,19 @@ from dbt.contracts.graph.nodes import SeedNode
 from elementary.monitor.cli import report
 from fastapi import HTTPException
 
-from config import Settings
-from clients import LOGGER, CLOUD_STORAGE_INSTANCE, METADATA_DOCUMENT
-from lib.state import State
-from lib.cloud_storage import CloudStorage
-from lib.metadata_document import MetadataDocument
+from api.config import Settings
+from api.clients import LOGGER
+from api.lib.state import State
+from api.lib.metadata_document import MetadataDocumentFactory
+from api.lib.cloud_storage import CloudStorageFactory
 
 
 settings = Settings()
 callback_lock = threading.Lock()
+CLOUD_STORAGE_INSTANCE = CloudStorageFactory().create(settings.cloud_storage_service)
 
 
-def prepare_and_execute_job(state: State) -> ():
+def prepare_and_execute_job(state: State) -> None:
     state.get_context_to_local()
 
     manifest = get_manifest()
@@ -37,14 +39,14 @@ def prepare_and_execute_job(state: State) -> ():
     with callback_lock:
         LOGGER.log("INFO", "Command successfully executed")
 
-    if ELEMENTARY == "True":
+    if settings.elementary == "True":
         generate_elementary_report()
         upload_elementary_report(state)
 
     LOGGER.log("INFO", "END JOB")
 
 
-def install_dependencies(state: State, manifest: Manifest) -> ():
+def install_dependencies(state: State, manifest: Manifest) -> None:
     packages_path = "./packages.yml"
     check_file = os.path.isfile(packages_path)
     if check_file:
@@ -54,11 +56,12 @@ def install_dependencies(state: State, manifest: Manifest) -> ():
             run_dbt_command(state, manifest, "deps")
 
 
-def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
+def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> None:
     state.run_status = "running"
 
     manifest.build_flat_graph()
-    dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback])
+    logger_callback_with_args = partial(logger_callback, state.uuid)
+    dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback_with_args])
 
     args_list = split_arg_string(dbt_command)
     res_dbt: dbtRunnerResult = dbt.invoke(args_list)
@@ -68,7 +71,7 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
     else:
         state.run_status = "failed"
 
-        if ELEMENTARY == "True":
+        if settings.elementary == "True":
             generate_elementary_report()
             upload_elementary_report(state)
 
@@ -77,7 +80,7 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
         handle_exception(res_dbt.exception)
 
 
-def generate_elementary_report() -> ():
+def generate_elementary_report() -> None:
     LOGGER.log("INFO", "Generating elementary report...")
 
     report_thread = threading.Thread(target=report, name="Report generator")
@@ -90,7 +93,7 @@ def generate_elementary_report() -> ():
     LOGGER.log("INFO", "Report generated!")
 
 
-def upload_elementary_report(state: State) -> ():
+def upload_elementary_report(state: State) -> None:
     LOGGER.log("INFO", "Uploading report...")
 
     cloud_storage_folder = state.cloud_storage_folder
@@ -105,8 +108,16 @@ def upload_elementary_report(state: State) -> ():
     )
 
 
-def logger_callback(event: EventMsg):
-    log_configuration = get_user_request_log_configuration(STATE.user_command)
+def logger_callback(uuid: str, event: EventMsg):
+
+    state = State(
+        uuid,
+        MetadataDocumentFactory().create(
+            settings.metadata_document_service, settings.collection_name, uuid
+        ),
+    )
+    
+    log_configuration = get_user_request_log_configuration(state.user_command)
 
     user_log_format = log_configuration["log_format"]
     if user_log_format == "json":
@@ -185,5 +196,10 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
 
 if __name__ == "__main__":
     LOGGER.log("INFO", "Job started")
-    state = STATE
+    state = State(
+        settings.uuid,
+        MetadataDocumentFactory().create(
+            settings.metadata_document_service, settings.collection_name, settings.uuid
+        ),
+    )
     prepare_and_execute_job(state)

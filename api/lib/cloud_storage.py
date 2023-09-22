@@ -1,7 +1,20 @@
-from functools import cache
+import os
 from typing import Dict
 
-from config import Settings
+try:
+    from google.cloud import storage
+    from google.api_core import exceptions
+    from google.api_core.retry import Retry
+except ImportError:
+    storage = None
+    exceptions = None
+    Retry = None
+try:
+    from azure.storage.blob import BlobServiceClient
+except ImportError:
+    BlobServiceClient = None
+
+from api.config import Settings
 
 
 settings = Settings()
@@ -11,7 +24,6 @@ class CloudStorage:
     def __init__(self, service):
         self.service = service
 
-    @cache
     @property
     def client(self):
         return self.service.client
@@ -31,10 +43,31 @@ class CloudStorage:
         return self.service.get_files_in_folder(bucket_name, folder_name)
 
 
+class LocalStorage:
+
+    def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
+        with open(f"{bucket_name}/{file_name}", "w") as file:
+            file.write(data)
+
+    def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
+        with open(f"{bucket_name}/{file_name}", "rb") as file:
+            file.seek(start_byte)
+            return file.read()
+
+    def get_file_console_url(self, bucket_name: str, file_name: str) -> str:
+        return f"{bucket_name}/{file_name}"
+
+    def get_files_in_folder(
+        self, bucket_name: str, folder_name: str
+    ) -> Dict[str, bytes]:
+        return [
+            os.path.join(dp, f)
+            for dp, dn, filenames in os.walk(f"{bucket_name}/{folder_name}")
+            for f in filenames
+        ]
+
+
 class GoogleCloudStorage:
-    from google.cloud import storage
-    from google.api_core import exceptions
-    from google.api_core.retry import Retry
 
     def __init__(self):
         self.client = storage.Client()
@@ -43,7 +76,7 @@ class GoogleCloudStorage:
         # Implement Google Cloud Storage specific logic here
         blob = self.client.bucket(bucket_name).blob(file_name)
         retry_policy = (
-            define_retry_policy()
+            GoogleCloudStorage.define_retry_policy()
         )  # handle 429 error with exponential backoff
         blob.upload_from_string(data, num_retries=5, retry=retry_policy)
 
@@ -89,7 +122,6 @@ class GoogleCloudStorage:
 
 
 class AzureBlobStorage:
-    from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 
     def __init__(self):
         self.client = BlobServiceClient.from_connection_string(
@@ -125,5 +157,7 @@ class CloudStorageFactory:
             return GoogleCloudStorage()
         elif service_type == "AzureBlobStorage":
             return AzureBlobStorage()
+        elif service_type == "LocalStorage":
+            return LocalStorage()
         else:
             raise ValueError("Invalid service type")

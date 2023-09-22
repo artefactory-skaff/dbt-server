@@ -10,8 +10,13 @@ description = "CLI to run dbt commands using dbt-server."
 authors = ["emma.galliere <emma.galliere@artefact.com>"]
 readme = ["package/README.md"]
 packages = [
-    { include = "package" }
+    { include = "package" },
+    { include = "api" }
 ]
+
+
+[tool.poetry.scripts]
+dbt-remote = 'package.src.dbt_remote.cli:cli'
 
 
 [tool.poetry.dependencies]
@@ -28,6 +33,17 @@ python-dotenv = "1.0.0"
 pydantic_core = "2.6.3"
 task-queue = "2.12.1"
 uvicorn = "0.23.1"
+
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.3.1"
+pytest-env = "1.0.1"
+requests-mock = "1.11.0"
+pyfakefs = "5.2.4"
+httpx = "0.25.0"
 
 
 [tool.poetry.group.gcp]
@@ -60,10 +76,17 @@ azure-cosmos = "4.5.1"
 opencensus-ext-azure = "1.1.10"
 
 
-[tool.poetry.scripts]
-dbt-remote = 'package.src.dbt_remote.cli:cli'
-
 [tool.pytest.ini_options]
-pythonpath = [
-  ".", "package", "package/src", "package/src/dbt_remote", "api"
+pythonpath = [".", "package", "api"]
+env = [
+  "DOCKER_IMAGE=dbt-local-server:latest",
+  "BUCKET_NAME=data/storage",
+  "COLLECTION_NAME=data/document",
+  "LOGGING_SERVICE=Local",
+  "CLOUD_STORAGE_SERVICE=LocalStorage",
+  "METADATA_DOCUMENT_SERVICE=Local",
+  "JOB_SERVICE=LocalJob",
+  "GCP__SERVICE_ACCOUNT=test",
+  "GCP__LOCATION=test",
+  "GCP__PROJECT_ID=test"
 ]

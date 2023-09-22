@@ -8,25 +8,28 @@ import traceback
 from fastapi import HTTPException
 
 
-from config import Settings
-from clients import LOGGER, CLOUD_STORAGE_INSTANCE, METADATA_DOCUMENT
-from lib.job import Job, JobFactory
-from lib.dbt_classes import DbtCommand, FollowUpLink
-from lib.command_processor import process_command
-from lib.state import State
-from lib.cloud_storage import CloudStorage
-from lib.metadata_document import MetadataDocument
+from api.config import Settings
+from api.clients import LOGGER
+from api.lib.job import Job, JobFactory
+from api.lib.dbt_classes import DbtCommand, FollowUpLink
+from api.lib.command_processor import process_command
+from api.lib.state import State
+from api.lib.cloud_storage import CloudStorageFactory
+from api.lib.metadata_document import MetadataDocumentFactory
 
 
 settings = Settings()
 app = FastAPI()
+CLOUD_STORAGE_INSTANCE = CloudStorageFactory().create(settings.cloud_storage_service)
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: DbtCommand):
     request_uuid = str(uuid.uuid4())
-    state = State(request_uuid, CLOUD_STORAGE_INSTANCE, METADATA_DOCUMENT)
-    state.init_state()
+    metadata_document = MetadataDocumentFactory().create(
+        settings.metadata_document_service, settings.collection_name, request_uuid
+    )
+    state = State(request_uuid, metadata_document)
     state.run_status = "pending"
     LOGGER.uuid = request_uuid
 
@@ -102,7 +105,7 @@ def get_report(uuid: str):
 def check():
     LOGGER.log("INFO", f"Running dbt-server on port : {settings.port}")
     return {
-        "response": "Running dbt-server on port " + settings.port,
+        "response": f"Running dbt-server on port {settings.port}"
     }
 
 

@@ -1,7 +1,7 @@
 import requests
 import os
 import traceback
-from typing import Dict, List, Any
+from typing import Tuple, Dict, List, Any
 
 import click
 from click.parser import split_arg_string
@@ -175,7 +175,7 @@ def get_all_seeds(seed_files: List[str]) -> List[str]:
     return [seed_file.replace(".csv", "") for seed_file in seed_files]
 
 
-def get_job_uuid_and_links(server_response: requests.Response) -> (str, Dict[str, str]):
+def get_job_uuid_and_links(server_response: requests.Response) -> Tuple[str, Dict[str, str]]:
     results = parse_server_response(server_response)
 
     if results.status_code != 202 or results.detail is not None:
