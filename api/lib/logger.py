@@ -1,6 +1,7 @@
 import logging
 from logging import Logger
 from typing import Optional
+
 try:
     from google.cloud.logging import Client
     from google.cloud.logging.handlers import CloudLoggingHandler

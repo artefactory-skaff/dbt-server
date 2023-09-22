@@ -3,6 +3,7 @@ import traceback
 import subprocess
 
 from fastapi import HTTPException
+
 try:
     from google.cloud import run_v2
 except ImportError:
@@ -38,7 +39,6 @@ class Job:
 
 
 class LocalJob:
-
     def create(self, state: State, dbt_command: DbtCommand) -> str:
         task_container = {
             "image": settings.docker_image,
@@ -50,8 +50,10 @@ class LocalJob:
                 {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
             ],
         }
-        env_vars = ' '.join([f'-e {var["name"]}={var["value"]}' for var in task_container["env"]])
-        command = f'docker run -d {env_vars} {task_container["image"]}'
+        env_vars = " ".join(
+            [f'-e {var["name"]}={var["value"]}' for var in task_container["env"]]
+        )
+        command = f'docker run --rm -d {env_vars} {task_container["image"]}'
         subprocess.Popen(command, shell=True)
 
     def launch(self, state: State, job_name: str) -> None:
@@ -59,7 +61,6 @@ class LocalJob:
 
 
 class CloudRunJob:
-
     def create(self, state: State, dbt_command: DbtCommand) -> str:
         LOGGER.log(
             "INFO",
@@ -78,7 +79,12 @@ class CloudRunJob:
         }
         # job_id must start with a letter and cannot contain '-'
         job_id = "u" + state.uuid.replace("-", "")
-        job_parent = "projects/" + settings.gcp.project_id + "/locations/" + settings.gcp.location
+        job_parent = (
+            "projects/"
+            + settings.gcp.project_id
+            + "/locations/"
+            + settings.gcp.location
+        )
         job = run_v2.Job()
         job.template.template.max_retries = 0
         job.template.template.containers = [task_container]
@@ -117,7 +123,6 @@ class CloudRunJob:
 
 
 class ContainerAppsJob:
-
     def create(self, state: State, dbt_command: DbtCommand) -> str:
         LOGGER.log(
             "INFO",

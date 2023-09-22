@@ -25,7 +25,6 @@ def test_assemble_dbt_command():
 
 
 def test_send_command(MockSendCommandRequest, PatchBuiltInOpen):
-
     server_url = "https://test-server.test"
 
     send_command_list = [

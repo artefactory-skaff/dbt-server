@@ -21,5 +21,6 @@ def pytest_configure(config):
     os.system("mkdir ./data/document")
     os.system("mkdir ./data/storage")
 
+
 def pytest_unconfigure(config):
     os.system("rm -rf ./data")

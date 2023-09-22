@@ -62,7 +62,9 @@ class State:
 
     @property
     def cloud_storage_folder(self) -> str:
-        cloud_storage_folder = self.metadata_document.get().to_dict()["cloud_storage_folder"]
+        cloud_storage_folder = self.metadata_document.get().to_dict()[
+            "cloud_storage_folder"
+        ]
         return cloud_storage_folder
 
     @cloud_storage_folder.setter
@@ -74,7 +76,9 @@ class State:
         logging.info("cloud_storage_folder " + cloud_storage_folder)
         self.cloud_storage_folder = cloud_storage_folder
         CLOUD_STORAGE_INSTANCE.write_file(
-            settings.bucket_name, cloud_storage_folder + "/manifest.json", dbt_command.manifest
+            settings.bucket_name,
+            cloud_storage_folder + "/manifest.json",
+            dbt_command.manifest,
         )
         CLOUD_STORAGE_INSTANCE.write_file(
             settings.bucket_name,
@@ -91,7 +95,9 @@ class State:
             for seed_name in dbt_command.seeds.keys():
                 seed_str = dbt_command.seeds[seed_name]
                 CLOUD_STORAGE_INSTANCE.write_file(
-                    settings.bucket_name, cloud_storage_folder + "/" + seed_name, seed_str
+                    settings.bucket_name,
+                    cloud_storage_folder + "/" + seed_name,
+                    seed_str,
                 )
 
     def get_context_to_local(self) -> None:
@@ -152,7 +158,9 @@ class DbtRunLogs:
     def log(self, logs: List[str]) -> None:
         new_log_file = "\n".join(logs)
         try:
-            CLOUD_STORAGE_INSTANCE.write_file(settings.bucket_name, self.log_file, new_log_file)
+            CLOUD_STORAGE_INSTANCE.write_file(
+                settings.bucket_name, self.log_file, new_log_file
+            )
         except Exception:
             traceback_str = traceback.format_exc()
             print("Error", "Error uploading log to bucket")

@@ -109,14 +109,13 @@ def upload_elementary_report(state: State) -> None:
 
 
 def logger_callback(uuid: str, event: EventMsg):
-
     state = State(
         uuid,
         MetadataDocumentFactory().create(
             settings.metadata_document_service, settings.collection_name, uuid
         ),
     )
-    
+
     log_configuration = get_user_request_log_configuration(state.user_command)
 
     user_log_format = log_configuration["log_format"]

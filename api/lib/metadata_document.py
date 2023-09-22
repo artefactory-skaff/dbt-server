@@ -32,15 +32,13 @@ class MetadataDocument:
 
 
 class LocalDocument:
-
     def __init__(self, collection_name, document_id):
         self.path = f"{collection_name}/{document_id}"
-
 
     def get(self) -> Dict[str, Any]:
         with open(self.path, "r") as file:
             return json.load(file)
-        
+
     def create(self, data: Dict[str, Any]) -> None:
         with open(self.path, "w") as file:
             json.dump(data, file)
@@ -55,7 +53,6 @@ class LocalDocument:
 
 
 class FirestoreDocument:
-
     def __init__(self, collection_name, document_id):
         self.document = (
             firestore.Client().client.collection(collection_name).document(document_id)
@@ -72,7 +69,6 @@ class FirestoreDocument:
 
 
 class CosmosDBDocument:
-
     def __init__(self, collection_name, document_id):
         self.client = CosmosClient(
             settings.azure.cosmos_db_url, credential=settings.azure.cosmos_db_key

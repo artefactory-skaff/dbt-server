@@ -104,9 +104,7 @@ def get_report(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     LOGGER.log("INFO", f"Running dbt-server on port : {settings.port}")
-    return {
-        "response": f"Running dbt-server on port {settings.port}"
-    }
+    return {"response": f"Running dbt-server on port {settings.port}"}
 
 
 if __name__ == "__main__":

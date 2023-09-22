@@ -44,7 +44,6 @@ class CloudStorage:
 
 
 class LocalStorage:
-
     def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
         with open(f"{bucket_name}/{file_name}", "w") as file:
             file.write(data)
@@ -68,7 +67,6 @@ class LocalStorage:
 
 
 class GoogleCloudStorage:
-
     def __init__(self):
         self.client = storage.Client()
 
@@ -122,7 +120,6 @@ class GoogleCloudStorage:
 
 
 class AzureBlobStorage:
-
     def __init__(self):
         self.client = BlobServiceClient.from_connection_string(
             settings.azure.blob_storage_connection_string
