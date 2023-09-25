@@ -25,7 +25,9 @@ def test_job_launch(mock_state):
 @patch("dbt_server.lib.job.State")
 @patch("dbt_server.lib.job.DbtCommand")
 @patch("dbt_server.lib.job.run_v2")
-def test_cloud_run_job_create(mock_run_v2, mock_dbt_command, mock_state):
+@patch("dbt_server.lib.job.settings")
+def test_cloud_run_job_create(mock_settings, mock_run_v2, mock_dbt_command, mock_state):
+    mock_settings.gcp.project_id.return_value = "test"
     job = CloudRunJob()
     job.create(mock_state, mock_dbt_command)
     mock_run_v2.JobsClient.assert_called_once()

@@ -62,5 +62,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_if_at_least_one_cloud_settings_is_provided(self):
-        if not self.gcp and not self.azure:
-            raise ValueError("At least one of Azure or GCP settings must be provided !")
+        gcp_validity = True
+        azure_validity = True
+        errors = []
+        if self.job_service == "CloudRunJob" and not self.gcp:
+            errors.append(ValueError(f"GCP config is not valid : {self}"))
+        if (
+            self.job_service == "ContainerAppsJob"
+            or self.cloud_storage_service == "AzureBlobStorage"
+            or self.metadata_document_service == "CosmosDB"
+        ) and not self.azure:
+            errors.append(ValueError(f"Azure config is not valid : {self}"))
+        if errors:
+            raise ExceptionGroup("Check the following configuration issues :", errors)

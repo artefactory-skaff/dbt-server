@@ -83,8 +83,5 @@ env = [
   "LOGGING_SERVICE=Local",
   "CLOUD_STORAGE_SERVICE=LocalStorage",
   "METADATA_DOCUMENT_SERVICE=Local",
-  "JOB_SERVICE=LocalJob",
-  "GCP__SERVICE_ACCOUNT=test",
-  "GCP__LOCATION=test",
-  "GCP__PROJECT_ID=test"
+  "JOB_SERVICE=LocalJob"
 ]
