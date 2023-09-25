@@ -14,17 +14,18 @@ USER gcp
 
 RUN pip install poetry
 
-RUN mkdir package/
-RUN touch package/__init__.py
-RUN touch package/README.md
-RUN mkdir api/
-RUN touch api/__init__.py
 COPY pyproject.toml ./
 COPY poetry.lock ./
 RUN mkdir seeds
+RUN mkdir src
+RUN mkdir src/dbt_remote
+RUN mkdir src/dbt_server
+RUN touch src/dbt_remote/__init__.py
+RUN touch src/dbt_server/__init__.py
+RUN touch README.md
 
 RUN python -m poetry install --no-interaction --only gcp
 
-ADD api/ api/
+ADD src/ src/
 
 CMD ["python", "-m", "poetry", "run", "python", "-m", "$SCRIPT"]

@@ -8,14 +8,17 @@ USER package
 
 RUN pip install poetry
 
-RUN mkdir package/
-RUN mkdir api/
-RUN touch api/__init__.py
 COPY pyproject.toml ./
 COPY poetry.lock ./
+RUN mkdir src
+RUN mkdir src/dbt_remote
+RUN mkdir src/dbt_server
+RUN touch src/dbt_remote/__init__.py
+RUN touch src/dbt_server/__init__.py
+RUN touch README.md
 
 RUN python -m poetry install --no-interaction --only main
 
-ADD package/ package/
+ADD src/ src/
 
 ENTRYPOINT ["python", "-m", "poetry", "run", "dbt-remote"]

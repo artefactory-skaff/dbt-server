@@ -4,19 +4,19 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry]
-name = "dbt_remote"
+name = "dbt_server"
 version = "0.0.1"
 description = "CLI to run dbt commands using dbt-server."
 authors = ["emma.galliere <emma.galliere@artefact.com>"]
-readme = ["package/README.md"]
+readme = ["README.md"]
 packages = [
-    { include = "package" },
-    { include = "api" }
+    { include = "dbt_remote", from = "src" },
+    { include = "dbt_server", from = "src" }
 ]
 
 
 [tool.poetry.scripts]
-dbt-remote = 'package.src.dbt_remote.cli:cli'
+dbt-remote = 'src.dbt_remote.cli:cli'
 
 
 [tool.poetry.dependencies]
@@ -42,7 +42,6 @@ optional = true
 pytest = "7.3.1"
 pytest-env = "1.0.1"
 requests-mock = "1.11.0"
-pyfakefs = "5.2.4"
 httpx = "0.25.0"
 
 
@@ -77,7 +76,6 @@ opencensus-ext-azure = "1.1.10"
 
 
 [tool.pytest.ini_options]
-pythonpath = [".", "package", "api"]
 env = [
   "DOCKER_IMAGE=dbt-local-server:latest",
   "BUCKET_NAME=data/storage",
