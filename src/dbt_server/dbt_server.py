@@ -14,13 +14,13 @@ from dbt_server.lib.job import Job, JobFactory
 from dbt_server.lib.dbt_classes import DbtCommand, FollowUpLink
 from dbt_server.lib.command_processor import process_command
 from dbt_server.lib.state import State
-from dbt_server.lib.cloud_storage import CloudStorageFactory
+from dbt_server.lib.storage import StorageFactory
 from dbt_server.lib.metadata_document import MetadataDocumentFactory
 
 
 settings = Settings()
 app = FastAPI()
-CLOUD_STORAGE_INSTANCE = CloudStorageFactory().create(settings.cloud_storage_service)
+STORAGE_INSTANCE = StorageFactory().create(settings.storage_service)
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
@@ -89,13 +89,13 @@ def get_report(uuid: str):
             settings.metadata_document_service, settings.collection_name, uuid
         ),
     )
-    cloud_storage_folder = state.cloud_storage_folder
-    report = CLOUD_STORAGE_INSTANCE.get_file(
-        settings.bucket_name, cloud_storage_folder + "/elementary_report.html"
+    storage_folder = state.storage_folder
+    report = STORAGE_INSTANCE.get_file(
+        settings.bucket_name, storage_folder + "/elementary_report.html"
     )
 
-    url = CLOUD_STORAGE_INSTANCE.get_file_console_url(
-        settings.bucket_name, f"{cloud_storage_folder}/elementary_report.html"
+    url = STORAGE_INSTANCE.get_file_console_url(
+        settings.bucket_name, f"{storage_folder}/elementary_report.html"
     )
 
     return {"url": url}

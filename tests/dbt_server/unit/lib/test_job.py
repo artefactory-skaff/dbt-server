@@ -7,23 +7,6 @@ from dbt_server.lib.dbt_classes import DbtCommand
 
 @patch("dbt_server.lib.job.State")
 @patch("dbt_server.lib.job.DbtCommand")
-def test_job_create(mock_dbt_command, mock_state):
-    service = Mock()
-    job = Job(service)
-    job.create(mock_state, mock_dbt_command)
-    service.create.assert_called_once_with(mock_state, mock_dbt_command)
-
-
-@patch("dbt_server.lib.job.State")
-def test_job_launch(mock_state):
-    service = Mock()
-    job = Job(service)
-    job.launch(mock_state, "job_name")
-    service.launch.assert_called_once_with(mock_state, "job_name")
-
-
-@patch("dbt_server.lib.job.State")
-@patch("dbt_server.lib.job.DbtCommand")
 @patch("dbt_server.lib.job.run_v2")
 @patch("dbt_server.lib.job.settings")
 def test_cloud_run_job_create(mock_settings, mock_run_v2, mock_dbt_command, mock_state):

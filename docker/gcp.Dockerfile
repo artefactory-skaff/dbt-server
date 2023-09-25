@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 ENV SCRIPT dbt_server.py
 ENV LOGGING_SERVICE GoogleCloudLogging
-ENV CLOUD_STORAGE_SERVICE GoogleCloudStorage
+ENV STORAGE_SERVICE GoogleCloudStorage
 ENV METADATA_DOCUMENT_SERVICE Firestore
 ENV JOB_SERVICE CloudRunJob
 

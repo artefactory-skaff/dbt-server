@@ -1,5 +1,6 @@
 import os
 from typing import Dict
+from abc import ABC, abstractmethod
 
 try:
     from google.cloud import storage
@@ -20,30 +21,27 @@ from dbt_server.config import Settings
 settings = Settings()
 
 
-class CloudStorage:
-    def __init__(self, service):
-        self.service = service
-
-    @property
-    def client(self):
-        return self.service.client
-
+class Storage(ABC):
+    @abstractmethod
     def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
-        self.service.write_file(bucket_name, file_name, data)
+        pass
 
+    @abstractmethod
     def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
-        return self.service.get_file(bucket_name, file_name, start_byte)
+        pass
 
+    @abstractmethod
     def get_file_console_url(self, bucket_name: str, file_name: str) -> str:
-        return self.service.get_file_console_url(bucket_name, file_name)
+        pass
 
+    @abstractmethod
     def get_files_in_folder(
         self, bucket_name: str, folder_name: str
     ) -> Dict[str, bytes]:
-        return self.service.get_files_in_folder(bucket_name, folder_name)
+        pass
 
 
-class LocalStorage:
+class LocalStorage(Storage):
     def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
         with open(f"{bucket_name}/{file_name}", "w") as file:
             file.write(data)
@@ -66,7 +64,7 @@ class LocalStorage:
         ]
 
 
-class GoogleCloudStorage:
+class GoogleCloudStorage(Storage):
     def __init__(self):
         self.client = storage.Client()
 
@@ -119,7 +117,7 @@ class GoogleCloudStorage:
         )
 
 
-class AzureBlobStorage:
+class AzureBlobStorage(Storage):
     def __init__(self):
         self.client = BlobServiceClient.from_connection_string(
             settings.azure.blob_storage_connection_string
@@ -147,7 +145,7 @@ class AzureBlobStorage:
         return {blob.name: self.get_file(bucket_name, blob.name) for blob in blob_list}
 
 
-class CloudStorageFactory:
+class StorageFactory:
     @staticmethod
     def create(service_type):
         if service_type == "GoogleCloudStorage":

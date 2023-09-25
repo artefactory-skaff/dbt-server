@@ -11,7 +11,7 @@ class LoggingServiceEnum(str, Enum):
     local = "Local"
 
 
-class CloudStorageServiceEnum(str, Enum):
+class StorageServiceEnum(str, Enum):
     azure_blob_storage = "AzureBlobStorage"
     google_cloud_storage = "GoogleCloudStorage"
     local_storage = "LocalStorage"
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     bucket_name: str
     collection_name: str
     logging_service: LoggingServiceEnum
-    cloud_storage_service: CloudStorageServiceEnum
+    storage_service: StorageServiceEnum
     metadata_document_service: MetadataDocumentServiceEnum
     job_service: JobServiceEnum
     dbt_command: str = ""
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
             errors.append(ValueError(f"GCP config is not valid : {self}"))
         if (
             self.job_service == "ContainerAppsJob"
-            or self.cloud_storage_service == "AzureBlobStorage"
+            or self.storage_service == "AzureBlobStorage"
             or self.metadata_document_service == "CosmosDB"
         ) and not self.azure:
             errors.append(ValueError(f"Azure config is not valid : {self}"))

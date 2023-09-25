@@ -19,12 +19,12 @@ from dbt_server.config import Settings
 from dbt_server.lib.logger import LOGGER
 from dbt_server.lib.state import State
 from dbt_server.lib.metadata_document import MetadataDocumentFactory
-from dbt_server.lib.cloud_storage import CloudStorageFactory
+from dbt_server.lib.storage import StorageFactory
 
 
 settings = Settings()
 callback_lock = threading.Lock()
-CLOUD_STORAGE_INSTANCE = CloudStorageFactory().create(settings.cloud_storage_service)
+STORAGE_INSTANCE = StorageFactory().create(settings.storage_service)
 
 
 def prepare_and_execute_job(state: State) -> None:
@@ -96,14 +96,14 @@ def generate_elementary_report() -> None:
 def upload_elementary_report(state: State) -> None:
     LOGGER.log("INFO", "Uploading report...")
 
-    cloud_storage_folder = state.cloud_storage_folder
+    storage_folder = state.storage_folder
 
     with open("edr_target/elementary_report.html", "r") as f:
         elementary_report = f.read()
 
-    CLOUD_STORAGE_INSTANCE.write_file(
+    STORAGE_INSTANCE.write_file(
         settings.bucket_name,
-        cloud_storage_folder + "/elementary_report.html",
+        storage_folder + "/elementary_report.html",
         elementary_report,
     )
 

@@ -6,11 +6,11 @@ import traceback
 from dbt_server.config import Settings
 from dbt_server.lib.metadata_document import MetadataDocument
 from dbt_server.lib.dbt_classes import DbtCommand
-from dbt_server.lib.cloud_storage import CloudStorageFactory
+from dbt_server.lib.storage import StorageFactory
 
 
 settings = Settings()
-CLOUD_STORAGE_INSTANCE = CloudStorageFactory().create(settings.cloud_storage_service)
+STORAGE_INSTANCE = StorageFactory().create(settings.storage_service)
 
 
 class State:
@@ -23,7 +23,7 @@ class State:
             "uuid": self._uuid,
             "run_status": "created",
             "user_command": "",
-            "cloud_storage_folder": "",
+            "storage_folder": "",
             "log_starting_byte": 0,
         }
         self.metadata_document.create(initial_state)
@@ -61,54 +61,52 @@ class State:
         self.metadata_document.update({"log_starting_byte": new_log_starting_byte})
 
     @property
-    def cloud_storage_folder(self) -> str:
-        cloud_storage_folder = self.metadata_document.get().to_dict()[
-            "cloud_storage_folder"
-        ]
-        return cloud_storage_folder
+    def storage_folder(self) -> str:
+        storage_folder = self.metadata_document.get().to_dict()["storage_folder"]
+        return storage_folder
 
-    @cloud_storage_folder.setter
-    def cloud_storage_folder(self, cloud_storage_folder: str):
-        self.metadata_document.update({"cloud_storage_folder": cloud_storage_folder})
+    @storage_folder.setter
+    def storage_folder(self, storage_folder: str):
+        self.metadata_document.update({"storage_folder": storage_folder})
 
     def load_context(self, dbt_command: DbtCommand) -> None:
-        cloud_storage_folder = generate_folder_name(self._uuid)
-        logging.info("cloud_storage_folder " + cloud_storage_folder)
-        self.cloud_storage_folder = cloud_storage_folder
-        CLOUD_STORAGE_INSTANCE.write_file(
+        storage_folder = generate_folder_name(self._uuid)
+        logging.info("storage_folder " + storage_folder)
+        self.storage_folder = storage_folder
+        STORAGE_INSTANCE.write_file(
             settings.bucket_name,
-            cloud_storage_folder + "/manifest.json",
+            storage_folder + "/manifest.json",
             dbt_command.manifest,
         )
-        CLOUD_STORAGE_INSTANCE.write_file(
+        STORAGE_INSTANCE.write_file(
             settings.bucket_name,
-            cloud_storage_folder + "/dbt_project.yml",
+            storage_folder + "/dbt_project.yml",
             dbt_command.dbt_project,
         )
         if dbt_command.packages is not None:
-            CLOUD_STORAGE_INSTANCE.write_file(
+            STORAGE_INSTANCE.write_file(
                 settings.bucket_name,
-                cloud_storage_folder + "/packages.yml",
+                storage_folder + "/packages.yml",
                 dbt_command.packages,
             )
         if dbt_command.seeds is not None:
             for seed_name in dbt_command.seeds.keys():
                 seed_str = dbt_command.seeds[seed_name]
-                CLOUD_STORAGE_INSTANCE.write_file(
+                STORAGE_INSTANCE.write_file(
                     settings.bucket_name,
-                    cloud_storage_folder + "/" + seed_name,
+                    storage_folder + "/" + seed_name,
                     seed_str,
                 )
 
     def get_context_to_local(self) -> None:
-        cloud_storage_folder = self.cloud_storage_folder
-        logging.info("load data from folder " + cloud_storage_folder)
-        blob_context_files = CLOUD_STORAGE_INSTANCE.get_files_in_folder(
-            settings.bucket_name, cloud_storage_folder
+        storage_folder = self.storage_folder
+        logging.info("load data from folder " + storage_folder)
+        blob_context_files = STORAGE_INSTANCE.get_files_in_folder(
+            settings.bucket_name, storage_folder
         )
         write_files(blob_context_files)
-        blob_seed_files = CLOUD_STORAGE_INSTANCE.get_files_in_folder(
-            settings.bucket_name, cloud_storage_folder + "/seeds"
+        blob_seed_files = STORAGE_INSTANCE.get_files_in_folder(
+            settings.bucket_name, storage_folder + "/seeds"
         )
         write_files(blob_seed_files, "seeds/")
 
@@ -141,12 +139,12 @@ class DbtRunLogs:
 
     def init_log_file(self) -> None:
         dt_time = current_date_time()
-        CLOUD_STORAGE_INSTANCE.write_file(
+        STORAGE_INSTANCE.write_file(
             settings.bucket_name, self.log_file, dt_time + "\t" + "INFO" + "\t" + "Init"
         )
 
     def get(self, starting_byte: int = 0) -> Tuple[List[str], int]:
-        current_log_file = CLOUD_STORAGE_INSTANCE.get_file(
+        current_log_file = STORAGE_INSTANCE.get_file(
             settings.bucket_name, self.log_file, starting_byte
         )
         byte_length = len(current_log_file)
@@ -158,7 +156,7 @@ class DbtRunLogs:
     def log(self, logs: List[str]) -> None:
         new_log_file = "\n".join(logs)
         try:
-            CLOUD_STORAGE_INSTANCE.write_file(
+            STORAGE_INSTANCE.write_file(
                 settings.bucket_name, self.log_file, new_log_file
             )
         except Exception:
@@ -187,5 +185,5 @@ def current_date_time() -> str:
 def generate_folder_name(uuid: str) -> str:
     today = date.today()
     today_str = today.strftime("%Y-%m-%d")
-    cloud_storage_folder = today_str + "-" + uuid
-    return cloud_storage_folder
+    storage_folder = today_str + "-" + uuid
+    return storage_folder

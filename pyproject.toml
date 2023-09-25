@@ -81,7 +81,7 @@ env = [
   "BUCKET_NAME=data/storage",
   "COLLECTION_NAME=data/document",
   "LOGGING_SERVICE=Local",
-  "CLOUD_STORAGE_SERVICE=LocalStorage",
+  "STORAGE_SERVICE=LocalStorage",
   "METADATA_DOCUMENT_SERVICE=Local",
   "JOB_SERVICE=LocalJob"
 ]

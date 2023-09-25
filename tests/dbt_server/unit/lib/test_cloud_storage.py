@@ -1,70 +1,76 @@
 import pytest
 from unittest.mock import Mock, patch
-from dbt_server.lib.cloud_storage import (
-    CloudStorage,
+from dbt_server.lib.storage import (
+    Storage,
     GoogleCloudStorage,
     AzureBlobStorage,
-    CloudStorageFactory,
+    StorageFactory,
 )
 
 
-class TestCloudStorage:
-    @pytest.fixture
-    def service(self):
-        return Mock()
-
-    @pytest.fixture
-    def cloud_storage(self, service):
-        return CloudStorage(service)
-
-    def test_write_file(self, cloud_storage, service):
-        cloud_storage.write_file("bucket", "file", "data")
-        service.write_file.assert_called_with("bucket", "file", "data")
-
-    def test_get_file(self, cloud_storage, service):
-        cloud_storage.get_file("bucket", "file")
-        service.get_file.assert_called_with("bucket", "file", 0)
-
-    def test_get_file_console_url(self, cloud_storage, service):
-        cloud_storage.get_file_console_url("bucket", "file")
-        service.get_file_console_url.assert_called_with("bucket", "file")
-
-    def test_get_files_in_folder(self, cloud_storage, service):
-        cloud_storage.get_files_in_folder("bucket", "folder")
-        service.get_files_in_folder.assert_called_with("bucket", "folder")
-
-
 class TestGoogleCloudStorage:
-    @patch("dbt_server.lib.cloud_storage.storage")
-    def setup(self, mock_storage):
-        self.gcs = GoogleCloudStorage()
+    @pytest.fixture
+    @patch("dbt_server.lib.storage.storage")
+    def storage(self, mock_storage):
+        return GoogleCloudStorage()
 
-    # Add your tests here, similar to the CloudStorage tests, but specific to GoogleCloudStorage
+    @patch("dbt_server.lib.storage.GoogleCloudStorage")
+    def test_write_file(self, google_cloud_storage, storage):
+        google_cloud_storage.define_retry_policy.return_value = None
+        storage.write_file("bucket", "file", "data")
+
+    def test_get_file(self, storage):
+        storage.client.get_bucket().get_blob().size = 1
+        storage.get_file("bucket", "file")
+
+    def test_get_file_console_url(self, storage):
+        storage.get_file_console_url("bucket", "file")
+
+    def test_get_files_in_folder(self, storage):
+        storage.get_files_in_folder("bucket", "folder")
 
 
 class TestAzureBlobStorage:
-    @patch("dbt_server.lib.cloud_storage.BlobServiceClient")
-    def setup(self, mock_blob_service_client):
-        self.abs = AzureBlobStorage()
+    @pytest.fixture
+    @patch("dbt_server.lib.storage.BlobServiceClient")
+    @patch("dbt_server.lib.storage.settings")
+    def storage(self, settings, mock_blob_service_client):
+        settings.azure.blob_storage_connection_string = None
+        mock_blob_service_client.from_connection_string.return_value = None
+        azure_blob_storage = AzureBlobStorage()
+        azure_blob_storage.client = Mock()
+        return azure_blob_storage
 
-    # Add your tests here, similar to the CloudStorage tests, but specific to AzureBlobStorage
+    def test_write_file(self, storage):
+        storage.write_file("bucket", "file", "data")
+
+    def test_get_file(self, storage):
+        storage.client.get_blob_client().download_blob().readall.return_value = "test"
+        storage.get_file("bucket", "file")
+
+    def test_get_file_console_url(self, storage):
+        storage.get_file_console_url("bucket", "file")
+
+    def test_get_files_in_folder(self, storage):
+        storage.client.get_container_client().list_blobs.return_value = []
+        storage.get_files_in_folder("bucket", "folder")
 
 
-class TestCloudStorageFactory:
-    @patch("dbt_server.lib.cloud_storage.storage")
+class TestStorageFactory:
+    @patch("dbt_server.lib.storage.storage")
     def test_create_google_cloud_storage(self, mock_gcp_storage):
         mock_gcp_storage.Client.return_value = None
-        service = CloudStorageFactory.create("GoogleCloudStorage")
+        service = StorageFactory.create("GoogleCloudStorage")
         assert isinstance(service, GoogleCloudStorage)
 
-    @patch("dbt_server.lib.cloud_storage.BlobServiceClient")
-    @patch("dbt_server.lib.cloud_storage.settings")
+    @patch("dbt_server.lib.storage.BlobServiceClient")
+    @patch("dbt_server.lib.storage.settings")
     def test_create_azure_blob_storage(self, settings, mock_azure_client):
         settings.azure.blob_storage_connection_string = None
         mock_azure_client.from_connection_string.return_value = None
-        service = CloudStorageFactory.create("AzureBlobStorage")
+        service = StorageFactory.create("AzureBlobStorage")
         assert isinstance(service, AzureBlobStorage)
 
     def test_create_invalid_service(self):
         with pytest.raises(ValueError):
-            CloudStorageFactory.create("InvalidService")
+            StorageFactory.create("InvalidService")

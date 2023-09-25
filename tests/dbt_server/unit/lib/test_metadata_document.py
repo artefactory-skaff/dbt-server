@@ -8,17 +8,6 @@ from dbt_server.lib.metadata_document import (
 )
 
 
-def test_metadata_document_methods():
-    service = Mock()
-    doc = MetadataDocument(service)
-    doc.get()
-    service.get.assert_called_once()
-    doc.create({"key": "value"})
-    service.create.assert_called_once_with({"key": "value"})
-    doc.update({"key": "value"})
-    service.update.assert_called_once_with({"key": "value"})
-
-
 @patch("dbt_server.lib.metadata_document.firestore")
 def test_firestore_document_methods(mock_firestore):
     doc = FirestoreDocument("collection", "doc_id")

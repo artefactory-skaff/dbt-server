@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import traceback
 import subprocess
+from abc import ABC, abstractmethod
 
 from fastapi import HTTPException
 
@@ -27,18 +28,17 @@ from dbt_server.lib.dbt_classes import DbtCommand
 settings = Settings()
 
 
-class Job:
-    def __init__(self, service):
-        self.service = service
-
+class Job(ABC):
+    @abstractmethod
     def create(self, state: State, dbt_command: DbtCommand) -> str:
-        return self.service.create(state, dbt_command)
+        pass
 
+    @abstractmethod
     def launch(self, state: State, job_name: str) -> None:
-        self.service.launch(state, job_name)
+        pass
 
 
-class LocalJob:
+class LocalJob(Job):
     def create(self, state: State, dbt_command: DbtCommand) -> str:
         task_container = {
             "image": settings.docker_image,
@@ -60,7 +60,7 @@ class LocalJob:
         state.run_status = "running"
 
 
-class CloudRunJob:
+class CloudRunJob(Job):
     def create(self, state: State, dbt_command: DbtCommand) -> str:
         LOGGER.log(
             "INFO",
@@ -122,7 +122,7 @@ class CloudRunJob:
         state.run_status = "running"
 
 
-class ContainerAppsJob:
+class ContainerAppsJob(Job):
     def create(self, state: State, dbt_command: DbtCommand) -> str:
         LOGGER.log(
             "INFO",

@@ -2,6 +2,7 @@ import os
 import json
 from typing import Dict, Any
 from dbt_server.config import Settings
+from abc import ABC, abstractmethod
 
 try:
     from google.cloud import firestore
@@ -17,21 +18,21 @@ except ImportError:
 settings = Settings()
 
 
-class MetadataDocument:
-    def __init__(self, service):
-        self.service = service
-
+class MetadataDocument(ABC):
+    @abstractmethod
     def get(self) -> Dict[str, Any]:
-        return self.service.get()
+        pass
 
+    @abstractmethod
     def create(self, data: Dict[str, Any]) -> None:
-        self.service.create(data)
+        pass
 
+    @abstractmethod
     def update(self, data: Dict[str, Any]) -> None:
-        self.service.update(data)
+        pass
 
 
-class LocalDocument:
+class LocalDocument(MetadataDocument):
     def __init__(self, collection_name, document_id):
         self.path = f"{collection_name}/{document_id}"
 
@@ -52,7 +53,7 @@ class LocalDocument:
             json.dump(new_data, file)
 
 
-class FirestoreDocument:
+class FirestoreDocument(MetadataDocument):
     def __init__(self, collection_name, document_id):
         self.document = (
             firestore.Client().client.collection(collection_name).document(document_id)
@@ -68,7 +69,7 @@ class FirestoreDocument:
         self.document.update(data)
 
 
-class CosmosDBDocument:
+class CosmosDBDocument(MetadataDocument):
     def __init__(self, collection_name, document_id):
         self.client = CosmosClient(
             settings.azure.cosmos_db_url, credential=settings.azure.cosmos_db_key

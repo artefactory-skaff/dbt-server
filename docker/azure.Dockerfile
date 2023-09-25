@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 ENV SCRIPT dbt_server.py
 ENV LOGGING_SERVICE AzureMonitor
-ENV CLOUD_STORAGE_SERVICE AzureBlobStorage
+ENV STORAGE_SERVICE AzureBlobStorage
 ENV METADATA_DOCUMENT_SERVICE CosmosDB
 ENV JOB_SERVICE ContainerAppsJob
 

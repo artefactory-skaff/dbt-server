@@ -17,7 +17,7 @@ resource "google_firestore_document" "first_status" {
   project     = var.project_id
   collection  = "dbt-status"
   document_id = "0"
-  fields      = "{\"cloud_storage_folder\":{\"stringValue\":\"2023-09-08\"},\"log_starting_byte\":{\"stringValue\":\"0\"},\"run_status\":{\"stringValue\":\"started\"},\"user_command\":{\"stringValue\":\"\"},\"uuid\":{\"stringValue\":\"0\"}}"
+  fields      = "{\"storage_folder\":{\"stringValue\":\"2023-09-08\"},\"log_starting_byte\":{\"stringValue\":\"0\"},\"run_status\":{\"stringValue\":\"started\"},\"user_command\":{\"stringValue\":\"\"},\"uuid\":{\"stringValue\":\"0\"}}"
 }
 
 

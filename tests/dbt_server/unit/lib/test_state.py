@@ -20,13 +20,13 @@ def test_state_properties():
         "run_status": "created",
         "user_command": "test_command",
         "log_starting_byte": 0,
-        "cloud_storage_folder": "test_folder",
+        "storage_folder": "test_folder",
     }
     state = State("test_uuid", metadata_document)
     assert state.run_status == "created"
     assert state.user_command == "test_command"
     assert state.log_starting_byte == 0
-    assert state.cloud_storage_folder == "test_folder"
+    assert state.storage_folder == "test_folder"
 
 
 def test_dbt_run_logs_init():
@@ -37,16 +37,14 @@ def test_dbt_run_logs_init():
 
 def test_dbt_run_logs_init_log_file():
     run_logs = DbtRunLogs("test_uuid")
-    with patch(
-        "dbt_server.lib.state.CLOUD_STORAGE_INSTANCE.write_file"
-    ) as mock_write_file:
+    with patch("dbt_server.lib.state.STORAGE_INSTANCE.write_file") as mock_write_file:
         run_logs.init_log_file()
         mock_write_file.assert_called_once()
 
 
 def test_dbt_run_logs_get():
     run_logs = DbtRunLogs("test_uuid")
-    with patch("dbt_server.lib.state.CLOUD_STORAGE_INSTANCE.get_file") as mock_get_file:
+    with patch("dbt_server.lib.state.STORAGE_INSTANCE.get_file") as mock_get_file:
         mock_get_file.return_value = b"test_log\n"
         logs, byte_length = run_logs.get(0)
         mock_get_file.assert_called_once()
