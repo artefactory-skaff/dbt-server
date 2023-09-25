@@ -16,7 +16,7 @@ from elementary.monitor.cli import report
 from fastapi import HTTPException
 
 from dbt_server.config import Settings
-from dbt_server.clients import LOGGER
+from dbt_server.lib.logger import LOGGER
 from dbt_server.lib.state import State
 from dbt_server.lib.metadata_document import MetadataDocumentFactory
 from dbt_server.lib.cloud_storage import CloudStorageFactory

@@ -19,7 +19,7 @@ except ImportError:
 
 
 from dbt_server.config import Settings
-from dbt_server.clients import LOGGER
+from dbt_server.lib.logger import LOGGER
 from dbt_server.lib.state import State
 from dbt_server.lib.dbt_classes import DbtCommand
 

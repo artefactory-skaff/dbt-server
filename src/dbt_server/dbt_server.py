@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 
 from dbt_server.config import Settings
-from dbt_server.clients import LOGGER
+from dbt_server.lib.logger import LOGGER
 from dbt_server.lib.job import Job, JobFactory
 from dbt_server.lib.dbt_classes import DbtCommand, FollowUpLink
 from dbt_server.lib.command_processor import process_command

@@ -37,7 +37,9 @@ def test_dbt_run_logs_init():
 
 def test_dbt_run_logs_init_log_file():
     run_logs = DbtRunLogs("test_uuid")
-    with patch("dbt_server.lib.state.CLOUD_STORAGE_INSTANCE.write_file") as mock_write_file:
+    with patch(
+        "dbt_server.lib.state.CLOUD_STORAGE_INSTANCE.write_file"
+    ) as mock_write_file:
         run_logs.init_log_file()
         mock_write_file.assert_called_once()
 

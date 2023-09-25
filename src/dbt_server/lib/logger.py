@@ -77,3 +77,6 @@ def get_log_level(severity: str):
         return level_dict[severity.upper()]
     else:
         raise Exception(f"Unknown severity: {severity}")
+
+
+LOGGER = DbtLogger(settings.logging_service, settings.uuid)

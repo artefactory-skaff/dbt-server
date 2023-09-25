@@ -14,4 +14,3 @@ def MockSendCommandRequest(requests_mock):
 @pytest.fixture
 def PatchBuiltInOpen():
     return patch("builtins.open", unittest.mock.mock_open(read_data="data..."))
-
