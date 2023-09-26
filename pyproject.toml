@@ -14,7 +14,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "3.11.4"
+python = "^3.10.0"
 google-api-core = "2.11.1"
 google-cloud-bigquery = "3.11.4"
 google-cloud-run = "0.9.1"

@@ -14,12 +14,14 @@ def stream_logs(links: List[FollowUpLink]) -> ():
     run_status = get_run_status(run_status_link).run_status
 
     stop = False
-    while run_status == "running" and not stop:
+    while run_status == "running":
         time.sleep(1)
         run_status = get_run_status(run_status_link).run_status
         stop = show_last_logs(last_logs_link)
+        if stop:
+            return
 
-    if run_status == "success" and not stop:
+    if run_status == "success":
         while not stop:
             time.sleep(1)
             stop = show_last_logs(last_logs_link)
@@ -84,17 +86,25 @@ def show_log(log: str) -> ():
         click.echo('')
         return
 
+    log_content_color = 'reset'
     match (log_level):
         case 'INFO':
-            log_color = 'green'
+            log_level_color = 'green'
+            match(log_content[:5]):
+                case '[dbt]':
+                    log_content_color = 'reset'
+                case '[job]':
+                    log_content_color = 'blue'
+                case _:
+                    log_content_color = (128, 128, 128)  # gray
         case 'WARN':
-            log_color = 'yellow'
+            log_level_color = 'yellow'
         case 'ERROR':
-            log_color = 'red'
+            log_level_color = 'red'
         case _:
-            log_color = 'black'
+            log_level_color = 'black'
 
-    click.echo(click.style(log_level, fg=log_color) + '\t' + log_content)
+    click.echo(click.style(log_level, fg=log_level_color) + '\t' + click.style(log_content, fg=log_content_color))
 
 
 def parse_log(log: str) -> (tuple[str, str] | None):

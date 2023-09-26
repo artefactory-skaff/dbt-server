@@ -38,14 +38,14 @@ def prepare_and_execute_job(state: State) -> ():
     run_dbt_command(state, manifest, DBT_COMMAND)
 
     with callback_lock:
-        log = "Command successfully executed"
+        log = "[job]Command successfully executed"
         DBT_LOGGER.log("INFO", log)
 
     if ELEMENTARY == 'True':
         generate_elementary_report()
         upload_elementary_report(state)
 
-    log = "END JOB"
+    log = "[job]END JOB"
     DBT_LOGGER.log("INFO", log)
 
 
@@ -78,14 +78,14 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
             generate_elementary_report()
             upload_elementary_report(state)
 
-        log = "END JOB"
+        log = "[job]END JOB"
         with callback_lock:
             DBT_LOGGER.log("INFO", log)
         handle_exception(res_dbt.exception)
 
 
 def generate_elementary_report() -> ():
-    log = "Generating elementary report..."
+    log = "[job]Generating elementary report..."
     DBT_LOGGER.log("INFO", log)
 
     report_thread = threading.Thread(target=report, name="Report generator")
@@ -95,12 +95,12 @@ def generate_elementary_report() -> ():
         time.sleep(1)
         i += 1
 
-    log = "Report generated!"
+    log = "[job]Report generated!"
     DBT_LOGGER.log("INFO", log)
 
 
 def upload_elementary_report(state: State) -> ():
-    log = "Uploading report..."
+    log = "[job]Uploading report..."
     DBT_LOGGER.log("INFO", log)
 
     cloud_storage_folder = state.cloud_storage_folder
@@ -121,7 +121,7 @@ def logger_callback(event: EventMsg):
     if user_log_format == "json":
         msg = msg_to_json(event).replace('\n', '  ')
     else:
-        msg = event.info.msg.replace('\n', '  ')
+        msg = "[dbt]"+event.info.msg.replace('\n', '  ')
 
     user_log_level = log_configuration['log_level']
     match event.info.level:
@@ -194,6 +194,6 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
 
 if __name__ == '__main__':
 
-    DBT_LOGGER.log("INFO", "Job started")
+    DBT_LOGGER.log("INFO", "[job]Job started")
     state = STATE
     prepare_and_execute_job(state)

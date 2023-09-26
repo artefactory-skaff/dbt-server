@@ -20,8 +20,7 @@ def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, loca
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
     for service in cloud_run_services:
         if check_if_server_is_dbt_server(service):
-            click.echo('Using Cloud Run `' + service.name + '` as dbt server')
-            click.echo('uri: ' + service.uri)
+            click.echo('Detected Cloud Run `' + service.name + '` as dbt server')
             return service.uri
 
     click.echo(click.style("ERROR", fg="red"))

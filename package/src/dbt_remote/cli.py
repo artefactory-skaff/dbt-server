@@ -38,26 +38,35 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
         seeds_path: str, server_url: str | None, location: str | None, elementary: bool, args):
 
     dbt_command = assemble_dbt_command(user_command, args)
-    click.echo(f'Command: dbt {dbt_command}')
+    click.echo(click.style('Command: ', blink=True, bold=True)+f'dbt {dbt_command}')
 
     cloud_run_client = run_v2.ServicesClient()
     server_url = get_server_uri(dbt_command, project_dir, dbt_project, server_url, location, cloud_run_client)
-    click.echo('dbt-server url: '+server_url)
+    click.echo(click.style('dbt-server url: ', blink=True, bold=True)+server_url)
 
     if manifest is None:
         compile_manifest(project_dir)
         manifest = "./target/manifest.json"
 
-    click.echo('Sending request to server. Waiting for job creation...')
+    click.echo('\nSending request to server. Waiting for job creation...')
     server_response = send_command(server_url, dbt_command, project_dir, manifest, dbt_project, extra_packages,
                                    seeds_path, elementary)
 
     uuid, links = get_job_uuid_and_links(server_response)
-    click.echo(f"Job created with uuid: {uuid}")
-    click.echo(f"Job links: {links}")
+    click.echo("Job created with uuid: " + click.style(uuid, blink=True, bold=True))
+    display_links(links)
 
     click.echo('Waiting for job execution...')
     stream_logs(links)
+
+
+def display_links(links: Dict[str, str]):
+    click.echo("")
+    click.echo("Following the job creation, you can access the following information using the links below:")
+    for link in links:
+        action, link_url = link.action_name, link.link
+        click.echo(f"  - {action}: {link_url}")
+    click.echo("")
 
 
 def assemble_dbt_command(user_command: str, args: Any) -> str:
@@ -73,14 +82,14 @@ def get_server_uri(dbt_command: str, project_dir: str, dbt_project: str, server_
     if server_url is not None:
         server_url = server_url + "/"
     else:
-        click.echo("Looking for dbt server available on Cloud Run...")
+        click.echo("\nNo server url given. Looking for dbt server available on Cloud Run...")
         server_url = detect_dbt_server_uri(project_dir, dbt_project, dbt_command, location, cloud_run_client) + "/"
     return server_url
 
 
 def compile_manifest(project_dir: str):
-    click.echo("Generating manifest.json")
-    dbtRunner().invoke(["parse", "--project-dir", project_dir])
+    click.echo("\nGenerating manifest.json")
+    dbtRunner().invoke(["parse", "--project-dir", project_dir, "--quiet"])
 
 
 def send_command(server_url: str, command: str, project_dir: str, manifest: str, dbt_project: str, packages: str | None,
