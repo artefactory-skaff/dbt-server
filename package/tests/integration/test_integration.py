@@ -1,4 +1,5 @@
 import sys
+from google.cloud import run_v2
 sys.path.insert(1, './package/')
 from src.dbt_remote.dbt_server_detector import check_if_server_is_dbt_server, get_cloud_run_service_list
 
@@ -22,10 +23,11 @@ def test_check_if_server_is_dbt_server():
 
 def test_get_cloud_run_service_list():
     project_id, location = "stc-dbt-test-9e19", "europe-west9"
-    services = get_cloud_run_service_list(project_id, location)
+    cloud_run_client = run_v2.ServicesClient()
+    services = get_cloud_run_service_list(project_id, location, cloud_run_client)
 
     test_dbt_server_is_present = False
     for service in services:
-        if service.name == "projects/stc-dbt-test-9e19/locations/europe-west9/services/server-dev":
+        if service.name == "projects/stc-dbt-test-9e19/locations/europe-west9/services/server-dev-tf":
             test_dbt_server_is_present = True
     assert test_dbt_server_is_present

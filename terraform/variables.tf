@@ -1,11 +1,11 @@
 variable "project_id" {
   type    = string
-  default = "stc-dbt-test-9e19"
+  default = "<project-id>"
 }
 
 variable "docker_image" {
   type    = string
-  default = "us-central1-docker.pkg.dev/stc-dbt-test-9e19/cloud-run-dbt/server-image"
+  default = "<docker-image>"
 }
 
 variable "bucket_name" {
@@ -15,5 +15,5 @@ variable "bucket_name" {
 
 variable "location" {
   type    = string
-  default = "europe-west9"
+  default = "<location>"
 }

@@ -13,12 +13,13 @@ def stream_logs(links: List[FollowUpLink]) -> ():
     last_logs_link = get_link_from_action_name(links, "last_logs")
     run_status = get_run_status(run_status_link).run_status
 
-    while run_status == "running":
+    stop = False
+    while run_status == "running" and not stop:
         time.sleep(1)
         run_status = get_run_status(run_status_link).run_status
         stop = show_last_logs(last_logs_link)
 
-    if run_status == "success":
+    if run_status == "success" and not stop:
         while not stop:
             time.sleep(1)
             stop = show_last_logs(last_logs_link)
