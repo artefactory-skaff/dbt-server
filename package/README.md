@@ -92,7 +92,7 @@ Example:
    ├── dbt_project.yml
    ├── ...
 ```
-The command is
+The command is:
 ```sh
 dbt-remote list --project-dir folder2
 ```
