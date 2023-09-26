@@ -1,5 +1,4 @@
 
-from fastapi import FastAPI, status
 from google.cloud import run_v2
 from google.cloud import logging
 import os
@@ -7,7 +6,8 @@ import uuid
 import uvicorn
 import sys
 import traceback
-from fastapi import HTTPException
+from fastapi import FastAPI, status, HTTPException
+from fastapi.responses import RedirectResponse
 
 from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
@@ -52,6 +52,16 @@ def run_command(dbt_command: DbtCommand):
 
     response_job = create_job(state, dbt_command)
     launch_job(state, response_job)
+
+    if dbt_command.elementary:
+        return {
+            "uuid": request_uuid,
+            "links": [
+                FollowUpLink("run_status", f"{dbt_command.server_url}job/{request_uuid}"),
+                FollowUpLink("last_logs", f"{dbt_command.server_url}job/{request_uuid}/last_logs"),
+                FollowUpLink("report", f"{dbt_command.server_url}job/{request_uuid}/report"),
+            ]
+        }
 
     return {
         "uuid": request_uuid,
@@ -144,8 +154,10 @@ def get_report(uuid: str):
     cloud_storage_folder = state.cloud_storage_folder
 
     google_console_url = 'https://console.cloud.google.com/storage/browser/_details'
-    url = f'{google_console_url}/{BUCKET_NAME}/{cloud_storage_folder}/elementary_report.html'
-    return {"url": url}
+    report_url = f'{google_console_url}/{BUCKET_NAME}/{cloud_storage_folder}/elementary_report.html'
+    # return {"url": report_url}
+
+    return RedirectResponse(url=report_url, status_code=status.HTTP_302_FOUND)
 
 
 @app.get("/check", status_code=status.HTTP_200_OK)

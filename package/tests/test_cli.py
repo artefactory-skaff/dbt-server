@@ -1,5 +1,5 @@
 from src.dbt_remote.cli import assemble_dbt_command, parse_server_response, get_selected_nodes
-from src.dbt_remote.cli import send_command
+from src.dbt_remote.cli import send_command, CliConfig
 
 
 def test_assemble_dbt_command():
@@ -76,9 +76,16 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
     for context_dict in send_command_list:
 
         with PatchBuiltInOpen:
-            res = send_command(server_url, context_dict['command'], context_dict['project_dir'],
-                               context_dict['manifest'], context_dict['dbt_project'], context_dict['packages'],
-                               context_dict['seeds_path'], context_dict['elementary'])
+            cli_config = CliConfig(
+                server_url=server_url,
+                project_dir=context_dict['project_dir'],
+                manifest=context_dict['manifest'],
+                dbt_project=context_dict['dbt_project'],
+                extra_packages=context_dict['packages'],
+                seeds_path=context_dict['seeds_path'],
+                elementary=context_dict['elementary']
+            )
+            res = send_command(context_dict['command'], cli_config)
 
         assert send_command_requests_mock.last_request.method == 'POST'
         assert send_command_requests_mock.last_request.url == server_url+'dbt'

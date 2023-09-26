@@ -1,7 +1,9 @@
 import requests
 import os
 import traceback
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+import yaml
+from dataclasses import dataclass
 
 import click
 from click.parser import split_arg_string
@@ -12,6 +14,20 @@ from google.cloud import run_v2
 from package.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from package.src.dbt_remote.server_response_classes import DbtResponse
 from package.src.dbt_remote.stream_logs import stream_logs
+from package.src.dbt_remote.config_command import config, CONFIG_FILE, DEFAULT_CONFIG
+
+
+@dataclass
+class CliConfig:
+    """Config file for dbt-remote."""
+    manifest: Optional[str] = None
+    project_dir: Optional[str] = None
+    dbt_project: Optional[str] = None
+    extra_packages: Optional[str] = None
+    seeds_path: Optional[str] = None
+    server_url: Optional[str] = None
+    location: Optional[str] = None
+    elementary: Optional[bool] = None
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True,),
@@ -21,12 +37,12 @@ test, seed, snapshot.")
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), \
 by default: none and the cli compiles one from current dbt project')
-@click.option('--project-dir', default='.', help='Which directory to look in for the dbt_project.yml file. Default \
+@click.option('--project-dir', help='Which directory to look in for the dbt_project.yml file. Default \
 is the current directory.')
-@click.option('--dbt-project', default='dbt_project.yml', help='dbt_project file, by default: dbt_project.yml')
+@click.option('--dbt-project', help='dbt_project file, by default: dbt_project.yml')
 @click.option('--extra-packages', help='packages.yml file, by default none. Add this option is necessary to use\
 external packages such as elementary.')
-@click.option('--seeds-path', default='./seeds/', help='Path to seeds directory, this option is needed if you run `dbt\
+@click.option('--seeds-path', help='Path to seeds directory, this option is needed if you run `dbt\
 -remote seed`. By default: seeds/')
 @click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
 for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location\
@@ -34,23 +50,42 @@ for a dbt server in GCP project\'s Cloud Run. In this case, you can give the loc
 @click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
 detection. If none is given, dbt-remote will look for the location given in the profiles.yml.')
 @click.option('--elementary', is_flag=True, help='Set this flag to run elementary report at the end of the job')
-def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: str, extra_packages: str | None,
-        seeds_path: str, server_url: str | None, location: str | None, elementary: bool, args):
+@click.pass_context
+def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project: str | None,
+        extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
+        elementary: bool, args):
+
+    if user_command == "config":
+        if len(args) < 1:
+            raise click.ClickException("You must provide a config command.")
+        return ctx.invoke(config, config_command=args[0], args=args[1:])
+
+    cli_config = CliConfig(
+        manifest=manifest,
+        project_dir=project_dir,
+        dbt_project=dbt_project,
+        extra_packages=extra_packages,
+        seeds_path=seeds_path,
+        server_url=server_url,
+        location=location,
+        elementary=elementary
+    )
+    cli_config = load_config(cli_config)
+    click.echo(click.style('Config: ', blink=True, bold=True)+str(cli_config.__dict__))
 
     dbt_command = assemble_dbt_command(user_command, args)
     click.echo(click.style('Command: ', blink=True, bold=True)+f'dbt {dbt_command}')
 
     cloud_run_client = run_v2.ServicesClient()
-    server_url = get_server_uri(dbt_command, project_dir, dbt_project, server_url, location, cloud_run_client)
-    click.echo(click.style('dbt-server url: ', blink=True, bold=True)+server_url)
+    cli_config.server_url = get_server_uri(dbt_command, cli_config, cloud_run_client)
+    click.echo(click.style('dbt-server url: ', blink=True, bold=True)+cli_config.server_url)
 
-    if manifest is None:
-        compile_manifest(project_dir)
-        manifest = "./target/manifest.json"
+    if cli_config.manifest is None:
+        compile_manifest(cli_config.project_dir)
+        cli_config.manifest = "./target/manifest.json"
 
     click.echo('\nSending request to server. Waiting for job creation...')
-    server_response = send_command(server_url, dbt_command, project_dir, manifest, dbt_project, extra_packages,
-                                   seeds_path, elementary)
+    server_response = send_command(dbt_command, cli_config)
 
     uuid, links = get_job_uuid_and_links(server_response)
     click.echo("Job created with uuid: " + click.style(uuid, blink=True, bold=True))
@@ -58,6 +93,23 @@ def cli(user_command: str, project_dir: str, manifest: str | None, dbt_project: 
 
     click.echo('Waiting for job execution...')
     stream_logs(links)
+
+
+def load_config(cli_config: CliConfig) -> CliConfig:
+    if os.path.isfile(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as f:
+            config = yaml.safe_load(f)
+    else:
+        config = DEFAULT_CONFIG
+
+    cli_config_dict = cli_config.__dict__
+    for key in cli_config_dict.keys():
+        if cli_config_dict[key] is None or not cli_config_dict[key]:
+            val = config[key]
+            if val in ["True", "False"]:
+                val = bool(val)
+            cli_config_dict[key] = val
+    return cli_config
 
 
 def display_links(links: Dict[str, str]):
@@ -77,13 +129,13 @@ def assemble_dbt_command(user_command: str, args: Any) -> str:
     return dbt_command
 
 
-def get_server_uri(dbt_command: str, project_dir: str, dbt_project: str, server_url: str | None,
-                   location: str | None, cloud_run_client: run_v2.ServicesClient) -> str:
-    if server_url is not None:
-        server_url = server_url + "/"
+def get_server_uri(dbt_command: str, cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
+    if cli_config.server_url is not None:
+        server_url = cli_config.server_url + "/"
     else:
         click.echo("\nNo server url given. Looking for dbt server available on Cloud Run...")
-        server_url = detect_dbt_server_uri(project_dir, dbt_project, dbt_command, location, cloud_run_client) + "/"
+        server_url = detect_dbt_server_uri(cli_config.project_dir, cli_config.dbt_project, dbt_command,
+                                           cli_config.location, cloud_run_client) + "/"
     return server_url
 
 
@@ -92,29 +144,28 @@ def compile_manifest(project_dir: str):
     dbtRunner().invoke(["parse", "--project-dir", project_dir, "--quiet"])
 
 
-def send_command(server_url: str, command: str, project_dir: str, manifest: str, dbt_project: str, packages: str | None,
-                 seeds_path: str, elementary: bool) -> requests.Response:
-    url = server_url + "dbt"
+def send_command(command: str, cli_config: CliConfig) -> requests.Response:
+    url = cli_config.server_url + "dbt"
 
-    manifest_str = read_file(project_dir + '/' + manifest)
-    dbt_project_str = read_file(project_dir + '/' + dbt_project)
+    manifest_str = read_file(cli_config.project_dir + '/' + cli_config.manifest)
+    dbt_project_str = read_file(cli_config.project_dir + '/' + cli_config.dbt_project)
 
     data = {
-            "server_url": server_url,
+            "server_url": cli_config.server_url,
             "user_command": command,
             "manifest": manifest_str,
             "dbt_project": dbt_project_str
         }
 
     if 'seed' in command.split(' ') or 'build' in command.split(' '):
-        seeds_dict = get_selected_seeds_dict(project_dir + "/" + seeds_path, command)
+        seeds_dict = get_selected_seeds_dict(cli_config.project_dir + "/" + cli_config.seeds_path, command)
         data["seeds"] = seeds_dict
 
-    if packages is not None:
-        packages_str = read_file(project_dir + "/" + packages)
-        data["packages"] = packages_str
+    if cli_config.extra_packages is not None:
+        extra_packages_str = read_file(cli_config.project_dir + "/" + cli_config.extra_packages)
+        data["packages"] = extra_packages_str
 
-    if elementary:
+    if cli_config.elementary is True:
         data["elementary"] = True
 
     res = requests.post(url=url, json=data)

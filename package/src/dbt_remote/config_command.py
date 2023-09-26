@@ -1,0 +1,87 @@
+import click
+import yaml
+from typing import List
+
+CONFIG_FILE = "dbt_remote.yml"
+DEFAULT_CONFIG = {
+    'manifest': None,
+    'project_dir': '.',
+    'dbt_project': 'dbt_project.yml',
+    'extra_packages': None,
+    'seeds_path': './seeds/',
+    'server_url': None,
+    'location': None,
+    'elementary': False
+}
+
+
+@click.command(help="Configure dbt-remote.")
+@click.argument('config_command')
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+def config(config_command: str, args: List[str]):
+    match(config_command):
+        case "init":
+            init()
+        case "list":
+            list()
+        case "set":
+            set(args)
+        case "get":
+            get(args)
+        case "delete":
+            delete(args)
+        case _:
+            raise click.ClickException("dbt-remote config command not recognized")
+
+
+def init():
+    with open(CONFIG_FILE, 'w') as f:
+        yaml.dump(DEFAULT_CONFIG, f)
+
+
+def list():
+    with open(CONFIG_FILE, 'r') as f:
+        config = yaml.safe_load(f)
+    click.echo(config)
+
+
+def set(args: List[str]):
+    with open(CONFIG_FILE, 'r') as f:
+        config = yaml.safe_load(f)
+
+    for arg in args:
+        key, value = arg.split("=")[0], arg.split("=")[1]
+        config[key] = value
+        click.echo(f"Configured: {key}={value}")
+
+    with open(CONFIG_FILE, 'w') as f:
+        yaml.dump(config, f)
+
+
+def get(args: List[str]):
+    with open(CONFIG_FILE, 'r') as f:
+        config = yaml.safe_load(f)
+
+    for arg in args:
+        if arg in config.keys():
+            click.echo(f"{arg}={config[arg]}")
+        else:
+            click.echo(click.style('Error ', fg='red')+f"{arg} not found in config")
+
+
+def delete(args: List[str]):
+    with open(CONFIG_FILE, 'r') as f:
+        config = yaml.safe_load(f)
+
+    for arg in args:
+        if arg in config.keys() and arg in DEFAULT_CONFIG.keys():
+            config[arg] = DEFAULT_CONFIG[arg]  # reset to default
+            click.echo(f"{arg} reset to default: {DEFAULT_CONFIG[arg]}")
+        elif arg in config.keys() and arg in DEFAULT_CONFIG.keys():
+            del config[arg]
+            click.echo(f"{arg} deleted from config")
+        else:
+            click.echo(click.style('Error ', fg='red')+f"{arg} not found in config")
+
+    with open(CONFIG_FILE, 'w') as f:
+        yaml.dump(config, f)
