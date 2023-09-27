@@ -3,11 +3,11 @@ name: dbt-remote Python package
 on:
   push:
     paths:
-      - package/**
+      - dbt_remote/**
 
 jobs:
 
-  package-test:
+  dbt_remote-test:
     runs-on: ubuntu-latest
     steps:
       - name: Get repo
@@ -18,15 +18,15 @@ jobs:
       - name: Init .dbt for click execution
         run: |
           mkdir ../../../.dbt
-          cp api/profiles.yml /home/runner/.dbt
+          cp dbt_server/profiles.yml /home/runner/.dbt
           ls -la /home/runner/.dbt
 
-      - name: Test package/ with pytest
-        run: poetry run pytest package/tests --ignore package/tests/integration
+      - name: Test dbt_remote/ with pytest
+        run: poetry run pytest dbt_remote/tests --ignore dbt_remote/tests/integration
   
   publish:
     runs-on: ubuntu-latest
-    needs: [package-test]
+    needs: [dbt_remote-test]
     steps:
       - name: Get repo
         uses: actions/checkout@v3.0.2

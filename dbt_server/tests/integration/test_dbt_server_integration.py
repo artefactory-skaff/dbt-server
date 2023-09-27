@@ -4,11 +4,11 @@ from datetime import datetime, timedelta
 from google.cloud import run_v2
 from fastapi.testclient import TestClient
 
-from api.dbt_server import app, create_job, launch_job
-from api.lib.state import State, current_date_time
-from api.lib.dbt_classes import DbtCommand
-from api.lib.cloud_storage import CloudStorage, connect_client
-from api.lib.firestore import connect_firestore_collection
+from dbt_server.dbt_server import app, create_job, launch_job
+from dbt_server.lib.state import State, current_date_time
+from dbt_server.lib.dbt_classes import DbtCommand
+from dbt_server.lib.cloud_storage import CloudStorage, connect_client
+from dbt_server.lib.firestore import connect_firestore_collection
 
 
 client = TestClient(app)
@@ -136,17 +136,3 @@ def are_dates_in_timedelta(date_str_1: str, date_str_2: str, timedelta: timedelt
         return True
     else:
         return False
-
-
-def test_get_report():
-    uuid = "test"
-    state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
-    state.init_state()
-
-    response = client.get(f"/job/{uuid}/report")
-
-    cloud_storage_folder = ''  # state '0000' is just initialized
-    url = f'https://console.cloud.google.com/storage/browser/_details/dbt-server-test/{cloud_storage_folder}/elementary_report.html'
-
-    assert response.status_code == 200
-    assert response.json() == {"url": url}

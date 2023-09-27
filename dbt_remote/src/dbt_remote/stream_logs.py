@@ -5,7 +5,7 @@ import click
 import traceback
 from typing import List
 
-from package.src.dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus, FollowUpLink
+from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus, FollowUpLink
 
 
 def stream_logs(links: List[FollowUpLink]) -> ():

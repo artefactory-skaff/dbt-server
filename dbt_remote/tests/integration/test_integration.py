@@ -1,6 +1,6 @@
 import sys
 from google.cloud import run_v2
-sys.path.insert(1, './package/')
+sys.path.insert(1, './dbt_remote/')
 from src.dbt_remote.dbt_server_detector import check_if_server_is_dbt_server, get_cloud_run_service_list
 
 

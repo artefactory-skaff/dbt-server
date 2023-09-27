@@ -9,7 +9,7 @@ import yaml
 from lib.dbt_classes import DbtCommand
 from lib.cloud_storage import CloudStorage
 
-with open("dbt-server/lib/server_default_config.yml", 'r') as f:
+with open("dbt_server/lib/server_default_config.yml", 'r') as f:
     SERVER_DEFAULT_CONFIG = yaml.safe_load(f)
 
 BUCKET_NAME = os.getenv('BUCKET_NAME', default=SERVER_DEFAULT_CONFIG["bucket_name"])

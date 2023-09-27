@@ -9,7 +9,7 @@ from dbt.cli.flags import args_to_context
 from google.cloud import run_v2
 from google.api_core.exceptions import PermissionDenied
 
-from package.src.dbt_remote.server_response_classes import DbtResponseCheck
+from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
 
 
 def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, location: str | None,

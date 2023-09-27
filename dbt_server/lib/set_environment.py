@@ -8,7 +8,7 @@ from lib.state import State
 from lib.logger import DbtLogger
 from lib.cloud_storage import CloudStorage
 
-with open("dbt-server/lib/server_default_config.yml", 'r') as f:
+with open("dbt_server/lib/server_default_config.yml", 'r') as f:
     SERVER_DEFAULT_CONFIG = yaml.safe_load(f)
 
 

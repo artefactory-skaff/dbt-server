@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(1, './api/lib')
+sys.path.insert(1, './dbt_server/lib')
 from cloud_storage import CloudStorage, connect_client
 
 

@@ -1,4 +1,4 @@
-from api.lib.cloud_storage import CloudStorage
+from dbt_server.lib.cloud_storage import CloudStorage
 
 
 def test_get_blob_from_bucket(MockCloudStorage):

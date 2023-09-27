@@ -1,7 +1,7 @@
 from unittest.mock import call
 
-from api.lib.state import State, current_date_time, generate_folder_name
-from api.lib.dbt_classes import DbtCommand
+from dbt_server.lib.state import State, current_date_time, generate_folder_name
+from dbt_server.lib.dbt_classes import DbtCommand
 
 
 def test_init_state(MockCloudStorage, MockState):

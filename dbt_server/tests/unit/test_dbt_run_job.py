@@ -1,4 +1,4 @@
-from api.dbt_run_job import get_user_request_log_configuration
+from dbt_server.dbt_run_job import get_user_request_log_configuration
 
 
 def test_get_user_request_log_configuration():

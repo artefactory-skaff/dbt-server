@@ -11,10 +11,10 @@ from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner
 from google.cloud import run_v2
 
-from package.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
-from package.src.dbt_remote.server_response_classes import DbtResponse
-from package.src.dbt_remote.stream_logs import stream_logs
-from package.src.dbt_remote.config_command import config, CONFIG_FILE, DEFAULT_CONFIG
+from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
+from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
+from dbt_remote.src.dbt_remote.stream_logs import stream_logs
+from dbt_remote.src.dbt_remote.config_command import config, CONFIG_FILE, DEFAULT_CONFIG
 
 
 @dataclass

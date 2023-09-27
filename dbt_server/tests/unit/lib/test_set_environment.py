@@ -1,6 +1,6 @@
 import os
 
-from api.lib.set_environment import set_env_vars, set_env_vars_job
+from dbt_server.lib.set_environment import set_env_vars, set_env_vars_job
 
 
 def test_set_env_vars():
