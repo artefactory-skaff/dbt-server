@@ -43,7 +43,7 @@ def MockState():
 def MockLogging():
     mock_logger = Mock(name="mock_logger")
 
-    mock_logging = Mock(name="mock_logging")  # patch('api.dbt_server.Client')
+    mock_logging = Mock(name="mock_logging")
     mock_logging.logger.return_value = mock_logger
 
     return mock_logging

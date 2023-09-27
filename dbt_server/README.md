@@ -57,7 +57,7 @@ export SERVICE_ACCOUNT=<service-account-email>
 export PROJECT_ID=<project-id>
 export LOCATION=<location>
 ```
-**Info**: If you used Terraform to create the resources, ```<service-account-email>``` should be ```terraform-job-sa@<project-id>.iam.gserviceaccount.com``` and ```<bucket-name>``` ```dbt-stc-test-eu```.
+**Info**: If you used Terraform to create the resources, ```<service-account-email>``` should be ```terraform-job-sa@<project-id>.iam.gserviceaccount.com``` and ```<bucket-name>``` ```dbt-server-test```.
 
 Install the dependencies:
 ```sh
@@ -65,7 +65,7 @@ pip install -r requirements.txt
 ```
 Then launch the ```dbt-server```:
 ```sh
-python3 api/dbt_server.py --local
+python3 dbt_server/dbt_server.py --local
 ```
 
 Your dbt-server should run on ```http://0.0.0.0:8001```.

@@ -146,7 +146,7 @@ def test_get_report():
     response = client.get(f"/job/{uuid}/report")
 
     cloud_storage_folder = ''  # state '0000' is just initialized
-    url = f'https://console.cloud.google.com/storage/browser/_details/dbt-stc-test-eu/{cloud_storage_folder}/elementary_report.html'
+    url = f'https://console.cloud.google.com/storage/browser/_details/dbt-server-test/{cloud_storage_folder}/elementary_report.html'
 
     assert response.status_code == 200
     assert response.json() == {"url": url}
