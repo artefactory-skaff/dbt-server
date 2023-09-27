@@ -4,11 +4,15 @@ from datetime import date, datetime, timezone
 import logging
 import traceback
 from google.cloud import firestore
+import yaml
 
 from lib.dbt_classes import DbtCommand
 from lib.cloud_storage import CloudStorage
 
-BUCKET_NAME = os.getenv('BUCKET_NAME', default='dbt-stc-test-eu')
+with open("dbt-server/lib/server_default_config.yml", 'r') as f:
+    SERVER_DEFAULT_CONFIG = yaml.safe_load(f)
+
+BUCKET_NAME = os.getenv('BUCKET_NAME', default=SERVER_DEFAULT_CONFIG["bucket_name"])
 
 
 class State:
