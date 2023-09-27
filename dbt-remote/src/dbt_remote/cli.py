@@ -30,9 +30,18 @@ class CliConfig:
     elementary: Optional[bool] = None
 
 
-@click.command(context_settings=dict(ignore_unknown_options=True,),
-               help="Run dbt commands on a dbt server.\n\n Commands: list, build, run, run-operation, compile, \
-test, seed, snapshot.")
+help_msg = """
+Run dbt commands on a dbt server.
+
+Commands:
+
+list, build, run, run-operation, compile, test, seed, snapshot. (dbt regular commands)
+
+config: configure dbt-remote. See `dbt-remote config help` for more information.
+"""
+
+
+@click.command(context_settings=dict(ignore_unknown_options=True,), help=help_msg)
 @click.argument('user_command')
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), \

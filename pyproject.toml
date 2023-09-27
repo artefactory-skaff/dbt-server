@@ -8,9 +8,9 @@ name = "dbt_remote"
 version = "0.0.3"
 description = "cli to run dbt commands on GCP Cloud Run Jobs using dbt-server."
 authors = ["emma.galliere <emma.galliere@artefact.com>"]
-readme = ["package/README.md", "api/README.md"]
+readme = ["dbt-remote/README.md", "dbt-server/README.md"]
 packages = [
-    { include = "package" }
+    { include = "dbt-remote" }
 ]
 
 [tool.poetry.dependencies]
@@ -42,12 +42,14 @@ uvicorn = "0.23.1"
 httpx = "0.25.0"
 requests-mock = "1.11.0"
 pyfakefs = "5.2.4"
+jinja2 = "^3.1.2"
+python-multipart = "^0.0.6"
 
 
 [tool.poetry.scripts]
-dbt-remote = 'package.src.dbt_remote.cli:cli'
+dbt-remote = 'dbt-remote.src.dbt_remote.cli:cli'
 
 [tool.pytest.ini_options]
 pythonpath = [
-  ".", "package", "package/src", "package/src/dbt_remote", "api"
+  ".", "dbt-remote", "dbt-remote/src", "dbt-remote/src/dbt_remote", "dbt-server"
 ]

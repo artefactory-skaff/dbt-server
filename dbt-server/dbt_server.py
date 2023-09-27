@@ -6,7 +6,9 @@ import uuid
 import uvicorn
 import sys
 import traceback
-from fastapi import FastAPI, status, HTTPException
+from pathlib import Path
+from fastapi import FastAPI, status, HTTPException, Request
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 
 from lib.dbt_classes import DbtCommand, FollowUpLink
@@ -21,6 +23,7 @@ BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars(
 PORT = os.environ.get("PORT", "8001")
 DBT_LOGGER = get_server_dbt_logger(CloudStorage(connect_client()), connect_firestore_collection(),
                                    logging.Client(), sys.argv)
+BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
     title="dbt-server",
@@ -28,6 +31,12 @@ app = FastAPI(
     version="0.0.1",
     docs_url="/docs"
 )
+templates = Jinja2Templates(directory=str(Path(BASE_DIR, 'templates')))
+
+
+@app.get("/")
+def get_home(request: Request):
+    return templates.TemplateResponse('home.html', context={'request': request})
 
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
