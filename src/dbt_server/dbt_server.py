@@ -1,11 +1,7 @@
-from fastapi import FastAPI, status
-
-import os
 import uuid
 import uvicorn
-import sys
-import traceback
-from fastapi import HTTPException
+import click
+from fastapi import FastAPI, status
 
 
 from dbt_server.config import Settings
@@ -107,10 +103,20 @@ def check():
     return {"response": f"Running dbt-server on port {settings.port}"}
 
 
-if __name__ == "__main__":
+@click.command(
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+    help="Run dbt commands from the dbt server.",
+)
+def launch_app():
     uvicorn.run(
         "dbt_server:app",
         port=settings.port,
         host="0.0.0.0",
         reload=True,
     )
+
+
+if __name__ == "__main__":
+    launch_app()

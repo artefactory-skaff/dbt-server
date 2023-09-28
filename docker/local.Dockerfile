@@ -1,19 +1,19 @@
-FROM python:3.10-slim
+FROM python:3.10-buster as py-build
 
-ENV SCRIPT dbt_server.py
-ENV LOGGING_SERVICE Local
-ENV STORAGE_SERVICE LocalStorage
-ENV METADATA_DOCUMENT_SERVICE Local
-ENV JOB_SERVICE LocalJob
+# [Optional] Uncomment this section to install additional OS packages.
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+     && apt-get -y install --no-install-recommends netcat util-linux \
+        vim bash-completion yamllint postgresql-client
 
-RUN useradd -ms /bin/bash local
-RUN chown -R local /home/local/
 
-WORKDIR /home/local/
-USER local
+RUN useradd -ms /bin/bash server
+RUN chown -R server /home/server/
 
-RUN pip install poetry
+RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python3 -
+ENV PATH=/opt/poetry/bin:$PATH
 
+WORKDIR /home/server/
+USER server
 COPY pyproject.toml ./
 COPY poetry.lock ./
 RUN mkdir seeds
@@ -24,8 +24,25 @@ RUN touch src/dbt_remote/__init__.py
 RUN touch src/dbt_server/__init__.py
 RUN touch README.md
 
-RUN python -m poetry install --no-interaction --only main
-
+RUN poetry config virtualenvs.in-project true
+RUN poetry install --no-directory --only main
 ADD src/ src/
+RUN poetry install --no-interaction --only main
 
-CMD ["python", "-m", "poetry", "run", "python", "-m", "$SCRIPT"]
+FROM python:3.10-slim-buster
+
+RUN useradd -ms /bin/bash server
+RUN chown -R server /home/server/
+
+COPY --from=py-build /home/server/ /home/server/
+
+ENV SCRIPT dbt-start-server
+ENV LOGGING_SERVICE Local
+ENV STORAGE_SERVICE LocalStorage
+ENV METADATA_DOCUMENT_SERVICE Local
+ENV JOB_SERVICE LocalJob
+
+USER server
+WORKDIR /home/server
+
+CMD .venv/bin/$SCRIPT
