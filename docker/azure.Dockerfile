@@ -25,9 +25,9 @@ RUN touch src/dbt_server/__init__.py
 RUN touch README.md
 
 RUN poetry config virtualenvs.in-project true
-RUN poetry install --no-directory --only main,gcp
+RUN poetry install --no-directory --only main,azure
 ADD src/ src/
-RUN poetry install --no-interaction --only main,gcp
+RUN poetry install --no-interaction --only main,azure
 
 FROM python:3.10-slim-buster
 
