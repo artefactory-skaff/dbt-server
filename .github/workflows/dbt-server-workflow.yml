@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - dbt_server/**
+      - .github/workflows/dbt-server-workflow.yml
 
 jobs:
 
@@ -33,7 +34,9 @@ jobs:
           ls -la /home/runner/.dbt
 
       - name: Run unit tests on dbt_server/ with pytest
-        run: poetry run pytest dbt_server/tests/unit -W ignore::DeprecationWarning
+        run: |
+          cd dbt_server
+          poetry run pytest tests/unit -W ignore::DeprecationWarning
 
       # - name: Run integration tests on dbt_server/ with pytest
       #   env:

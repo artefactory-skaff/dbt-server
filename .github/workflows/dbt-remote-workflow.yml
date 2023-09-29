@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - dbt_remote/**
+      - .github/workflows/dbt-remote-workflow.yml
 
 jobs:
 
