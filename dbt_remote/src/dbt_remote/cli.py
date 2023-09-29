@@ -62,7 +62,7 @@ for a dbt server in GCP project\'s Cloud Run. In this case, you can give the loc
 .')
 @click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
 detection. If none is given, dbt-remote will look for the location given in the profiles.yml. \
-/!\ Location should be a Cloud region, not multi region.')
+/!\\ Location should be a Cloud region, not multi region.')
 @click.option('--elementary', is_flag=True, help='Set this flag to run elementary report at the end of the job')
 @click.pass_context
 def cli(ctx, user_command: str, credentials: str | None, project_dir: str | None, manifest: str | None, dbt_project:
