@@ -33,7 +33,8 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "user_command": 'command',
                     "manifest": "data...",
                     "dbt_project": "data..."
-                }
+                },
+            'creds_path': None,
         },
         {
             'command': 'command',
@@ -50,7 +51,8 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "dbt_project": "data...",
                     "packages": "data...",
                     "elementary": True
-                }
+                },
+            'creds_path': 'creds_path',
         },
         {
             'command': 'seed --select my_seed',
@@ -66,7 +68,8 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "manifest": "data...",
                     "dbt_project": "data...",
                     "seeds": {"seeds/my_seed.csv": "data..."}
-                }
+                },
+            'creds_path': 'creds_path',
         },
     ]
 
@@ -83,13 +86,16 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                 dbt_project=context_dict['dbt_project'],
                 extra_packages=context_dict['packages'],
                 seeds_path=context_dict['seeds_path'],
-                elementary=context_dict['elementary']
+                elementary=context_dict['elementary'],
+                creds_path=context_dict['creds_path']
             )
-            res = send_command(context_dict['command'], cli_config)
+            auth_headers = {"Authorization": "Bearer 0000"}
+            res = send_command(context_dict['command'], cli_config, auth_headers)
 
         assert send_command_requests_mock.last_request.method == 'POST'
         assert send_command_requests_mock.last_request.url == server_url+'dbt'
         assert send_command_requests_mock.last_request.json() == context_dict['data']
+        assert send_command_requests_mock.last_request.headers['Authorization'] == auth_headers['Authorization']
         assert res.json() == {'name': 'awesome-mock'}
 
 

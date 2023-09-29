@@ -3,30 +3,30 @@ import time
 from datetime import datetime, timezone
 import click
 import traceback
-from typing import List
+from typing import List, Dict
 
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus, FollowUpLink
 
 
-def stream_logs(links: List[FollowUpLink]) -> ():
+def stream_logs(links: List[FollowUpLink], auth_headers: Dict[str, str]) -> ():
     run_status_link = get_link_from_action_name(links, "run_status")
     last_logs_link = get_link_from_action_name(links, "last_logs")
-    run_status = get_run_status(run_status_link).run_status
+    run_status = get_run_status(run_status_link, auth_headers).run_status
 
     stop = False
     while run_status == "running":
         time.sleep(1)
-        run_status = get_run_status(run_status_link).run_status
-        stop = show_last_logs(last_logs_link)
+        run_status = get_run_status(run_status_link, auth_headers).run_status
+        stop = show_last_logs(last_logs_link, auth_headers)
         if stop:
             return
 
     if run_status == "success":
         while not stop:
             time.sleep(1)
-            stop = show_last_logs(last_logs_link)
+            stop = show_last_logs(last_logs_link, auth_headers)
     else:
-        show_last_logs(last_logs_link)
+        show_last_logs(last_logs_link, auth_headers)
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException("Job failed")
     return
@@ -39,8 +39,8 @@ def get_link_from_action_name(links: List[FollowUpLink], action_name: str) -> st
     raise click.ClickException('Error in parsing server response: no link for action name {action_name}')
 
 
-def get_run_status(run_status_link: str) -> DbtResponseRunStatus:
-    res = requests.get(url=run_status_link)
+def get_run_status(run_status_link: str, auth_headers: Dict[str, str]) -> DbtResponseRunStatus:
+    res = requests.get(url=run_status_link, headers=auth_headers)
 
     try:
         results = DbtResponseRunStatus.parse_raw(res.text)
@@ -51,9 +51,9 @@ def get_run_status(run_status_link: str) -> DbtResponseRunStatus:
         raise click.ClickException("Error in parsing: " + traceback_str + "\n Original message: " + res.text)
 
 
-def show_last_logs(last_logs_link: str) -> bool:
+def show_last_logs(last_logs_link: str, auth_headers: Dict[str, str]) -> bool:
 
-    logs = get_last_logs(last_logs_link).run_logs
+    logs = get_last_logs(last_logs_link, auth_headers).run_logs
 
     for log in logs:
         show_log(log)
@@ -62,8 +62,8 @@ def show_last_logs(last_logs_link: str) -> bool:
     return False
 
 
-def get_last_logs(last_logs_link: str) -> DbtResponseLogs:
-    res = requests.get(url=last_logs_link)
+def get_last_logs(last_logs_link: str, auth_headers: Dict[str, str]) -> DbtResponseLogs:
+    res = requests.get(url=last_logs_link, headers=auth_headers)
 
     try:
         results = DbtResponseLogs.parse_raw(res.text)

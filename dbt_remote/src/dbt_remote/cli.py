@@ -15,6 +15,7 @@ from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
 from dbt_remote.src.dbt_remote.stream_logs import stream_logs
 from dbt_remote.src.dbt_remote.config_command import config, CONFIG_FILE, DEFAULT_CONFIG
+from dbt_remote.src.dbt_remote.authentication import get_auth_headers
 
 
 @dataclass
@@ -28,6 +29,7 @@ class CliConfig:
     server_url: Optional[str] = None
     location: Optional[str] = None
     elementary: Optional[bool] = None
+    creds_path: Optional[str] = None
 
 
 help_msg = """
@@ -44,15 +46,17 @@ config: configure dbt-remote. See `dbt-remote config help` for more information.
 @click.command(context_settings=dict(ignore_unknown_options=True,), help=help_msg)
 @click.argument('user_command')
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-@click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), \
-by default: none and the cli compiles one from current dbt project')
+@click.option('--credentials', help='Path to your service account json credentials file. Required to connect to your \
+ dbt-server if authentication is enforced. Ex: "./creds.json"')
+@click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), by default: none and the cli \
+compiles one from current dbt project')
 @click.option('--project-dir', help='Which directory to look in for the dbt_project.yml file. Default \
 is the current directory.')
 @click.option('--dbt-project', help='dbt_project file, by default: dbt_project.yml')
 @click.option('--extra-packages', help='packages.yml file, by default none. Add this option is necessary to use\
 external packages such as elementary.')
-@click.option('--seeds-path', help='Path to seeds directory, this option is needed if you run `dbt\
--remote seed`. By default: seeds/')
+@click.option('--seeds-path', help='Path to seeds directory, this option is needed if you run `dbt-remote seed`. By \
+default: seeds/')
 @click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
 for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location\
 .')
@@ -61,8 +65,8 @@ detection. If none is given, dbt-remote will look for the location given in the 
 /!\ Location should be a Cloud region, not multi region.')
 @click.option('--elementary', is_flag=True, help='Set this flag to run elementary report at the end of the job')
 @click.pass_context
-def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project: str | None,
-        extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
+def cli(ctx, user_command: str, credentials: str | None, project_dir: str | None, manifest: str | None, dbt_project:
+        str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
         elementary: bool, args):
 
     if user_command == "config":
@@ -78,7 +82,8 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         seeds_path=seeds_path,
         server_url=server_url,
         location=location,
-        elementary=elementary
+        elementary=elementary,
+        creds_path=credentials
     )
     cli_config = load_config(cli_config)
     click.echo(click.style('Config: ', blink=True, bold=True)+str(cli_config.__dict__))
@@ -91,20 +96,21 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
     cloud_run_client = run_v2.ServicesClient()
     cli_config.server_url = get_server_uri(dbt_command, cli_config, cloud_run_client)
     click.echo(click.style('dbt-server url: ', blink=True, bold=True)+cli_config.server_url)
+    auth_headers = get_auth_headers(cli_config.server_url, cli_config.creds_path)
 
     if cli_config.manifest is None:
         compile_manifest(cli_config.project_dir)
         cli_config.manifest = "./target/manifest.json"
 
     click.echo('\nSending request to server. Waiting for job creation...')
-    server_response = send_command(dbt_command, cli_config)
+    server_response = send_command(dbt_command, cli_config, auth_headers)
 
     uuid, links = get_job_uuid_and_links(server_response)
     click.echo("Job created with uuid: " + click.style(uuid, blink=True, bold=True))
     display_links(links)
 
     click.echo('Waiting for job execution...')
-    stream_logs(links)
+    stream_logs(links, auth_headers)
 
 
 def check_if_dbt_project(cli_config: CliConfig):
@@ -159,8 +165,8 @@ def get_server_uri(dbt_command: str, cli_config: CliConfig, cloud_run_client: ru
         server_url = cli_config.server_url + "/"
     else:
         click.echo("\nNo server url given. Looking for dbt server available on Cloud Run...")
-        server_url = detect_dbt_server_uri(cli_config.project_dir, cli_config.dbt_project, dbt_command,
-                                           cli_config.location, cloud_run_client) + "/"
+        server_url = detect_dbt_server_uri(cli_config.creds_path, cli_config.project_dir, cli_config.dbt_project,
+                                           dbt_command, cli_config.location, cloud_run_client) + "/"
     return server_url
 
 
@@ -169,7 +175,7 @@ def compile_manifest(project_dir: str):
     dbtRunner().invoke(["parse", "--project-dir", project_dir, "--quiet"])
 
 
-def send_command(command: str, cli_config: CliConfig) -> requests.Response:
+def send_command(command: str, cli_config: CliConfig, auth_headers: Dict[str, str]) -> requests.Response:
     url = cli_config.server_url + "dbt"
 
     manifest_str = read_file(cli_config.project_dir + '/' + cli_config.manifest)
@@ -193,7 +199,7 @@ def send_command(command: str, cli_config: CliConfig) -> requests.Response:
     if cli_config.elementary is True:
         data["elementary"] = True
 
-    res = requests.post(url=url, json=data)
+    res = requests.post(url=url, headers=auth_headers, json=data)
     return res
 
 

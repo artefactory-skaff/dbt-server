@@ -4,12 +4,96 @@ This package aims to run [dbt][dbt-url] commands remotely on GCP using Cloud Run
 
 - **Run** ```dbt-remote``` cli (for dbt users): [here](#dbt-remote-cli).
 - **Deploy** the ```dbt-server``` (for admins): [here](#dbt-server-admin-use).
-- Learn how it works (for developers/curious): [here](#how-it-works)
+- Learn how it works (for developers/curious): [here](#how-does-it-work)
 
 
 # dbt-remote cli
 
 This cli aims to run [dbt][dbt-url] commands remotely on GCP. To function, it requires to host a ```dbt-server``` (which will create the Cloud Run jobs).
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#run-dbt-remote-cli)
+- [Options](#other-options)
+- [Troubleshooting](#troubleshooting)
+- [Command example](#dbt-remote-command-examples)
+- [How it works](#how-does-dbt-remote-work)
+
+## Requirements
+
+### **dbt-server.**
+Before running ```dbt-remote```, make sure you have at least one running ```dbt-server``` on your GCP project Cloud Run. If no ```dbt-server``` is set up yet, see [dbt-server section][dbt-server-section].
+> **Important**: if your dbt-server requires authentication, you will need to store credentials locally to allow the cli to connect the server. See [prepare authentication](#prepare-authentication) below.
+
+### **Where to run the cli?**
+To run ```dbt-remote```, you should be in a working ```dbt``` project. If not, see [Start a dbt project from scratch](#start-a-dbt-project-from-scratch).
+
+This means:
+- ```dbt_project.yml``` should be in your current directory 
+- ```manifest.json``` should be in ```target/``` (if you renamed this folder, please see [```--manifest``` option](#manifest-and-dbt_project-files)).
+- your dbt project is well configured (especially ```profiles.yml```). To check that, run:
+```sh
+dbt debug
+```
+
+> Note: If you are not directly in the dbt project, you can specify the path to you dbt project using the option ```--project-dir path/to/project```.
+
+> You can also use specific ```manifest.json``` or ```dbt_project.yml``` files (see how [here](#manifest-and-dbt_project-files)).
+
+### **Start a dbt project from scratch**
+
+Install or upgrade dbt:
+```sh
+pip3 install --upgrade dbt-core dbt-bigquery
+```
+
+Initialize a dbt project: (no need to create a dedicated folder, dbt will create one itself)
+```sh
+dbt init --profiles-dir .
+```
+Then fill the required options:
+- name (ex: dbt_test)
+- database (**bigquery**)
+- authentication method (```oauth``` will use your credentials (easier), ```service_account``` requires you to create a dedicated service account)
+- threads (ex: 3)
+- job execution (ex: 300)
+- location (ex: EU)
+
+In the newly-created dbt folder, test the project configuration:
+```sh
+dbt debug
+```
+> Note: You may need to enable BigQuery API on [Google Cloud interface][bigquery-api] or by running:
+```sh
+gcloud services enable bigquery.googleapis.com
+```
+
+### **Prepare authentication**
+
+If your dbt-server requires authentication, you must pass credentials to ```dbt-remote```.
+
+First, create a service account with ```run.invoker``` permission:
+
+```sh
+PROJECT="<PROJECT-ID>";
+ACCOUNT="dbt-remote-auth-sa";
+
+EMAIL="${ACCOUNT}@${PROJECT}.iam.gserviceaccount.com";
+
+gcloud iam service-accounts create ${ACCOUNT} \
+--project=${PROJECT};
+
+gcloud projects add-iam-policy-binding ${PROJECT} \
+  --member=serviceAccount:${EMAIL} \
+  --role=roles/run.invoker;
+
+gcloud iam service-accounts keys create key.json --iam-account=${EMAIL}
+```
+
+It will create a service account named ```dbt-remote-auth-sa``` with ```run.invoker``` role and generate service account keys, stored locally in ```key.json```. You can put this file wherever you want on your computer.
+
+> :warning: ```key.json``` is a sensible file and must never be published.
+
 
 ## Installation
 
@@ -17,20 +101,16 @@ This cli aims to run [dbt][dbt-url] commands remotely on GCP. To function, it re
 python3 -m pip install --extra-index-url https://test.pypi.org/simple/ dbt-remote --no-cache-dir
 ```
 
-## Requirements
+To test the cli installation, run:
+```sh 
+dbt-remote debug --location <LOCATION>
+```
+where ```<LOCATION>``` is your dbt-server's location.
 
-**dbt-server.**
-Before running ```dbt-remote```, make sure you have at least one running ```dbt-server``` on your GCP project Cloud Run. If no ```dbt-server``` is set up yet, see [dbt-server section][dbt-server-section].
-
-**Where to run the cli?**
-To run ```dbt-remote```, you should be in a ```dbt``` project.
-This means:
-- ```dbt_project.yml``` should be in your current directory 
-- ```manifest.json``` should be in ```target/``` (if you renamed this folder, please see [```--manifest``` option](#manifest-and-dbt_project-files)).
-
-Otherwise, you can specify the path to you dbt project using the option ```--project-dir path/to/project```.
-
-Finally you can use specific ```manifest.json``` or ```dbt_project.yml``` files (see how [here](#manifest-and-dbt_project-files)).
+If the authentication is enforced, add ```--credentials``` option:
+```sh 
+dbt-remote debug --location <LOCATION> --credentials <PATH/TO/key.json>
+```
 
 
 ## Run dbt-remote cli
@@ -49,6 +129,7 @@ dbt-remote run --server-url https://<dbt-server-url>
 You can see all available options using ```dbt-remote --help```.
 Below is a quick insight on:
 - [dbt-server automatic detection](#dbt-server-detection)
+- [authentication](#authentication)
 - [--manifest and --dbt-project options](#manifest-and-dbt_project-files)
 - [adding dbt packages](#extra-packages)
 - [elementary report](#elementary-report)
@@ -69,6 +150,16 @@ dbt-remote run --select my_model --location europe-west9
 To save your default location or server url, you can use [dbt config](#dbt-remote-configuration).
 
 
+### **Authentication**
+
+If the authentication is enforced on your server, add ```--credentials``` option:
+```sh 
+dbt-remote debug --location <LOCATION> --credentials <PATH/TO/key.json>
+```
+where ```<PATH/TO/key.json>``` is the path to your service account's credentials. Ex: ```./key.json```.
+
+To save your default credential path, you can use [dbt config](#dbt-remote-configuration) to set ```creds_path```.
+
 ### **Manifest and dbt_project files**
 
 To function, the cli sends different files to the ```dbt-server```, including ```manifest.json``` and ```dbt_project.yml```. By default, the cli recompiles the ```manifest.json``` at each execution.
@@ -84,7 +175,7 @@ dbt-remote list --manifest test-files/manifest.json --dbt-project test-files/dbt
 
 To save your default location or server url, you can use [dbt config](#dbt-remote-configuration).
 
-Be careful: if you already specified a ```project-dir```, the ```manifest``` and ```dbt_project``` paths should be **relative** to the ```project-dir```.
+> Be careful: if you already specified a ```project-dir```, the ```manifest``` and ```dbt_project``` paths should be **relative** to the ```project-dir```.
 
 Example:
 ```
@@ -148,10 +239,41 @@ Your ```profiles.yml``` may contain several profiles or targets. In the same way
 
 ### **dbt-remote configuration**
 
-TO DO
+If you want to save your usual ```dbt-remote``` parameters (ex: ```location```, ```server-url```, etc.), you can use the ```config``` command. Using this command, you can set the following parameters:
+- manifest
+- project_dir
+- dbt_project
+- extra_packages
+- seeds_path
+- server_url
+- location
+- elementary
+- creds_path
+
+> To see all ```config``` options, run ```dbt-remote config help```.
+
+**Get started with ```config``` command**
+
+First you need to initialize your config file (it will create a ```dbt_remote.yml``` config file with the default config).
+```sh
+dbt-remote config init
+```
+Then you can add your config
+```sh
+dbt-remote config set server_url=http://myserver.com location=europe-west9
+```
+Check the config values
+```sh
+dbt-remote config get server_url location
+```
+From now on, by default, ```dbt-remote``` will use these value. You can override them at any execution by specifying a new value in your command, ex:
+```sh
+dbt-remote run my_model                         <-- will use your config values
+dbt-remote run my_model --location new_location <-- override the config location value
+```
 
 
-## More dbt-remote command examples
+## dbt-remote command examples
 
 - run my_model model with Elementary report: 
 
@@ -163,7 +285,7 @@ dbt-remote --log-level info run --manifest project/manifest.json --select my_mod
 - list with specific profile and target: 
 
 ```sh
-dbt-remote --log-level debug list --project-dir test/ --profile test_cloud_run --target dev
+dbt-remote --log-level debug list --project-dir test/ --profile my_profile --target dev
 ```
 
 
@@ -173,6 +295,36 @@ dbt-remote --log-level debug list --project-dir test/ --profile test_cloud_run -
 dbt-remote build --server-url http://0.0.0.0:8001
 ```
 
+## Troubleshooting
+
+### Location issue
+
+**Error message**
+
+```Permission denied on location `EU` for project <PROJECT>. Please check the server location and specify the correct --location argument.```
+
+**Why?**
+
+This issue occurs when ```dbt-remote``` tries to list your Cloud Run services during the automatic server detection.
+
+**Troubleshoot**
+
+- If you didn't specify any ```--location```, therefore ```dbt-remote``` will deduce the location from your ```profiles.yml```. Usually, the ```profiles``` locations are multi region (EU, US) but Cloud Run services can only run on region (europe-west9, us-central1), so your location does not exist for Cloud Run. --> To fix: set ```--location <your-dbt-server-location>```.
+
+- If you specified a multi region location (```--location EU``` or ```--location US```), see point above.
+
+- If you specified a region location, check that you (or your service account depending on your authentication method) have the permission ```roles/run.developer```.
+
+### Other issue
+
+Please contact me (emma.galliere@artefact.com)
+
+## How does dbt-remote work ?
+
+A simplified version of dbt-remote cli interactions with the dbt-server is presented on [this image](./dbt-remote-cli-workflow-simplified.png).
+
+<center><img src="./dbt-remote-cli-workflow-simplified.png" width="80%"></center>
+
 
 # dbt-server (admin use)
 
@@ -181,6 +333,11 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
 ```dbt-server``` is a Fastapi server allowing users to run ```dbt``` commands on Cloud Run jobs and to follow their execution in real-time. When the server receives a dbt command request, it creates and launches a job to execute it. The complete workflow is described in the [Architecture schema](./dbt-remote-schema.png).
 
 <center><img src="./dbt-remote-schema-simplified.png" width="80%"></center>
+
+- [Requirements](#requirement-submit-docker-image)
+- [Deployment](#deployment-on-gcp)
+- [Local run](#local-run--for-contributors)
+- Requests example (TO DO)
 
 ## Requirement (Submit Docker image)
 
@@ -359,12 +516,69 @@ Your dbt-server should run on ```http://0.0.0.0:8001```.
 TO DO
 
 
-# How it works
+# How does it work
 
+The global project architecture is summed up as follow.
 
 <center><img src="./dbt-remote-schema.png" width="80%"></center>
 
-TO DO
+The main components are:
+- the [dbt-remote cli](#dbt-remote-cli): it handles user command and interacts with the server (by sending the dbt command and streaming the logs). More precisely, it receives the user commands, makes the required transformations, loads the required files (manifest.json, dbt_project.yml, and possibly packages.yml and seeds files), crafts a HTTP request and sends it to the dbt-server (waiting for the server response). Once the server replies with job UUID and links to follow its execution, the cli will send requests to the server every second to follow up the job status and logs.
+- the [dbt-server](#dbt-server) (Fastapi server on Cloud Run service): it handles dbt command requests by creating and launching Cloud Run jobs. It also allow the cli to steram logs by requesting the State
+- the State: it is an object used by both the dbt-server and the dbt-job to store the job state. It interacts with Firestore and Google Cloud Storage and stores information such as: the uuid, the run status (running/succes/failed...), the user command, the job logs (stored on GCS).
+- the dbt-job (Python script running on a Cloud Run Job): it first loads the context files (manifest.json, dbt_project.yml and others) then executes the dbt command. During the execution, it logs both on Cloud Logging and using the State. This allow the cli to follow the execution in near real-time.
+
+These operations can be divided in 3 main flows:
+- the [job creation flow](#job-creation)
+- the [job execution flow](#job-execution)
+- the [log streaming flow](#log-streaming)
+
+## Job creation
+
+cli
+- detects the dbt-server
+- it transforms the user command
+- it fetches the required files
+- it sends to the server
+
+server
+- receives the request
+- generate uuid
+- initialize a state using the uuid (+ loads files)
+- creates and launches a Cloud Run Job
+
+
+## Job execution
+
+job
+- loads files
+- (possibly) install deps
+- executes dbt command (interaction with BQ)
+- logs to Cloud Logging + State
+- (possibly) generate report
+- sends 'END JOB' log
+
+## Log streaming
+
+cli
+- requests job run status
+- while not received 'END JOB' or run status = 'failed', request logs
+
+server
+- receives logs requests
+- request logs to State
+
+State
+- receives logs requests
+- look at 'log_starting_byte' var
+- fetch logs files from this byte
+- sends to server
+
+server
+- sends to cli
+
+cli
+- display logs
 
 
 [//]: #
@@ -375,6 +589,7 @@ TO DO
 
    [gcloud]: <https://cloud.google.com/sdk/docs/install>
    [create-artifact-registry]: <https://cloud.google.com/artifact-registry/docs/repositories/create-repos>
+   [bigquery-api]: <https://console.cloud.google.com/marketplace/product/google/bigquery.googleapis.com>
    
 
    [dbt-server-repo-url]: <https://github.com/artefactory-fr/dbt-server>

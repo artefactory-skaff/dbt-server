@@ -11,7 +11,8 @@ DEFAULT_CONFIG = {
     'seeds_path': './seeds/',
     'server_url': None,
     'location': None,
-    'elementary': False
+    'elementary': False,
+    'creds_path': None
 }
 
 
@@ -49,7 +50,7 @@ def help():
         help: see this message. ex: dbt-remote config help
 
     Config parameters:
-        manifest, project_dir, dbt_project, extra_packages, seeds_path, server_url, location, elementary
+        manifest, project_dir, dbt_project, extra_packages, seeds_path, server_url, location, elementary, creds_path
 """)
 
 

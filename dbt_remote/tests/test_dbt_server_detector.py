@@ -134,9 +134,11 @@ def test_check_if_server_is_dbt_server(requests_mock):
             "is_dbt_server": False
         },
     ]
+    auth_headers = {"Authorization": "Bearer 1234"}
 
     for check in check_list:
         request_mock = requests_mock.get(check["url"], status_code=check["status_code"], json=check["json"])
-        assert check_if_server_is_dbt_server(service_mock) == check["is_dbt_server"]
+        assert check_if_server_is_dbt_server(auth_headers, service_mock) == check["is_dbt_server"]
         assert request_mock.last_request.method == 'GET'
         assert request_mock.last_request.url == check["url"]
+        assert request_mock.last_request.headers['Authorization'] == auth_headers['Authorization']

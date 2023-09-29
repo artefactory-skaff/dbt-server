@@ -10,16 +10,19 @@ from google.cloud import run_v2
 from google.api_core.exceptions import PermissionDenied
 
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
+from dbt_remote.src.dbt_remote.authentication import get_auth_headers
 
 
-def detect_dbt_server_uri(project_dir: str, dbt_project: str, command: str, location: str | None,
+def detect_dbt_server_uri(creds_path: str, project_dir: str, dbt_project: str, command: str, location: str | None,
                           cloud_run_client: run_v2.ServicesClient) -> str:
 
     project_id, location = identify_project_id_and_location(project_dir, dbt_project, command, location)
 
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
     for service in cloud_run_services:
-        if check_if_server_is_dbt_server(service):
+        auth_headers = get_auth_headers(service.uri, creds_path)
+
+        if check_if_server_is_dbt_server(service, auth_headers):
             click.echo('Detected Cloud Run `' + service.name + '` as dbt server')
             return service.uri
 
@@ -126,10 +129,10 @@ Please check the server location and specify the correct --location argument.\
     return service_list
 
 
-def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool:
+def check_if_server_is_dbt_server(service: run_v2.types.service.Service, auth_headers: str) -> bool:
     url = service.uri + '/check'
     try:
-        res = requests.get(url)
+        res = requests.get(url, headers=auth_headers)
     except Exception:  # request timeout or max retries
         return False
     if res.status_code == 200:
