@@ -98,7 +98,7 @@ It will create a service account named ```dbt-remote-auth-sa``` with ```run.invo
 ## Installation
 
 ```sh
-python3 -m pip install --extra-index-url https://test.pypi.org/simple/ dbt-remote --no-cache-dir
+python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-remote --no-cache-dir
 ```
 
 To test the cli installation, run:
