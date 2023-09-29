@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     job_service: JobServiceEnum
     dbt_command: str = ""
     port: int = 8001
-    uuid: str = str(uuid.UUID(int=0))
+    uuid: str = str(uuid.uuid4())
     elementary: bool = False
     gcp: Optional[GCPSettings] = None
     azure: Optional[AzureSettings] = None

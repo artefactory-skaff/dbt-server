@@ -21,13 +21,12 @@ STORAGE_INSTANCE = StorageFactory().create(settings.storage_service)
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: DbtCommand):
-    request_uuid = str(uuid.uuid4())
     metadata_document = MetadataDocumentFactory().create(
-        settings.metadata_document_service, settings.collection_name, request_uuid
+        settings.metadata_document_service, settings.collection_name, settings.uuid
     )
-    state = State(request_uuid, metadata_document)
+    state = State(settings.uuid, metadata_document)
     state.run_status = "pending"
-    LOGGER.uuid = request_uuid
+    LOGGER.uuid = settings.uuid
 
     LOGGER.log("INFO", f"Received command '{dbt_command.user_command}'")
     state.user_command = dbt_command.user_command
