@@ -14,7 +14,7 @@ This cli aims to run [dbt][dbt-url] commands remotely on GCP. To function, it re
 ## Installation
 
 ```sh
-python3 -m pip install --index-url https://test.pypi.org/simple/ dbt-remote
+python3 -m pip install --extra-index-url https://test.pypi.org/simple/ dbt-remote --no-cache-dir
 ```
 
 ## Requirements

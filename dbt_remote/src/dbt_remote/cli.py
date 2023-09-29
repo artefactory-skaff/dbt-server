@@ -57,7 +57,8 @@ external packages such as elementary.')
 for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location\
 .')
 @click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
-detection. If none is given, dbt-remote will look for the location given in the profiles.yml.')
+detection. If none is given, dbt-remote will look for the location given in the profiles.yml. \
+/!\ Location should be a Cloud region, not multi region.')
 @click.option('--elementary', is_flag=True, help='Set this flag to run elementary report at the end of the job')
 @click.pass_context
 def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project: str | None,
@@ -85,6 +86,8 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
     dbt_command = assemble_dbt_command(user_command, args)
     click.echo(click.style('Command: ', blink=True, bold=True)+f'dbt {dbt_command}')
 
+    check_if_dbt_project(cli_config)
+
     cloud_run_client = run_v2.ServicesClient()
     cli_config.server_url = get_server_uri(dbt_command, cli_config, cloud_run_client)
     click.echo(click.style('dbt-server url: ', blink=True, bold=True)+cli_config.server_url)
@@ -102,6 +105,19 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
 
     click.echo('Waiting for job execution...')
     stream_logs(links)
+
+
+def check_if_dbt_project(cli_config: CliConfig):
+    files_to_check = dbt_files_to_check(cli_config)
+    click.echo(click.style('Checking dbt files: ', blink=True, bold=True))
+    click.echo(files_to_check)
+
+    for filename in files_to_check.keys():
+        path_to_file = files_to_check[filename]
+        if not check_if_file_exist(path_to_file):
+            click.echo(f"{filename} file not found.")
+            raise click.ClickException("You are not in a dbt project directory or the dbt files are not in the \
+expected place. Please check your dbt files or use the --project-dir option.")
 
 
 def load_config(cli_config: CliConfig) -> CliConfig:
@@ -242,6 +258,29 @@ def parse_server_response(res: requests.Response) -> DbtResponse:
 def dbtResponse_is_none(results: DbtResponse):
     null_results = DbtResponse()
     return null_results == results
+
+
+def dbt_files_to_check(cli_config: CliConfig) -> Dict[str, str]:
+    files_to_check = {}
+
+    if cli_config.manifest is None:
+        files_to_check['manifest'] = cli_config.project_dir + '/target/manifest.json'
+    else:
+        files_to_check['manifest'] = cli_config.project_dir + '/' + cli_config.manifest
+
+    if cli_config.dbt_project is None:
+        files_to_check['dbt_project'] = cli_config.project_dir + 'dbt_project.yml'
+    else:
+        files_to_check['dbt_project'] = cli_config.project_dir + '/' + cli_config.dbt_project
+
+    return files_to_check
+
+
+def check_if_file_exist(path_to_file: str) -> bool:
+    if os.path.isfile(path_to_file):
+        return True
+    else:
+        return False
 
 
 def read_file(filename) -> str:

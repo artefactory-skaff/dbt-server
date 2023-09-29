@@ -113,12 +113,16 @@ def get_cloud_run_service_list(project_id: str, location: str,
     try:
         service_list = client.list_services(request=request)
     except PermissionDenied:
+        click.echo(click.style("ERROR", fg="red"))
+        raise click.ClickException(f'Permission denied on location `{location}` for project `{project_id}`. \
+Note that Cloud Run servers can only be hosted on region (ex: us-central1) not multi-region. \
+Please check the server location and specify the correct --location argument.\
+\n Ex: `--location us-central1` instead of `--location US`')
+    except Exception:
         traceback_str = traceback.format_exc()
         click.echo(traceback_str)
         click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException(f'Permission denied on location `{location}` for project `{project_id}`. \
-Please check the server location and specify the correct --location argument.\
-\n Ex: `--location us-central1` instead of `--location US`')
+        raise click.ClickException('An error occured while listing Cloud Run services')
     return service_list
 
 
