@@ -1,4 +1,4 @@
-
+import base64
 from google.cloud import run_v2
 from google.cloud import logging
 import os
@@ -41,6 +41,8 @@ def get_home(request: Request):
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: DbtCommand):
+
+    dbt_command = base64_decode_dbt_command(dbt_command)
 
     request_uuid = str(uuid.uuid4())
     state = State(request_uuid, CloudStorage(connect_client()), connect_firestore_collection())
@@ -157,6 +159,13 @@ def get_last_logs(uuid: str):
     return {"run_logs": logs}
 
 
+@app.get("/job/{uuid}/logs", status_code=status.HTTP_200_OK)
+def get_all_logs(uuid: str):
+    job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    logs = job_state.get_all_logs()
+    return {"run_logs": logs}
+
+
 @app.get("/job/{uuid}/report", status_code=status.HTTP_200_OK)
 def get_report(uuid: str):
     state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
@@ -175,6 +184,37 @@ def check():
     return {
         "response": "Running dbt-server on port "+PORT,
         }
+
+
+def base64_decode_dbt_command(dbt_command: DbtCommand) -> DbtCommand:
+    dbt_command_dict = dbt_command.__dict__
+    b64_encoded_keys = ['manifest', 'dbt_project', 'seeds', 'packages']
+
+    for key in b64_encoded_keys:
+        value = dbt_command_dict[key]
+
+        if value is None:
+            continue
+
+        elif isBase64(value):
+            dbt_command_dict[key] = base64.b64decode(value)
+
+        elif isinstance(value, dict):  # seeds will be a dict of b64 encoded seeds files
+            for k, v in value.items():
+                if isBase64(v):
+                    dbt_command_dict[key][k] = base64.b64decode(v)
+
+        else:
+            print(f"Warning: {key} is not base64 encoded. It will be passed as is to the cloud run job.")
+
+    return dbt_command
+
+
+def isBase64(s):
+    try:
+        return base64.b64encode(base64.b64decode(s)) == bytes(s, 'ascii')
+    except Exception:
+        return False
 
 
 if __name__ == "__main__":

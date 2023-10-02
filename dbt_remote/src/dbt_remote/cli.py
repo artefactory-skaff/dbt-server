@@ -1,3 +1,4 @@
+import base64
 import requests
 import os
 import traceback
@@ -178,8 +179,8 @@ def compile_manifest(project_dir: str):
 def send_command(command: str, cli_config: CliConfig, auth_headers: Dict[str, str]) -> requests.Response:
     url = cli_config.server_url + "dbt"
 
-    manifest_str = read_file(cli_config.project_dir + '/' + cli_config.manifest)
-    dbt_project_str = read_file(cli_config.project_dir + '/' + cli_config.dbt_project)
+    manifest_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.manifest)
+    dbt_project_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.dbt_project)
 
     data = {
             "server_url": cli_config.server_url,
@@ -193,7 +194,7 @@ def send_command(command: str, cli_config: CliConfig, auth_headers: Dict[str, st
         data["seeds"] = seeds_dict
 
     if cli_config.extra_packages is not None:
-        extra_packages_str = read_file(cli_config.project_dir + "/" + cli_config.extra_packages)
+        extra_packages_str = read_file_as_b64(cli_config.project_dir + "/" + cli_config.extra_packages)
         data["packages"] = extra_packages_str
 
     if cli_config.elementary is True:
@@ -214,8 +215,7 @@ def get_selected_seeds_dict(seeds_path: str, command: str) -> Dict[str, str]:
 
     for seed_file in seed_files:
         if seed_file.replace(".csv", "") in selected_seeds:
-            with open(seeds_path+seed_file, 'r') as f:
-                seeds_dict['seeds/'+seed_file] = f.read()
+            seeds_dict['seeds/'+seed_file] = read_file_as_b64(seeds_path+seed_file)
     return seeds_dict
 
 
@@ -289,9 +289,11 @@ def check_if_file_exist(path_to_file: str) -> bool:
         return False
 
 
-def read_file(filename) -> str:
+def read_file_as_b64(filename) -> str:
     with open(filename, 'r') as f:
         file_str = f.read()
+    file_bytes = base64.b64encode(bytes(file_str, 'ascii'))
+    file_str = file_bytes.decode('ascii')
     return file_str
 
 
