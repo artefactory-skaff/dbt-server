@@ -513,7 +513,128 @@ Your dbt-server should run on ```http://0.0.0.0:8001```.
 
 ## Send requests to dbt-server
 
-TO DO
+The following requests allow you to send commands to your server using curl rather than the cli.
+
+- [Check your dbt-server](#check-dbt-server)
+- [Send dbt commands](#post-dbt-command)
+- [Follow your job execution](#follow-the-job-execution)
+
+**Authentication**
+
+NOTE: To comply with the server authentication, these requests include 2 lines to fetch an id_token using ```gcloud``` and to add it to the request's headers:
+
+```sh
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+```
+If your server does not require authentication, you can remove this part (as well as the ```-H "$header"``` from the curl command).
+
+### Check dbt-server
+
+This command just check if your dbt-server is up and running. The response should be similar to ```{"response":"Running dbt-server on port 8001"}```.
+
+```sh
+my_server=https://<SERVER-URL>
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+
+curl -H "$header" $my_server/check
+```
+
+### Post dbt command
+
+To ```POST``` a dbt command to the server, we need to send files (```manifest.json```, ```dbt_project.yml``` and possibly more). Since some files can be quite large (```manifest.json``` in particular), we encode them using base6', we temporarily store the request's body in a ```data.json``` file, then we use the ```--data-binary``` curl option to send our request.
+
+Before sending these requests, replace ```<SERVER-URL>``` by your server url and make sure the files' paths are the right ones (```dbt_project.yml```, ```manifest.json```, etc.).
+
+
+**```dbt list``` command:**
+```sh
+my_server="https://<SERVER-URL>"
+
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+
+dbt_project=$(base64 -i dbt_project.yml); # <-- should be your path to your dbt_project.yml file
+manifest=$(base64 -i target/manifest.json); # <-- same for your manifest.json file
+
+echo '{"server_url":"'$my_server'", "user_command":"list", "manifest": "'$manifest'", "dbt_project":"'$dbt_project'"}' > data.json;
+
+curl --data-binary @data.json -H "$header" -H "Content-Type: application/json" -X POST $my_server/dbt
+```
+
+**```dbt run``` a specific model with Elementary package and report:**
+
+Replace ```<MODEL>``` by one of your models.
+
+```sh
+my_server="https://<SERVER-URL>"
+
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+
+dbt_project=$(base64 -i dbt_project.yml); # <-- should be your path to your dbt_project.yml file
+manifest=$(base64 -i target/manifest.json); # <-- same for your manifest.json file
+packages=$(base64 -i packages.yml); # <-- same for your packages.yml file
+
+echo '{"server_url":"'$my_server'", "user_command":"run --select <MODEL>", "manifest": "'$manifest'", "dbt_project":"'$dbt_project'", "packages":"'$packages'", "elementary":"True"}' > data.json;
+
+curl --data-binary @data.json -H "$header" -H "Content-Type: application/json" -X POST $my_server/dbt
+```
+
+**```dbt seed``` with one particular seed file (country_code.csv):**
+```sh
+my_server="https://<SERVER-URL>"
+
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+
+dbt_project=$(base64 -i dbt_project.yml); # <-- should be your path to your dbt_project.yml file
+manifest=$(base64 -i target/manifest.json); # <-- same for your manifest.json file
+packages=$(base64 -i packages.yml); # <-- same for your packages.yml file
+seed_file=$(base64 -i seeds/country_codes.csv); # <-- same for your seed file
+seeds='{"seeds/country_codes.csv":"'$seed_file'"}'; # <-- don't forget to change the file name
+
+echo '{"server_url":"'$my_server'", "user_command":"seed", "manifest": "'$manifest'", "dbt_project":"'$dbt_project'", "packages":"'$packages'", "seeds":'$seeds'}' > data.json;
+
+curl --data-binary @data.json -H "$header" -H "Content-Type: application/json" -X POST $my_server/dbt
+```
+
+### Follow the job execution
+
+Replace ```<UUID>``` by your job's UUID. ex: ```d710dc13-6175-4735-8649-31c39a4a0e90```.
+
+**Get job run status:**
+
+```sh
+my_server="https://<SERVER-URL>"
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+my_job_uuid=<UUID>
+
+curl -H "$header" $my_server/job/$my_job_uuid
+```
+
+**Get job logs:**
+```sh
+my_server="https://<SERVER-URL>"
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+my_job_uuid=<UUID>
+
+curl -H "$header" $my_server/job/$my_job_uuid/logs
+```
+
+**Get elementary report:**
+```sh
+my_server="https://<SERVER-URL>"
+my_token=$(gcloud auth print-identity-token)
+header="Authorization: Bearer $my_token"
+my_job_uuid=<UUID>
+
+curl -H "$header" -L $my_server/job/$my_job_uuid/report
+```
+> Note: the ```-L``` is necessary because the ```/report``` endpoint is a redirection to the GCS report url.
 
 
 # How does it work
@@ -535,50 +656,64 @@ These operations can be divided in 3 main flows:
 
 ## Job creation
 
-cli
-- detects the dbt-server
-- it transforms the user command
-- it fetches the required files
-- it sends to the server
+<center><img src="./job-creation-workflow.png" width="80%"></center>
 
-server
-- receives the request
-- generate uuid
-- initialize a state using the uuid (+ loads files)
+When a user uses the ```dbt-remote``` cli to execute a dbt command:
+
+The cli:
+- detects the dbt-server. To this end, it invokes the automatic server detection (see [```dbt_server_detector.py```](./dbt_remote/src/dbt_remote/dbt_server_detector.py)). Using the given location, the cli sends a request to Cloud Run to list all available services, then tries to ping each service on the ```/check``` endpoint. If a dbt-server is running on this location, the cli should receive a message similar to ```{"response":"Running dbt-server on port 8001"}```.
+- fetches the required files. The dbt job will need different files to be able to run: ```manifest.json``` and ```dbt_project.yml``` are compulsory, but the cli may need to add ```packages.yml``` or seed files. These files are base64-encoded.
+- (if needed) gets a GCP ```id_token```. If authentication is enforced on the dbt-server, the cli will fetch an ```id_token``` using stored credentials and Google auth library, then add an ```Authorization``` header to requests.
+- it sends the request to the server.
+
+The dbt-server:
+- receives the request.
+- generates uuid.
+- initializes a State on Firestore using the uuid. It also uses this state to load files on a Cloud Storage bucket (```manifest.json```, ```dbt_project.yml```, etc.)
+- processes the command. It consists in adaptating different command's parameters to the job environment. Ex: path to files like manifest, log level or format, etc. For more details, see [```command_processor.py```](./dbt_server/lib/command_processor.py)
 - creates and launches a Cloud Run Job
+- sends a 202 response to the client, with useful links (links to follow the job's execution).
 
 
 ## Job execution
 
-job
-- loads files
-- (possibly) install deps
-- executes dbt command (interaction with BQ)
-- logs to Cloud Logging + State
-- (possibly) generate report
-- sends 'END JOB' log
+<center><img src="./job-execution-workflow.png" width="80%"></center>
+
+The job:
+- loads files from the bucket.
+- (if needed) installs the dependencies by running ```dbt deps```.
+- executes the dbt command and transforms the data (interaction with BigQuery). It uses the ```dbtRunner``` from ```dbt-core``` (see [dbtRunner code][dbt-runner])
+- logs to Cloud Logging and using State. We use a custom function that ingests ```dbt``` output and logs it both in Cloud Logging and in Cloud Storage (thanks to the State).
+- (if needed) generates Elementary report and stores it on GCS bucket.
+- sends ```'END JOB'``` log when finished.
 
 ## Log streaming
 
-cli
+<center><img src="./log-stream-workflow.png" width="80%"></center>
+
+The ```dtbt-remote``` cli allows the user to follow the job's logs in real-time (nearly). To this end, once the cli receives the 202 response from the dbt-server, it starts to stream the logs:
+
+(every second) The cli:
 - requests job run status
-- while not received 'END JOB' or run status = 'failed', request logs
+- requests job logs
+- while it did not receive the log ```'END JOB'``` or while the run status is not ```'failed'/'success'```, it starts over.
 
-server
-- receives logs requests
-- request logs to State
+The server:
+- receives the logs request
+- requests the logs to the State
 
-State
-- receives logs requests
-- look at 'log_starting_byte' var
-- fetch logs files from this byte
-- sends to server
+The State:
+- receives logs requests from the server
+- looks at ```'log_starting_byte'``` variable (which stores the last byte read from the log file, starting from 0 at the beginning of the execution).
+- fetches the logs file from this byte.
+- sends logs to the server.
+- updates its ```'log_starting_byte'``` variable.
 
-server
-- sends to cli
+The server:
+- sends the received logs to the cli.
 
-cli
-- display logs
+The cli:
+- displays the logs.
 
 
 [//]: #
@@ -586,6 +721,8 @@ cli
    [dbt-url]: <https://www.getdbt.com/>
    [elementary-url]: <https://www.elementary-data.com/>
    [terraform]: <https://www.terraform.io/>
+
+   [dbt-runner]: <https://github.com/dbt-labs/dbt-core/blob/main/core/dbt/cli/main.py>
 
    [gcloud]: <https://cloud.google.com/sdk/docs/install>
    [create-artifact-registry]: <https://cloud.google.com/artifact-registry/docs/repositories/create-repos>
