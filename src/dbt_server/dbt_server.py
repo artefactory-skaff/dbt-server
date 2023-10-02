@@ -110,7 +110,7 @@ def check():
 )
 def launch_app():
     uvicorn.run(
-        "dbt_server:app",
+        "dbt_server.dbt_server:app",
         port=settings.port,
         host="0.0.0.0",
         reload=True,
