@@ -1,4 +1,4 @@
-FROM python:3.10-buster as py-build
+FROM python:3.11-buster as py-build
 
 # [Optional] Uncomment this section to install additional OS packages.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
@@ -29,7 +29,7 @@ RUN poetry install --no-directory --only main,azure
 ADD src/ src/
 RUN poetry install --no-interaction --only main,azure
 
-FROM python:3.10-slim-buster
+FROM python:3.11-slim-buster
 
 RUN useradd -ms /bin/bash server
 RUN chown -R server /home/server/

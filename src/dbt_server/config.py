@@ -1,8 +1,7 @@
 from enum import Enum
 import uuid
 from typing import Optional
-from pydantic import BaseModel, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, root_validator, BaseSettings
 
 
 class LoggingServiceEnum(str, Enum):
@@ -45,7 +44,10 @@ class AzureSettings(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_nested_delimiter="__")
+
+    class Config:
+        env_nested_delimiter = '__'
+
     docker_image: str
     bucket_name: str
     collection_name: str
@@ -60,18 +62,19 @@ class Settings(BaseSettings):
     gcp: Optional[GCPSettings] = None
     azure: Optional[AzureSettings] = None
 
-    @model_validator(mode="after")
-    def check_if_at_least_one_cloud_settings_is_provided(self):
+    @root_validator
+    def check_cloud_specific_configurations(cls, values):
         gcp_validity = True
         azure_validity = True
         errors = []
-        if self.job_service == "CloudRunJob" and not self.gcp:
-            errors.append(ValueError(f"GCP config is not valid : {self}"))
+        if values.get("job_service") == "CloudRunJob" and not values.get("gcp"):
+            errors.append(ValueError(f"GCP config is not valid : {values}"))
         if (
-            self.job_service == "ContainerAppsJob"
-            or self.storage_service == "AzureBlobStorage"
-            or self.metadata_document_service == "CosmosDB"
-        ) and not self.azure:
-            errors.append(ValueError(f"Azure config is not valid : {self}"))
+            values.get("job_service") == "ContainerAppsJob"
+            or values.get("storage_service") == "AzureBlobStorage"
+            or values.get("metadata_document_service") == "CosmosDB"
+        ) and not values.get("azure"):
+            errors.append(ValueError(f"Azure config is not valid : {values}"))
         if errors:
             raise ExceptionGroup("Check the following configuration issues :", errors)
+        return values
