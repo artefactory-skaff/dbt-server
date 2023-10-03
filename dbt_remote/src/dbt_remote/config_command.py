@@ -1,6 +1,22 @@
 import click
 import yaml
-from typing import List
+from typing import List, Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class CliConfig:
+    """Config file for dbt-remote."""
+    manifest: Optional[str] = None
+    project_dir: Optional[str] = None
+    dbt_project: Optional[str] = None
+    extra_packages: Optional[str] = None
+    seeds_path: Optional[str] = None
+    server_url: Optional[str] = None
+    location: Optional[str] = None
+    elementary: Optional[bool] = None
+    creds_path: Optional[str] = None
+
 
 CONFIG_FILE = "dbt_remote.yml"
 DEFAULT_CONFIG = {
@@ -71,6 +87,14 @@ def set(args: List[str]):
 
     for arg in args:
         key, value = arg.split("=")[0], arg.split("=")[1]
+
+        if value == 'None':
+            value = None
+        elif value in ["True", "true"]:
+            value = True
+        elif value in ["False", "false"]:
+            value = False
+
         config[key] = value
         click.echo(f"Configured: {key}={value}")
 

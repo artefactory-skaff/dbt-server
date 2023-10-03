@@ -11,16 +11,16 @@ from google.api_core.exceptions import PermissionDenied
 
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
 from dbt_remote.src.dbt_remote.authentication import get_auth_headers
+from dbt_remote.src.dbt_remote.config_command import CliConfig
 
 
-def detect_dbt_server_uri(creds_path: str, project_dir: str, dbt_project: str, command: str, location: str | None,
-                          cloud_run_client: run_v2.ServicesClient) -> str:
+def detect_dbt_server_uri(cli_config: CliConfig, command: str, cloud_run_client: run_v2.ServicesClient) -> str:
 
-    project_id, location = identify_project_id_and_location(project_dir, dbt_project, command, location)
+    project_id, location = identify_project_id_and_location(cli_config, command)
 
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
     for service in cloud_run_services:
-        auth_headers = get_auth_headers(service.uri, creds_path)
+        auth_headers = get_auth_headers(service.uri, cli_config.creds_path)
 
         if check_if_server_is_dbt_server(service, auth_headers):
             click.echo('Detected Cloud Run `' + service.name + '` as dbt server')
@@ -31,15 +31,14 @@ def detect_dbt_server_uri(creds_path: str, project_dir: str, dbt_project: str, c
 location ({location})')
 
 
-def identify_project_id_and_location(project_dir: str, dbt_project: str, command: str,
-                                     location: str | None) -> (str, str):
+def identify_project_id_and_location(cli_config: CliConfig, command: str) -> (str, str):
 
-    profiles_dict = read_yml_file(project_dir + '/profiles.yml')
+    profiles_dict = read_yml_file(cli_config.project_dir + '/profiles.yml')
     selected_profile = get_selected_sub_command_conf_from_user_command(command, 'profile')
     selected_target = get_selected_sub_command_conf_from_user_command(command, 'target')
 
     if selected_profile is None:
-        selected_profile = read_yml_file(project_dir + '/' + dbt_project)['profile']
+        selected_profile = read_yml_file(cli_config.project_dir + '/' + cli_config.dbt_project)['profile']
     if selected_profile not in profiles_dict.keys():
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
@@ -51,8 +50,10 @@ def identify_project_id_and_location(project_dir: str, dbt_project: str, command
         raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
 
     project_id = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'project')
-    if location is None:
+    if cli_config.location is None:
         location = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'location')
+    else:
+        location = cli_config.location
 
     return project_id, location
 

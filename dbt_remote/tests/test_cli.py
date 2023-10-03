@@ -1,3 +1,4 @@
+import base64
 from src.dbt_remote.cli import assemble_dbt_command, parse_server_response, get_selected_nodes
 from src.dbt_remote.cli import send_command, CliConfig
 
@@ -31,8 +32,8 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'data': {
                     "server_url": server_url,
                     "user_command": 'command',
-                    "manifest": "data...",
-                    "dbt_project": "data..."
+                    "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')
                 },
             'creds_path': None,
         },
@@ -47,9 +48,9 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'data': {
                     "server_url": server_url,
                     "user_command": 'command',
-                    "manifest": "data...",
-                    "dbt_project": "data...",
-                    "packages": "data...",
+                    "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "packages": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "elementary": True
                 },
             'creds_path': 'creds_path',
@@ -65,9 +66,9 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'data': {
                     "server_url": server_url,
                     "user_command": 'seed --select my_seed',
-                    "manifest": "data...",
-                    "dbt_project": "data...",
-                    "seeds": {"seeds/my_seed.csv": "data..."}
+                    "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "seeds": {"seeds/my_seed.csv": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')}
                 },
             'creds_path': 'creds_path',
         },

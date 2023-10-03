@@ -2,9 +2,8 @@ import base64
 import requests
 import os
 import traceback
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import yaml
-from dataclasses import dataclass
 
 import click
 from click.parser import split_arg_string
@@ -15,22 +14,8 @@ from google.cloud import run_v2
 from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
 from dbt_remote.src.dbt_remote.stream_logs import stream_logs
-from dbt_remote.src.dbt_remote.config_command import config, CONFIG_FILE, DEFAULT_CONFIG
+from dbt_remote.src.dbt_remote.config_command import CliConfig, config, CONFIG_FILE, DEFAULT_CONFIG
 from dbt_remote.src.dbt_remote.authentication import get_auth_headers
-
-
-@dataclass
-class CliConfig:
-    """Config file for dbt-remote."""
-    manifest: Optional[str] = None
-    project_dir: Optional[str] = None
-    dbt_project: Optional[str] = None
-    extra_packages: Optional[str] = None
-    seeds_path: Optional[str] = None
-    server_url: Optional[str] = None
-    location: Optional[str] = None
-    elementary: Optional[bool] = None
-    creds_path: Optional[str] = None
 
 
 help_msg = """
@@ -64,11 +49,12 @@ for a dbt server in GCP project\'s Cloud Run. In this case, you can give the loc
 @click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
 detection. If none is given, dbt-remote will look for the location given in the profiles.yml. \
 /!\\ Location should be a Cloud region, not multi region.')
-@click.option('--elementary', is_flag=True, help='Set this flag to run elementary report at the end of the job')
+@click.option('--elementary/--no-elementary', is_flag=True, default=None, help='Set this flag to run elementary report \
+at the end of the job')
 @click.pass_context
 def cli(ctx, user_command: str, credentials: str | None, project_dir: str | None, manifest: str | None, dbt_project:
         str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
-        elementary: bool, args):
+        elementary: bool | None, args):
 
     if user_command == "config":
         if len(args) < 1:
@@ -136,11 +122,8 @@ def load_config(cli_config: CliConfig) -> CliConfig:
 
     cli_config_dict = cli_config.__dict__
     for key in cli_config_dict.keys():
-        if cli_config_dict[key] is None or not cli_config_dict[key]:
-            val = config[key]
-            if val in ["True", "False"]:
-                val = bool(val)
-            cli_config_dict[key] = val
+        if cli_config_dict[key] is None:
+            cli_config_dict[key] = config[key]
     return cli_config
 
 
@@ -166,8 +149,7 @@ def get_server_uri(dbt_command: str, cli_config: CliConfig, cloud_run_client: ru
         server_url = cli_config.server_url + "/"
     else:
         click.echo("\nNo server url given. Looking for dbt server available on Cloud Run...")
-        server_url = detect_dbt_server_uri(cli_config.creds_path, cli_config.project_dir, cli_config.dbt_project,
-                                           dbt_command, cli_config.location, cloud_run_client) + "/"
+        server_url = detect_dbt_server_uri(cli_config, dbt_command, cloud_run_client) + "/"
     return server_url
 
 
@@ -199,6 +181,8 @@ def send_command(command: str, cli_config: CliConfig, auth_headers: Dict[str, st
 
     if cli_config.elementary is True:
         data["elementary"] = True
+    elif cli_config.elementary is False or cli_config.elementary is None:
+        data["elementary"] = False
 
     res = requests.post(url=url, headers=auth_headers, json=data)
     return res
