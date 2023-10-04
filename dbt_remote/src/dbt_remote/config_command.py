@@ -15,7 +15,6 @@ class CliConfig:
     server_url: Optional[str] = None
     location: Optional[str] = None
     elementary: Optional[bool] = None
-    creds_path: Optional[str] = None
 
 
 CONFIG_FILE = "dbt_remote.yml"
@@ -28,7 +27,6 @@ DEFAULT_CONFIG = {
     'server_url': None,
     'location': None,
     'elementary': False,
-    'creds_path': None
 }
 
 
@@ -66,7 +64,7 @@ def help():
         help: see this message. ex: dbt-remote config help
 
     Config parameters:
-        manifest, project_dir, dbt_project, extra_packages, seeds_path, server_url, location, elementary, creds_path
+        manifest, project_dir, dbt_project, extra_packages, seeds_path, server_url, location, elementary
 """)
 
 

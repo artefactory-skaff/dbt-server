@@ -36,7 +36,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     'elementary': False
                 },
-            'creds_path': None,
         },
         {
             'command': 'command',
@@ -54,7 +53,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "packages": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "elementary": True
                 },
-            'creds_path': 'creds_path',
         },
         {
             'command': 'seed --select my_seed',
@@ -72,7 +70,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "seeds": {"seeds/my_seed.csv": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')},
                     'elementary': False
                 },
-            'creds_path': 'creds_path',
         },
     ]
 
@@ -90,7 +87,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                 extra_packages=context_dict['packages'],
                 seeds_path=context_dict['seeds_path'],
                 elementary=context_dict['elementary'],
-                creds_path=context_dict['creds_path']
             )
             auth_headers = {"Authorization": "Bearer 0000"}
             res = send_command(context_dict['command'], cli_config, auth_headers)

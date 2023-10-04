@@ -32,8 +32,6 @@ config: configure dbt-remote. See `dbt-remote config help` for more information.
 @click.command(context_settings=dict(ignore_unknown_options=True,), help=help_msg)
 @click.argument('user_command')
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-@click.option('--credentials', help='Path to your service account json credentials file. Required to connect to your \
- dbt-server if authentication is enforced. Ex: "./creds.json"')
 @click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), by default: none and the cli \
 compiles one from current dbt project')
 @click.option('--project-dir', help='Which directory to look in for the dbt_project.yml file. Default \
@@ -52,7 +50,7 @@ detection. If none is given, dbt-remote will look for the location given in the 
 @click.option('--elementary/--no-elementary', is_flag=True, default=None, help='Set this flag to run elementary report \
 at the end of the job')
 @click.pass_context
-def cli(ctx, user_command: str, credentials: str | None, project_dir: str | None, manifest: str | None, dbt_project:
+def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project:
         str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
         elementary: bool | None, args):
 
@@ -70,7 +68,6 @@ def cli(ctx, user_command: str, credentials: str | None, project_dir: str | None
         server_url=server_url,
         location=location,
         elementary=elementary,
-        creds_path=credentials
     )
     cli_config = load_config(cli_config)
     click.echo(click.style('Config: ', blink=True, bold=True)+str(cli_config.__dict__))

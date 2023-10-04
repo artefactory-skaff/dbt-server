@@ -1,0 +1,14 @@
+site_name: dbt-remote
+repo_name: artefactory/dbt-server
+repo_url: https://github.com/artefactory/dbt-server
+
+
+plugins:
+  - techdocs-core
+
+nav:
+  - Home: index.md
+  - Guides:
+    - dbt-remote: dbt_remote.md
+    - dbt-server: dbt_server.md
+  - Explanation: explanation.md

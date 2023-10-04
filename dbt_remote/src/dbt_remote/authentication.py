@@ -12,6 +12,7 @@ def get_auth_session() -> requests.Session:
 
 
 def auth_token() -> str:
+    # TODO: authent management within project
     id_token_raw = check_output("gcloud auth print-identity-token", shell=True)
     id_token = id_token_raw.decode("utf8").strip()
     return id_token
