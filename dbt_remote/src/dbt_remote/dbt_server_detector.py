@@ -1,113 +1,69 @@
 import requests
-from typing import Dict, List
-import yaml
+from typing import List
 import traceback
+import os
 
 import click
-from click.parser import split_arg_string
-from dbt.cli.flags import args_to_context
 from google.cloud import run_v2
 from google.api_core.exceptions import PermissionDenied
 
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
 from dbt_remote.src.dbt_remote.authentication import get_auth_session
-from dbt_remote.src.dbt_remote.config_command import CliConfig
+from dbt_remote.src.dbt_remote.config_command import CliConfig, set
 
 
 def detect_dbt_server_uri(cli_config: CliConfig, command: str, cloud_run_client: run_v2.ServicesClient) -> str:
 
-    project_id, location = identify_project_id_and_location(cli_config, command)
+    project_id = get_project_id()
+    location = cli_config.location  # can be None
 
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
+
     for service in cloud_run_services:
+        click.echo('Checking Cloud Run service: ' + service.name)
         auth_session = get_auth_session()
 
         if check_if_server_is_dbt_server(service, auth_session):
-            click.echo('Detected Cloud Run `' + service.name + '` as dbt server')
-            return service.uri
+            click.echo('Detected Cloud Run `' + click.style(service.name, blink=True, bold=True) + '` as dbt server')
+            if click.confirm('Do you want to use this server as dbt-server?'):
+                if click.confirm('Do you want to save this server as default dbt-server in config file?'):
+                    set([f'server_url={service.uri}'])
+                return service.uri
 
     click.echo(click.style("ERROR", fg="red"))
     raise click.ClickException(f'No dbt server found in Cloud Run for given project_id ({project_id}) and \
 location ({location})')
 
 
-def identify_project_id_and_location(cli_config: CliConfig, command: str) -> (str, str):
-
-    profiles_dict = read_yml_file(cli_config.project_dir + '/profiles.yml')
-    selected_profile = get_selected_sub_command_conf_from_user_command(command, 'profile')
-    selected_target = get_selected_sub_command_conf_from_user_command(command, 'target')
-
-    if selected_profile is None:
-        selected_profile = read_yml_file(cli_config.project_dir + '/' + cli_config.dbt_project)['profile']
-    if selected_profile not in profiles_dict.keys():
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Profile: ' + selected_profile + ' not found in profiles.yml')
-
-    if selected_target is None:
-        selected_target = deduce_target_from_profiles(profiles_dict[selected_profile])
-    if selected_target not in profiles_dict[selected_profile]['outputs'].keys():
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Target: "'+selected_target+'" not found for profile '+selected_profile)
-
-    project_id = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'project')
-    if cli_config.location is None:
-        location = get_metadata_from_profiles_dict(profiles_dict, selected_profile, selected_target, 'location')
-    else:
-        location = cli_config.location
-
-    return project_id, location
-
-
-def get_selected_sub_command_conf_from_user_command(command: str, config_field_name: str) -> str | None:
-    """
-        config_field_name should be keys from sub_command context
-        ex: target, profile
-    """
-    try:
-        args_list = split_arg_string(command)
-        sub_command_click_context = args_to_context(args_list)
-        if config_field_name not in sub_command_click_context.params.keys():
-            click.echo(click.style("ERROR", fg="red"))
-            raise click.ClickException(config_field_name + " not in context.params")
-        else:
-            return sub_command_click_context.params[config_field_name]
-    except Exception:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException("dbt command failed: " + command)
-
-
-def deduce_target_from_profiles(selected_profile_dict: Dict[str, str]) -> str:
-    if 'target' in selected_profile_dict.keys():
-        return selected_profile_dict['target']
-    elif 'outputs' in selected_profile_dict.keys():
-        if 'default' in selected_profile_dict['outputs'].keys():
-            return 'default'
-        else:
-            return list(selected_profile_dict['outputs'].keys())[0]
+def get_project_id():
+    if 'PROJECT_ID' in os.environ:
+        return os.environ['PROJECT_ID']
     else:
         click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('Coulnd\'t find any target in for given profile')
+        raise click.ClickException('PROJECT_ID environment variable not found. Please run \
+`export PROJECT_ID=<your-project-id>`.')
 
 
-def get_metadata_from_profiles_dict(profiles_dict: Dict[str, str], selected_profile: str, selected_target: str,
-                                    metadata_name: str) -> str:
-    """
-        metadata_name corresponds to project/data information for a given profile and target
-        ex: location, project_id, dataset, type, etc.
-    """
-
-    profile_config = profiles_dict[selected_profile]['outputs'][selected_target]
-    if metadata_name not in profile_config.keys():
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException(metadata_name + ' not found for profile '+selected_profile+' and \
-                                    target '+selected_target)
-    metadata = profile_config[metadata_name]
-    return metadata
-
-
-def get_cloud_run_service_list(project_id: str, location: str,
+def get_cloud_run_service_list(project_id: str, location: str | None,
                                client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
-    click.echo(f"Cloud Run location: {location}")
+
+    if location is None:
+        service_list = []
+        for region in get_gcp_regions():
+            service_list.extend(get_cloud_run_service_list_from_location(project_id, region, client))
+        return service_list
+    else:
+        return get_cloud_run_service_list_from_location(project_id, location, client)
+
+
+def get_gcp_regions() -> List[str]:
+    # TODO: get regions from GCP API
+    return ["europe-west1", "europe-west2", "europe-west3", "europe-west4", "europe-west9", "us-central1"]
+
+
+def get_cloud_run_service_list_from_location(project_id: str, location: str,
+                                             client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
+    click.echo(f"Listing Cloud Run services from location: {location}")
 
     parent_value = f"projects/{project_id}/locations/{location}"
     request = run_v2.ListServicesRequest(
@@ -115,7 +71,12 @@ def get_cloud_run_service_list(project_id: str, location: str,
     )
 
     try:
-        service_list = client.list_services(request=request)
+        list_service_pager = client.list_services(request=request)
+        service_list = []
+        for service in list_service_pager:
+            service_list.append(service)
+        click.echo(f"{len(service_list)} services found!")
+        return service_list
     except PermissionDenied:
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException(f'Permission denied on location `{location}` for project `{project_id}`. \
@@ -127,7 +88,6 @@ Please check the server location and specify the correct --location argument.\
         click.echo(traceback_str)
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException('An error occured while listing Cloud Run services')
-    return service_list
 
 
 def check_if_server_is_dbt_server(service: run_v2.types.service.Service, auth_session: requests.Session) -> bool:
@@ -158,13 +118,3 @@ def parse_check_server_response(res: requests.Response) -> DbtResponseCheck:
 
     results.status_code = res.status_code
     return results
-
-
-def read_yml_file(filename: str) -> Dict[str, str]:
-    with open(filename, 'r') as stream:
-        try:
-            d = yaml.safe_load(stream)
-            return d
-        except yaml.YAMLError as e:
-            click.echo(click.style("ERROR", fg="red") + '\t' + filename + " is not a correct YAML file")
-            raise click.ClickException(e)

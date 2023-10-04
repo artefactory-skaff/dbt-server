@@ -14,7 +14,7 @@ from google.cloud import run_v2
 from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
 from dbt_remote.src.dbt_remote.stream_logs import stream_logs
-from dbt_remote.src.dbt_remote.config_command import CliConfig, config, CONFIG_FILE, DEFAULT_CONFIG
+from dbt_remote.src.dbt_remote.config_command import CliConfig, config, CONFIG_FILE, init
 from dbt_remote.src.dbt_remote.authentication import get_auth_session
 
 
@@ -111,11 +111,12 @@ expected place. Please check your dbt files or use the --project-dir option.")
 
 
 def load_config(cli_config: CliConfig) -> CliConfig:
-    if os.path.isfile(CONFIG_FILE):
-        with open(CONFIG_FILE, 'r') as f:
-            config = yaml.safe_load(f)
-    else:
-        config = DEFAULT_CONFIG
+    if not os.path.isfile(CONFIG_FILE):
+        click.echo("No config file found. Creating config...")
+        init()
+
+    with open(CONFIG_FILE, 'r') as f:
+        config = yaml.safe_load(f)
 
     cli_config_dict = cli_config.__dict__
     for key in cli_config_dict.keys():
