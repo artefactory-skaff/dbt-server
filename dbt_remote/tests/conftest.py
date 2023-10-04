@@ -20,3 +20,4 @@ def MockDbtFileSystem(fs):
     fs.create_file('project_dir/seeds_path/my_seed.csv')
     fs.create_file('.dbt')
     fs.create_file('/home/runner/.dbt')
+    fs.create_dir('/home/runner/work/dbt-server/dbt-server')

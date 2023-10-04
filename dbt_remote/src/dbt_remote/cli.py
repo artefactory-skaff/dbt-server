@@ -15,7 +15,7 @@ from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
 from dbt_remote.src.dbt_remote.stream_logs import stream_logs
 from dbt_remote.src.dbt_remote.config_command import CliConfig, config, CONFIG_FILE, DEFAULT_CONFIG
-from dbt_remote.src.dbt_remote.authentication import get_auth_headers
+from dbt_remote.src.dbt_remote.authentication import get_auth_session
 
 
 help_msg = """
@@ -83,21 +83,21 @@ def cli(ctx, user_command: str, credentials: str | None, project_dir: str | None
     cloud_run_client = run_v2.ServicesClient()
     cli_config.server_url = get_server_uri(dbt_command, cli_config, cloud_run_client)
     click.echo(click.style('dbt-server url: ', blink=True, bold=True)+cli_config.server_url)
-    auth_headers = get_auth_headers(cli_config.server_url, cli_config.creds_path)
+    auth_session = get_auth_session()
 
     if cli_config.manifest is None:
         compile_manifest(cli_config.project_dir)
         cli_config.manifest = "./target/manifest.json"
 
     click.echo('\nSending request to server. Waiting for job creation...')
-    server_response = send_command(dbt_command, cli_config, auth_headers)
+    server_response = send_command(dbt_command, cli_config, auth_session)
 
     uuid, links = get_job_uuid_and_links(server_response)
     click.echo("Job created with uuid: " + click.style(uuid, blink=True, bold=True))
     display_links(links)
 
     click.echo('Waiting for job execution...')
-    stream_logs(links, auth_headers)
+    stream_logs(links, auth_session)
 
 
 def check_if_dbt_project(cli_config: CliConfig):
@@ -158,7 +158,7 @@ def compile_manifest(project_dir: str):
     dbtRunner().invoke(["parse", "--project-dir", project_dir, "--quiet"])
 
 
-def send_command(command: str, cli_config: CliConfig, auth_headers: Dict[str, str]) -> requests.Response:
+def send_command(command: str, cli_config: CliConfig, auth_session: requests.Session) -> requests.Response:
     url = cli_config.server_url + "dbt"
 
     manifest_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.manifest)
@@ -184,7 +184,7 @@ def send_command(command: str, cli_config: CliConfig, auth_headers: Dict[str, st
     elif cli_config.elementary is False or cli_config.elementary is None:
         data["elementary"] = False
 
-    res = requests.post(url=url, headers=auth_headers, json=data)
+    res = auth_session.post(url=url, json=data)
     return res
 
 

@@ -33,7 +33,8 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "server_url": server_url,
                     "user_command": 'command',
                     "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
-                    "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')
+                    "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    'elementary': False
                 },
             'creds_path': None,
         },
@@ -68,7 +69,8 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "user_command": 'seed --select my_seed',
                     "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
-                    "seeds": {"seeds/my_seed.csv": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')}
+                    "seeds": {"seeds/my_seed.csv": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')},
+                    'elementary': False
                 },
             'creds_path': 'creds_path',
         },

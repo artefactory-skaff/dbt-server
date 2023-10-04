@@ -64,7 +64,8 @@ def test_get_metadata_from_profiles_dict():
     assert location == "location2"
 
 
-def test_get_selected_target_and_profile():
+def test_get_selected_target_and_profile(MockDbtFileSystem):
+    MockDbtFileSystem
     project_dir = " --project-dir /home/runner/work/dbt-server/dbt-server"
     commands_dict = {
         "run": {
