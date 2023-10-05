@@ -1,6 +1,3 @@
-import uuid
-import uvicorn
-import click
 from fastapi import FastAPI, status
 
 
@@ -42,11 +39,11 @@ def run_command(dbt_command: DbtCommand):
     job.launch(state, job_name)
 
     return {
-        "uuid": request_uuid,
+        "uuid": settings.uuid,
         "links": [
-            FollowUpLink("run_status", f"{dbt_command.server_url}job/{request_uuid}"),
+            FollowUpLink("run_status", f"{dbt_command.server_url}job/{settings.uuid}"),
             FollowUpLink(
-                "last_logs", f"{dbt_command.server_url}job/{request_uuid}/last_logs"
+                "last_logs", f"{dbt_command.server_url}job/{settings.uuid}/last_logs"
             ),
         ],
     }
@@ -100,22 +97,3 @@ def get_report(uuid: str):
 def check():
     LOGGER.log("INFO", f"Running dbt-server on port : {settings.port}")
     return {"response": f"Running dbt-server on port {settings.port}"}
-
-
-@click.command(
-    context_settings=dict(
-        ignore_unknown_options=True,
-    ),
-    help="Run dbt commands from the dbt server.",
-)
-def launch_app():
-    uvicorn.run(
-        "dbt_server.dbt_server:app",
-        port=settings.port,
-        host="0.0.0.0",
-        reload=True,
-    )
-
-
-if __name__ == "__main__":
-    launch_app()

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from dbt_server.dbt_server import app
+from dbt_server.server import app
 
 
 client = TestClient(app)
