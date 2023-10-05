@@ -53,7 +53,7 @@ def init_logger(service: Optional[str]) -> Logger:
         logger.addHandler(handler)
         return logger
     elif service == "AzureMonitor":
-        logger.addHandler(AzureLogHandler())
+        logger.addHandler(AzureLogHandler(connection_string=settings.azure.applicationinsights_connection_string))
         return logger
     elif service == "Local":
         return logger

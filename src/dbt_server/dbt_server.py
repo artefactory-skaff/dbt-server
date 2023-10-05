@@ -42,11 +42,11 @@ def run_command(dbt_command: DbtCommand):
     job.launch(state, job_name)
 
     return {
-        "uuid": request_uuid,
+        "uuid": settings.uuid,
         "links": [
-            FollowUpLink("run_status", f"{dbt_command.server_url}job/{request_uuid}"),
+            FollowUpLink("run_status", f"{dbt_command.server_url}job/{settings.uuid}"),
             FollowUpLink(
-                "last_logs", f"{dbt_command.server_url}job/{request_uuid}/last_logs"
+                "last_logs", f"{dbt_command.server_url}job/{settings.uuid}/last_logs"
             ),
         ],
     }

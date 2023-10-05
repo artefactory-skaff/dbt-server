@@ -90,14 +90,17 @@ class CosmosDBDocument(MetadataDocument):
 
     def create(self, data: Dict[str, Any]) -> None:
         try:
+            data["id"] = data["uuid"]
             self.container.upsert_item(body=data)
         except exceptions.CosmosHttpResponseError as e:
             print(e.message)
+            print(data)
 
     def update(self, data: Dict[str, Any]) -> None:
         try:
             previous_data = self.get()
             new_data = previous_data | data
+            new_data["id"] = new_data["uuid"]
             self.container.replace_item(item=self.document_id, body=new_data)
         except exceptions.CosmosHttpResponseError as e:
             print(e.message)
