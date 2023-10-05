@@ -1,4 +1,5 @@
 import base64
+import requests
 from src.dbt_remote.cli import assemble_dbt_command, parse_server_response, get_selected_nodes
 from src.dbt_remote.cli import send_command, CliConfig
 
@@ -26,6 +27,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'project_dir': 'project_dir',
             'manifest': 'manifest',
             'dbt_project': 'dbt_project',
+            'profiles': 'profiles',
             'packages': None,
             'seeds_path': 'seeds_path',
             'elementary': False,
@@ -34,6 +36,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "user_command": 'command',
                     "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "profiles": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     'elementary': False
                 },
         },
@@ -42,6 +45,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'project_dir': 'project_dir',
             'manifest': 'manifest',
             'dbt_project': 'dbt_project',
+            'profiles': 'profiles',
             'packages': 'packages',
             'seeds_path': 'seeds_path',
             'elementary': True,
@@ -50,6 +54,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "user_command": 'command',
                     "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "profiles": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "packages": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "elementary": True
                 },
@@ -59,6 +64,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'project_dir': 'project_dir',
             'manifest': 'manifest',
             'dbt_project': 'dbt_project',
+            'profiles': 'profiles',
             'packages': None,
             'seeds_path': 'seeds_path',
             'elementary': False,
@@ -67,6 +73,7 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "user_command": 'seed --select my_seed',
                     "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
+                    "profiles": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "seeds": {"seeds/my_seed.csv": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')},
                     'elementary': False
                 },
@@ -84,12 +91,16 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                 project_dir=context_dict['project_dir'],
                 manifest=context_dict['manifest'],
                 dbt_project=context_dict['dbt_project'],
+                profiles=context_dict['profiles'],
                 extra_packages=context_dict['packages'],
                 seeds_path=context_dict['seeds_path'],
                 elementary=context_dict['elementary'],
             )
-            auth_headers = {"Authorization": "Bearer 0000"}
-            res = send_command(context_dict['command'], cli_config, auth_headers)
+
+            session = requests.Session()
+            auth_headers = {"Authorization": "Bearer 1234"}
+            session.headers.update(auth_headers)
+            res = send_command(context_dict['command'], cli_config, session)
 
         assert send_command_requests_mock.last_request.method == 'POST'
         assert send_command_requests_mock.last_request.url == server_url+'dbt'

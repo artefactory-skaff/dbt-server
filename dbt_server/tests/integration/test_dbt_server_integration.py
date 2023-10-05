@@ -21,7 +21,8 @@ def test_create_job():
         user_command="test",
         processed_command="test",
         manifest="manifest",
-        dbt_project="dbt_project"
+        dbt_project="dbt_project",
+        profiles="profiles"
     )
 
     job = create_job(state, dbt_command)
@@ -38,7 +39,8 @@ def test_launch_job():
         user_command="test",
         processed_command="test",
         manifest="manifest",
-        dbt_project="dbt_project"
+        dbt_project="dbt_project",
+        profiles="profiles"
     )
 
     job = create_job(state, dbt_command)

@@ -188,7 +188,7 @@ def check():
 
 def base64_decode_dbt_command(dbt_command: DbtCommand) -> DbtCommand:
     dbt_command_dict = dbt_command.__dict__
-    b64_encoded_keys = ['manifest', 'dbt_project', 'seeds', 'packages']
+    b64_encoded_keys = ['manifest', 'dbt_project', 'profiles', 'seeds', 'packages']
 
     for key in b64_encoded_keys:
         value = dbt_command_dict[key]

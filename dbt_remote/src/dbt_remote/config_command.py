@@ -10,6 +10,7 @@ class CliConfig:
     manifest: Optional[str] = None
     project_dir: Optional[str] = None
     dbt_project: Optional[str] = None
+    profiles: Optional[str] = None
     extra_packages: Optional[str] = None
     seeds_path: Optional[str] = None
     server_url: Optional[str] = None
@@ -22,6 +23,7 @@ DEFAULT_CONFIG = {
     'manifest': None,
     'project_dir': '.',
     'dbt_project': 'dbt_project.yml',
+    'profiles': 'profiles.yml',
     'extra_packages': None,
     'seeds_path': './seeds/',
     'server_url': None,
@@ -64,7 +66,7 @@ def help():
         help: see this message. ex: dbt-remote config help
 
     Config parameters:
-        manifest, project_dir, dbt_project, extra_packages, seeds_path, server_url, location, elementary
+        manifest, project_dir, dbt_project, profiles, extra_packages, seeds_path, server_url, location, elementary
 """)
 
 

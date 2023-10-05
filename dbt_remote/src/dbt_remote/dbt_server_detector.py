@@ -12,7 +12,7 @@ from dbt_remote.src.dbt_remote.authentication import get_auth_session
 from dbt_remote.src.dbt_remote.config_command import CliConfig, set
 
 
-def detect_dbt_server_uri(cli_config: CliConfig, command: str, cloud_run_client: run_v2.ServicesClient) -> str:
+def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
 
     project_id = get_project_id()
     location = cli_config.location  # can be None
@@ -58,7 +58,11 @@ def get_cloud_run_service_list(project_id: str, location: str | None,
 
 def get_gcp_regions() -> List[str]:
     # TODO: get regions from GCP API
-    return ["europe-west1", "europe-west2", "europe-west3", "europe-west4", "europe-west9", "us-central1"]
+    regions = ["us-central1", "us-east1", "us-east4", "us-east5", "us-west1", "us-west2", "us-west3", "us-west4",
+               "us-south1", "northamerica-northeast1", "northamerica-northeast2", "europe-north1", "europe-west1",
+               "europe-west2", "europe-west3", "europe-west4", "europe-west6", "europe-west8", "europe-west9",
+               "europe-west10", "europe-west12", "europe-central2", "europe-southwest1"]
+    return regions
 
 
 def get_cloud_run_service_list_from_location(project_id: str, location: str,

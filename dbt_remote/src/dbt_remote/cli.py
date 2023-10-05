@@ -37,6 +37,7 @@ compiles one from current dbt project')
 @click.option('--project-dir', help='Which directory to look in for the dbt_project.yml file. Default \
 is the current directory.')
 @click.option('--dbt-project', help='dbt_project file, by default: dbt_project.yml')
+@click.option('--profiles', help='profiles.yml file, by default: ./profiles.yml')
 @click.option('--extra-packages', help='packages.yml file, by default none. Add this option is necessary to use\
 external packages such as elementary.')
 @click.option('--seeds-path', help='Path to seeds directory, this option is needed if you run `dbt-remote seed`. By \
@@ -50,7 +51,7 @@ detection. If none is given, dbt-remote will look for the location given in the 
 @click.option('--elementary/--no-elementary', is_flag=True, default=None, help='Set this flag to run elementary report \
 at the end of the job')
 @click.pass_context
-def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project:
+def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project: str | None, profiles:
         str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
         elementary: bool | None, args):
 
@@ -63,6 +64,7 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         manifest=manifest,
         project_dir=project_dir,
         dbt_project=dbt_project,
+        profiles=profiles,
         extra_packages=extra_packages,
         seeds_path=seeds_path,
         server_url=server_url,
@@ -78,7 +80,7 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
     check_if_dbt_project(cli_config)
 
     cloud_run_client = run_v2.ServicesClient()
-    cli_config.server_url = get_server_uri(dbt_command, cli_config, cloud_run_client)
+    cli_config.server_url = get_server_uri(cli_config, cloud_run_client)
     click.echo(click.style('dbt-server url: ', blink=True, bold=True)+cli_config.server_url)
     auth_session = get_auth_session()
 
@@ -142,12 +144,12 @@ def assemble_dbt_command(user_command: str, args: Any) -> str:
     return dbt_command
 
 
-def get_server_uri(dbt_command: str, cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
+def get_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
     if cli_config.server_url is not None:
         server_url = cli_config.server_url + "/"
     else:
         click.echo("\nNo server url given. Looking for dbt server available on Cloud Run...")
-        server_url = detect_dbt_server_uri(cli_config, dbt_command, cloud_run_client) + "/"
+        server_url = detect_dbt_server_uri(cli_config, cloud_run_client) + "/"
     return server_url
 
 
@@ -161,12 +163,14 @@ def send_command(command: str, cli_config: CliConfig, auth_session: requests.Ses
 
     manifest_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.manifest)
     dbt_project_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.dbt_project)
+    profiles_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.profiles)
 
     data = {
             "server_url": cli_config.server_url,
             "user_command": command,
             "manifest": manifest_str,
-            "dbt_project": dbt_project_str
+            "dbt_project": dbt_project_str,
+            "profiles": profiles_str,
         }
 
     if 'seed' in command.split(' ') or 'build' in command.split(' '):
@@ -260,6 +264,11 @@ def dbt_files_to_check(cli_config: CliConfig) -> Dict[str, str]:
         files_to_check['dbt_project'] = cli_config.project_dir + 'dbt_project.yml'
     else:
         files_to_check['dbt_project'] = cli_config.project_dir + '/' + cli_config.dbt_project
+
+    if cli_config.profiles is None:
+        files_to_check['profiles'] = cli_config.project_dir + '/profiles.yml'
+    else:
+        files_to_check['profiles'] = cli_config.project_dir + '/' + cli_config.profiles
 
     return files_to_check
 

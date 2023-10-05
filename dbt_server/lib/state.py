@@ -92,6 +92,8 @@ class State:
                                                     cloud_storage_folder+"/manifest.json", dbt_command.manifest)
         self.cloud_storage_instance.write_to_bucket(BUCKET_NAME,
                                                     cloud_storage_folder+"/dbt_project.yml", dbt_command.dbt_project)
+        self.cloud_storage_instance.write_to_bucket(BUCKET_NAME,
+                                                    cloud_storage_folder+"/profiles.yml", dbt_command.profiles)
         if dbt_command.packages is not None:
             self.cloud_storage_instance.write_to_bucket(BUCKET_NAME,
                                                         cloud_storage_folder+"/packages.yml", dbt_command.packages)

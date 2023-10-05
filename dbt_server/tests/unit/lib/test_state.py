@@ -38,9 +38,11 @@ def test_load_context(MockCloudStorage, MockState):
                 processed_command='dbt run',
                 manifest='manifest',
                 dbt_project='dbt_project',
+                profiles='profiles',
             ),
             "calls": [call('dbt-server-test', f'{cloud_storage_folder}/manifest.json', 'manifest'),
-                      call('dbt-server-test', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project')]
+                      call('dbt-server-test', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project'),
+                      call('dbt-server-test', f'{cloud_storage_folder}/profiles.yml', 'profiles')]
         },
         {
             "command": DbtCommand(
@@ -49,11 +51,13 @@ def test_load_context(MockCloudStorage, MockState):
                 processed_command='dbt run',
                 manifest='manifest',
                 dbt_project='dbt_project',
+                profiles='profiles',
                 packages='packages',
                 seeds={'seed1': 'seed1', 'seed2': 'seed2'},
             ),
             "calls": [call('dbt-server-test', f'{cloud_storage_folder}/manifest.json', 'manifest'),
                       call('dbt-server-test', f'{cloud_storage_folder}/dbt_project.yml', 'dbt_project'),
+                      call('dbt-server-test', f'{cloud_storage_folder}/profiles.yml', 'profiles'),
                       call('dbt-server-test', f'{cloud_storage_folder}/packages.yml', 'packages'),
                       call('dbt-server-test', f'{cloud_storage_folder}/seed1', 'seed1'),
                       call('dbt-server-test', f'{cloud_storage_folder}/seed2', 'seed2')]

@@ -2,7 +2,7 @@ import sys
 import os
 from google.cloud import logging
 
-sys.path.insert(1, './dbt_server/lib')
+sys.path.insert(1, './lib')
 
 from set_environment import set_env_vars, set_env_vars_job
 from cloud_storage import CloudStorage, connect_client

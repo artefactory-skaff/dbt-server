@@ -9,6 +9,7 @@ class DbtCommand(BaseModel):
     processed_command: str = ''
     manifest: str                   # can be base64 encoded
     dbt_project: str                # can be base64 encoded
+    profiles: str                   # can be base64 encoded
     seeds: Dict[str, str] = None    # can be base64 encoded
     packages: str = None            # can be base64 encoded
     elementary: bool = False
