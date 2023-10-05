@@ -9,6 +9,7 @@ class DbtCommand(BaseModel):
     processed_command: str = ""
     manifest: str
     dbt_project: str
+    profiles : str
     seeds: Dict[str, str] = None
     packages: str = None
     elementary: bool = False

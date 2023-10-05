@@ -83,6 +83,11 @@ class State:
             storage_folder + "/dbt_project.yml",
             dbt_command.dbt_project,
         )
+        STORAGE_INSTANCE.write_file(
+            settings.bucket_name,
+            storage_folder + "/profiles.yml",
+            dbt_command.profiles,
+        )
         if dbt_command.packages is not None:
             STORAGE_INSTANCE.write_file(
                 settings.bucket_name,
