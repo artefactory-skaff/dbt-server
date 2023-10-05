@@ -1,4 +1,4 @@
-site_name: dbt-remote
+site_name: dbt-remote project
 repo_name: artefactory/dbt-server
 repo_url: https://github.com/artefactory/dbt-server
 
@@ -8,7 +8,7 @@ plugins:
 
 nav:
   - Home: index.md
-  - Guides:
-    - dbt-remote: dbt_remote.md
-    - dbt-server: dbt_server.md
+  - dbt-remote: dbt_remote.md
+  - dbt-server: dbt_server.md
   - Explanation: explanation.md
+  - Advanced usage: advanced.md

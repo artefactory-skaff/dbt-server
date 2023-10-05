@@ -2,6 +2,7 @@ import requests
 from typing import List
 import traceback
 import os
+from subprocess import check_output
 
 import click
 from google.cloud import run_v2
@@ -57,11 +58,16 @@ def get_cloud_run_service_list(project_id: str, location: str | None,
 
 
 def get_gcp_regions() -> List[str]:
-    # TODO: get regions from GCP API
-    regions = ["us-central1", "us-east1", "us-east4", "us-east5", "us-west1", "us-west2", "us-west3", "us-west4",
-               "us-south1", "northamerica-northeast1", "northamerica-northeast2", "europe-north1", "europe-west1",
-               "europe-west2", "europe-west3", "europe-west4", "europe-west6", "europe-west8", "europe-west9",
-               "europe-west10", "europe-west12", "europe-central2", "europe-southwest1"]
+    regions = []
+
+    us_regions_str = check_output("echo $(gcloud compute regions list --filter='name ~ ^us*') | sed 's/UP/\\n/g' \
+                                  | awk '{print $1}' | awk NR\\>1", shell=True)
+    regions += us_regions_str.decode("utf8").strip().split('\n')
+
+    eu_regions_str = check_output("echo $(gcloud compute regions list --filter='name ~ ^europe*') | sed 's/UP/\\n/g' \
+                                  | awk '{print $1}' | awk NR\\>1", shell=True)
+    regions += eu_regions_str.decode("utf8").strip().split('\n')
+
     return regions
 
 

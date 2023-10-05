@@ -4,7 +4,9 @@ This package aims to run [dbt][dbt-url] commands remotely on GCP using Cloud Run
 
 - **Run** ```dbt-remote``` cli (for dbt users): [here](dbt_remote.md).
 - **Deploy** the ```dbt-server``` (for admins): [here](dbt_server.md).
-- Learn how it works (for developers/curious): [here](explanation.md)
+- **Learn** how it works (for developers/curious): [here](explanation.md)
+
+Architecture overview:
 
 ![Simplified architecture](images/intro-README.png)
 

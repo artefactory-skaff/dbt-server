@@ -22,17 +22,30 @@ This CLI runs dbt commands remotely on a GCP.
 python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-remote --no-cache-dir
 ```
 
-Make sure your dbt project is setup properly locally.
+### Check the installation
+
+1. Make sure your dbt project is setup properly locally.
 ```sh
 dbt debug --profiles-dir .
 ```
+Expected: `All checks passed!`
 
-Test the CLI installation (requires you to have deployed the `dbt-server`)
+2. If not done yet, export you GCP project ID:
+```sh
+export PROJECT_ID=<your-project-id>
+```
+
+3. Test the CLI installation (requires you to have deployed the `dbt-server`)
 ```sh 
 dbt-remote debug
 ```
+Expected:
+```sh
+INFO    [dbt]All checks passed!
+INFO    [job]Command successfully executed
+```
 
-Use `dbt-remote` just like you would the regular dbt CLI
+4. Use `dbt-remote` just like you would do with the regular dbt CLI
 ```sh 
 dbt-remote run
 ```
@@ -46,7 +59,7 @@ View all `dbt-remote` options
 dbt-remote --help
 ```
 
-Set persistant configurations for `dbt-remote` using `config` command
+5. (optional) Set persistant configurations for `dbt-remote` using `config` command
 ```sh
 dbt-remote config init
 dbt-remote config set server_url=http://myserver.com location=europe-west9
@@ -67,19 +80,29 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
 <center><img src="./dbt-remote-schema-simplified.png" width="100%"></center>
 
 
+## Requirements
+
+You must have the following roles: `roles/datastore.owner`, `roles/logging.logWriter`, `roles/logging.viewer`, `roles/storage.admin`, `roles/run.developer`, `roles/iam.serviceAccountUser`.
+
+
 ## Deployment
 
 Clone this repository and go to the ```dbt-server``` folder.
 ```sh
 git clone git@github.com:artefactory-fr/dbt-server.git
 cd dbt-server
+git checkout diff-pr
 ```
 
-Copy the values from the `profiles.yml` in the project you will run `dbt-remote` from to `dbt_server/profiles.yml`.
+> Note: Possible change `<PROJECT_ID>` line 2 in `deploy.sh` and run
+>```sh
+>chmod +x deploy.sh; ./deploy.sh
+>```
 
+Export your env variables.
 ```sh
 export PROJECT_ID=<your-project-id> &&
-export LOCATION=europe-west1
+export LOCATION=europe-west9
 ```
 
 Create an artifact registry
@@ -94,7 +117,7 @@ gcloud storage buckets create gs://$PROJECT_ID-dbt-server --project=$PROJECT_ID 
 
 Create a service account that will be used for dbt runs
 ```sh
-gcloud iam service-accounts create dbt-server --project=${PROJECT};
+gcloud iam service-accounts create dbt-server --project=${PROJECT_ID};
 ```
 
 Assign roles to the SA
@@ -114,8 +137,8 @@ ROLES=(
 
 for ROLE in ${ROLES[@]}
 do
-  gcloud projects add-iam-policy-binding ${PROJECT} \
-  --member=serviceAccount:dbt-server@${PROJECT}.iam.gserviceaccount.com \
+  gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member=serviceAccount:dbt-server@${PROJECT_ID}.iam.gserviceaccount.com \
   --role=roles/${ROLE};
 done
 ```
@@ -128,7 +151,7 @@ gcloud services enable \
     --project=$PROJECT_ID
 ```
 
-Create Firestore database (default) if not exist
+Create Firestore database (default) if it does not exist
 ```sh
 database=$(gcloud firestore databases list | grep "projects/${PROJECT_ID}/databases/(default)")
 if [ -z "$database" ]
@@ -141,10 +164,9 @@ else
 fi
 ```
 
-
 Build the server image
 ```sh
-gcloud builds submit --region=$LOCATION --tag $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server/dbt-server
+gcloud builds submit ./dbt_server/ --region=$LOCATION --tag $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server/dbt-server
 ```
 
 Deploy the server on Cloud Run
@@ -158,7 +180,7 @@ gcloud run deploy dbt-server \
 	--set-env-vars=DOCKER_IMAGE=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server/dbt-server \
 	--set-env-vars=SERVICE_ACCOUNT=dbt-server@${PROJECT_ID}.iam.gserviceaccount.com \
 	--set-env-vars=PROJECT_ID=${PROJECT_ID} \
-	--set-env-vars=LOCATION=${LOCATION}
+	--set-env-vars=LOCATION=${LOCATION} \
   --no-allow-unauthenticated
 ```
 
@@ -166,3 +188,29 @@ You should now be able to run the `dbt-remote` CLI to execute dbt commands on yo
 ```sh
 dbt-remote debug
 ```
+
+### Local Run
+
+Instead of running your dbt-server on a Cloud Run service, you can run it locally.
+
+> :warning: you still need all the other GCP resources. You must first follow all the steps from [Deployment section](#deployment) until Firestore database creation (included)!
+
+1. Export the environment variables
+```sh
+export BUCKET_NAME=<bucket-name>
+export DOCKER_IMAGE=<docker-image>
+export SERVICE_ACCOUNT=<service-account-email>
+export PROJECT_ID=<project-id>
+export LOCATION=<location>
+```
+> **Info**: If you used Terraform to create the resources, `<service-account-email>` should be `terraform-job-sa@<project-id>.iam.gserviceaccount.com` and `<bucket-name>` `dbt-server-test`.
+2. Install the dependencies
+```sh
+cd dbt_server; pip install -r requirements.txt
+```
+3. Launch the ```dbt-server```:
+```sh
+python3 dbt_server.py --local
+```
+
+Your dbt-server should run on `http://0.0.0.0:8001`.

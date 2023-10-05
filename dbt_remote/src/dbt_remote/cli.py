@@ -45,8 +45,8 @@ default: seeds/')
 @click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
 for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location\
 .')
-@click.option('--location', help='Location where the dbt server runs, ex: us-central1. Needed for server auto \
-detection. If none is given, dbt-remote will look for the location given in the profiles.yml. \
+@click.option('--location', help='Location where the dbt server runs, ex: us-central1. Useful for server auto \
+detection. If none is given, dbt-remote will look at all EU and US locations. \
 /!\\ Location should be a Cloud region, not multi region.')
 @click.option('--elementary/--no-elementary', is_flag=True, default=None, help='Set this flag to run elementary report \
 at the end of the job')
@@ -107,8 +107,11 @@ def check_if_dbt_project(cli_config: CliConfig):
     for filename in files_to_check.keys():
         path_to_file = files_to_check[filename]
         if not check_if_file_exist(path_to_file):
-            click.echo(f"{filename} file not found.")
-            raise click.ClickException("You are not in a dbt project directory or the dbt files are not in the \
+            if filename == 'manifest':  # not mandatory because it can be generated
+                click.echo(click.style("WARNING", fg="red")+f"{filename} file not found.")
+            else:
+                click.echo(click.style("ERROR", fg="red")+f"{filename} file not found.")
+                raise click.ClickException("You are not in a dbt project directory or the dbt files are not in the \
 expected place. Please check your dbt files or use the --project-dir option.")
 
 
