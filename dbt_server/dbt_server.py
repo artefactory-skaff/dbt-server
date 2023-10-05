@@ -9,7 +9,6 @@ import traceback
 from pathlib import Path
 from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
 
 from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
@@ -64,16 +63,6 @@ def run_command(dbt_command: DbtCommand):
     response_job = create_job(state, dbt_command)
     launch_job(state, response_job)
 
-    if dbt_command.elementary:
-        return {
-            "uuid": request_uuid,
-            "links": [
-                FollowUpLink("run_status", f"{dbt_command.server_url}job/{request_uuid}"),
-                FollowUpLink("last_logs", f"{dbt_command.server_url}job/{request_uuid}/last_logs"),
-                FollowUpLink("report", f"{dbt_command.server_url}job/{request_uuid}/report"),
-            ]
-        }
-
     return {
         "uuid": request_uuid,
         "links": [
@@ -95,7 +84,6 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
             {"name": "UUID", "value": state.uuid},
             {"name": "SCRIPT", "value": "dbt_run_job.py"},
             {"name": "BUCKET_NAME", "value": BUCKET_NAME},
-            {"name": "ELEMENTARY", "value": str(dbt_command.elementary)}
             ]
         }
     # job_id must start with a letter and cannot contain '-'
@@ -164,18 +152,6 @@ def get_all_logs(uuid: str):
     job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
     logs = job_state.get_all_logs()
     return {"run_logs": logs}
-
-
-@app.get("/job/{uuid}/report", status_code=status.HTTP_200_OK)
-def get_report(uuid: str):
-    state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
-    cloud_storage_folder = state.cloud_storage_folder
-
-    google_console_url = 'https://console.cloud.google.com/storage/browser/_details'
-    report_url = f'{google_console_url}/{BUCKET_NAME}/{cloud_storage_folder}/elementary_report.html'
-    # return {"url": report_url}
-
-    return RedirectResponse(url=report_url, status_code=status.HTTP_302_FOUND)
 
 
 @app.get("/check", status_code=status.HTTP_200_OK)

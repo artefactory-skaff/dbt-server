@@ -30,14 +30,12 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'profiles': 'profiles',
             'packages': None,
             'seeds_path': 'seeds_path',
-            'elementary': False,
             'data': {
                     "server_url": server_url,
                     "user_command": 'command',
                     "manifest": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "profiles": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
-                    'elementary': False
                 },
         },
         {
@@ -48,7 +46,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'profiles': 'profiles',
             'packages': 'packages',
             'seeds_path': 'seeds_path',
-            'elementary': True,
             'data': {
                     "server_url": server_url,
                     "user_command": 'command',
@@ -56,7 +53,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "profiles": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "packages": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
-                    "elementary": True
                 },
         },
         {
@@ -67,7 +63,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
             'profiles': 'profiles',
             'packages': None,
             'seeds_path': 'seeds_path',
-            'elementary': False,
             'data': {
                     "server_url": server_url,
                     "user_command": 'seed --select my_seed',
@@ -75,7 +70,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                     "dbt_project": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "profiles": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii'),
                     "seeds": {"seeds/my_seed.csv": (base64.b64encode(bytes("data...", 'ascii'))).decode('ascii')},
-                    'elementary': False
                 },
         },
     ]
@@ -94,7 +88,6 @@ def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSyste
                 profiles=context_dict['profiles'],
                 extra_packages=context_dict['packages'],
                 seeds_path=context_dict['seeds_path'],
-                elementary=context_dict['elementary'],
             )
 
             session = requests.Session()

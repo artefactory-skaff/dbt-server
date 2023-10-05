@@ -73,7 +73,6 @@ def get_gcp_regions() -> List[str]:
 
 def get_cloud_run_service_list_from_location(project_id: str, location: str,
                                              client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
-    click.echo(f"Listing Cloud Run services from location: {location}")
 
     parent_value = f"projects/{project_id}/locations/{location}"
     request = run_v2.ListServicesRequest(
@@ -85,7 +84,6 @@ def get_cloud_run_service_list_from_location(project_id: str, location: str,
         service_list = []
         for service in list_service_pager:
             service_list.append(service)
-        click.echo(f"{len(service_list)} services found!")
         return service_list
     except PermissionDenied:
         click.echo(click.style("ERROR", fg="red"))

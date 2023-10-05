@@ -52,7 +52,6 @@ The job:
 - (if needed) installs the dependencies by running `dbt deps`.
 - executes the dbt command and transforms the data (interaction with BigQuery). It uses the `dbtRunner` from `dbt-core` (see [dbtRunner code][dbt-runner])
 - logs to Cloud Logging and using State. We use a custom function that ingests `dbt` output and logs it both in Cloud Logging and in Cloud Storage (thanks to the State).
-- (if needed) generates Elementary report and stores it on GCS bucket.
 - sends `'END JOB'` log when finished.
 
 ## Log streaming

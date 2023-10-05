@@ -12,7 +12,6 @@ class DbtCommand(BaseModel):
     profiles: str                   # can be base64 encoded
     seeds: Dict[str, str] = None    # can be base64 encoded
     packages: str = None            # can be base64 encoded
-    elementary: bool = False
 
 
 @dataclass

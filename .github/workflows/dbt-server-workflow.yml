@@ -35,7 +35,6 @@ jobs:
 
       - name: Run unit tests on dbt_server/ with pytest
         run: |
-          poetry add elementary-data
           cd dbt_server
           poetry run pytest tests/unit -W ignore::DeprecationWarning
 

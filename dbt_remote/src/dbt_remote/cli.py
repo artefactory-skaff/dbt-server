@@ -4,6 +4,7 @@ import os
 import traceback
 from typing import Dict, List, Any
 import yaml
+from pathlib import Path
 
 import click
 from click.parser import split_arg_string
@@ -48,16 +49,14 @@ for a dbt server in GCP project\'s Cloud Run. In this case, you can give the loc
 @click.option('--location', help='Location where the dbt server runs, ex: us-central1. Useful for server auto \
 detection. If none is given, dbt-remote will look at all EU and US locations. \
 /!\\ Location should be a Cloud region, not multi region.')
-@click.option('--elementary/--no-elementary', is_flag=True, default=None, help='Set this flag to run elementary report \
-at the end of the job')
 @click.pass_context
 def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project: str | None, profiles:
         str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
-        elementary: bool | None, args):
+        args):
 
     if user_command == "config":
         if len(args) < 1:
-            raise click.ClickException("You must provide a config command.")
+            raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"You must provide a config command.")
         return ctx.invoke(config, config_command=args[0], args=args[1:])
 
     cli_config = CliConfig(
@@ -69,15 +68,16 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         seeds_path=seeds_path,
         server_url=server_url,
         location=location,
-        elementary=elementary,
     )
     cli_config = load_config(cli_config)
     click.echo(click.style('Config: ', blink=True, bold=True)+str(cli_config.__dict__))
 
-    dbt_command = assemble_dbt_command(user_command, args)
-    click.echo(click.style('Command: ', blink=True, bold=True)+f'dbt {dbt_command}')
+    cli_config.profiles = search_profiles_file(assemble_dbt_command(user_command, args), cli_config)
 
     check_if_dbt_project(cli_config)
+
+    dbt_command = assemble_dbt_command(user_command, args)
+    click.echo(click.style('Command: ', blink=True, bold=True)+f'dbt {dbt_command}')
 
     cloud_run_client = run_v2.ServicesClient()
     cli_config.server_url = get_server_uri(cli_config, cloud_run_client)
@@ -99,22 +99,6 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
     stream_logs(links, auth_session)
 
 
-def check_if_dbt_project(cli_config: CliConfig):
-    files_to_check = dbt_files_to_check(cli_config)
-    click.echo(click.style('Checking dbt files: ', blink=True, bold=True))
-    click.echo(files_to_check)
-
-    for filename in files_to_check.keys():
-        path_to_file = files_to_check[filename]
-        if not check_if_file_exist(path_to_file):
-            if filename == 'manifest':  # not mandatory because it can be generated
-                click.echo(click.style("WARNING", fg="red")+f"{filename} file not found.")
-            else:
-                click.echo(click.style("ERROR", fg="red")+f"{filename} file not found.")
-                raise click.ClickException("You are not in a dbt project directory or the dbt files are not in the \
-expected place. Please check your dbt files or use the --project-dir option.")
-
-
 def load_config(cli_config: CliConfig) -> CliConfig:
     if not os.path.isfile(CONFIG_FILE):
         click.echo("No config file found. Creating config...")
@@ -128,6 +112,51 @@ def load_config(cli_config: CliConfig) -> CliConfig:
         if cli_config_dict[key] is None:
             cli_config_dict[key] = config[key]
     return cli_config
+
+
+def search_profiles_file(command: str, cli_config: CliConfig) -> str:
+    print("user_command", command)
+    if "--profiles-dir" in command:
+        profiles_dir = get_profiles_dir_from_command(command)
+        if os.path.isfile(profiles_dir + "/profiles.yml"):
+            print("profiles file already in command")
+            return profiles_dir + "/profiles.yml"
+        else:
+            raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"Incorrect --profiles-dir option given.")
+    elif "DBT_PROFILES_DIR" in os.environ:
+        print("DBT_PROFILES_DIR already in env")
+        return os.environ["DBT_PROFILES_DIR"]
+    elif cli_config.profiles is not None and os.path.isfile(cli_config.profiles):
+        print(f"profiles file already in config: {cli_config.profiles}")
+        return cli_config.profiles
+    elif os.path.isfile(str(Path.home())+"/.dbt/profiles.yml"):
+        print("profiles file already in .dbt home directory")
+        return str(Path.home())+"/.dbt/profiles.yml"
+    else:
+        raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"You must provide a profiles file.")
+
+
+def get_profiles_dir_from_command(command: str) -> str:
+    args_list = split_arg_string(command)
+    sub_command_context = args_to_context(args_list)
+    sub_command_params_dict = sub_command_context.params
+    return sub_command_params_dict['profiles_dir']
+
+
+def check_if_dbt_project(cli_config: CliConfig):
+    files_to_check = dbt_files_to_check(cli_config)
+    click.echo(click.style('Checking dbt files: ', blink=True, bold=True)+' '+str(files_to_check))
+
+    for filename in files_to_check.keys():
+        path_to_file = files_to_check[filename]
+        if not check_if_file_exist(path_to_file):
+            if filename == 'manifest':  # not mandatory because it can be generated
+                click.echo(click.style("WARNING", fg="red")+f" {filename} file not found.")
+            else:
+                click.echo(click.style("ERROR", fg="red")+f" {filename} file not found.\n")
+                raise click.ClickException("You are "+click.style("not in a dbt project directory", blink=True, bold=True)+" or the \
+dbt files are not in the expected place. "+click.style('Please make sure that you are in a dbt project directory or \
+create one using `dbt init --profiles-dir .`', blink=True, bold=True))
 
 
 def display_links(links: Dict[str, str]):
@@ -151,7 +180,10 @@ def get_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.ServicesClien
     if cli_config.server_url is not None:
         server_url = cli_config.server_url + "/"
     else:
-        click.echo("\nNo server url given. Looking for dbt server available on Cloud Run...")
+        if cli_config.location is not None:
+            click.echo(f"\nNo server url given. Looking for dbt server available on Cloud Run on location {cli_config.location}...")
+        else:
+            click.echo("\nNo server url given. Looking for dbt server available on Cloud Run on all locations...")
         server_url = detect_dbt_server_uri(cli_config, cloud_run_client) + "/"
     return server_url
 
@@ -183,11 +215,6 @@ def send_command(command: str, cli_config: CliConfig, auth_session: requests.Ses
     if cli_config.extra_packages is not None:
         extra_packages_str = read_file_as_b64(cli_config.project_dir + "/" + cli_config.extra_packages)
         data["packages"] = extra_packages_str
-
-    if cli_config.elementary is True:
-        data["elementary"] = True
-    elif cli_config.elementary is False or cli_config.elementary is None:
-        data["elementary"] = False
 
     res = auth_session.post(url=url, json=data)
     return res
@@ -239,7 +266,7 @@ def parse_server_response(res: requests.Response) -> DbtResponse:
         results = DbtResponse.parse_raw(res.text)
     except Exception:
         traceback_str = traceback.format_exc()
-        raise click.ClickException("Error in parse_server: " + traceback_str + "\n Original message: " + res.text)
+        raise click.ClickException(click.style("ERROR", fg="red")+f" in parse_server: {traceback_str}\nOriginal message: {res.text}")
 
     if dbtResponse_is_none(results):
         click.echo(click.style("ERROR", fg="red") + '\t' + 'Error in parsing: ')

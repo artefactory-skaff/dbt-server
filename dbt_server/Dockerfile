@@ -13,8 +13,6 @@ WORKDIR /home/newuser/
 COPY . /home/newuser/
 
 RUN chown -R newuser /home/newuser/
-# grant permission to elementary, needed to generate report
-RUN chown -R newuser /usr/local/lib/python3.10/site-packages/elementary/ 
 USER newuser
 
 RUN mkdir seeds

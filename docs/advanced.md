@@ -1,5 +1,59 @@
 # Advanced usage
 
+## Local Run
+
+You can run the server locally using `dbt_server.py`.
+
+**Be careful, this configuration still connects to GCP and expects an environement configuration as well as some cloud resources** (e.g. a Cloud Storage bucket). This means **you must create different GCP resources beforehand**. To this end, we recommend running the `Terraform` module or the manual resource creation (see Deployment README).
+
+Make sure you have sufficient permissions (`roles/datastore.owner`, `roles/logging.logWriter`, `roles/logging.viewer`, `roles/storage.admin`, `roles/run.developer`, `roles/iam.serviceAccountUser`).
+
+
+### With Poetry (recommended)
+
+1. **Install poetry** ([installation guide](https://python-poetry.org/docs/))
+2. At the root of the project, **run**:
+```sh
+poetry lock -n; poetry install;
+```
+3. Export the environment variables
+```sh
+export BUCKET_NAME=<bucket-name>
+export DOCKER_IMAGE=<docker-image>
+export SERVICE_ACCOUNT=<service-account-email>
+export PROJECT_ID=<project-id>
+export LOCATION=<location>
+```
+> **Info**: If you used Terraform to create the resources, `<service-account-email>` should be `terraform-job-sa@<project-id>.iam.gserviceaccount.com` and `<bucket-name>` `dbt-server-test`.
+4. Launch the server.
+```sh
+cd dbt_server
+poetry run python3 dbt_server.py --local
+```
+
+### Without Poetry
+
+1. Export the environment variables
+```sh
+export BUCKET_NAME=<bucket-name>
+export DOCKER_IMAGE=<docker-image>
+export SERVICE_ACCOUNT=<service-account-email>
+export PROJECT_ID=<project-id>
+export LOCATION=<location>
+```
+> **Info**: If you used Terraform to create the resources, `<service-account-email>` should be `terraform-job-sa@<project-id>.iam.gserviceaccount.com` and `<bucket-name>` `dbt-server-test`.
+2. Install the dependencies
+```sh
+cd dbt_server; pip install -r requirements.txt
+```
+3. Launch the ```dbt-server```:
+```sh
+python3 dbt_server.py --local
+```
+
+Your dbt-server should run on `http://0.0.0.0:8001`.
+
+
 ## Send requests to dbt-server
 
 The following requests allow you to send commands to your server using `curl` rather than the cli.
@@ -51,26 +105,6 @@ echo '{"server_url":"'$my_server'", "user_command":"list", "manifest": "'$manife
 curl --data-binary @data.json -H "$header" -H "Content-Type: application/json" -X POST $my_server/dbt
 ```
 
-**`dbt run` a specific model with Elementary package and report:**
-
-Replace `<MODEL>` by one of your models.
-
-```sh
-my_server="https://<SERVER-URL>"
-
-my_token=$(gcloud auth print-identity-token)
-header="Authorization: Bearer $my_token"
-
-dbt_project=$(base64 -i dbt_project.yml); # <-- should be your path to your dbt_project.yml file
-manifest=$(base64 -i target/manifest.json); # <-- same for your manifest.json file
-profiles=$(base64 -i profiles.yml);  # <-- same for your profiles.yml file
-packages=$(base64 -i packages.yml); # <-- same for your packages.yml file
-
-echo '{"server_url":"'$my_server'", "user_command":"run --select <MODEL>", "manifest": "'$manifest'", "dbt_project":"'$dbt_project'", "profiles":"'$profiles'", "packages":"'$packages'", "elementary":"True"}' > data.json;
-
-curl --data-binary @data.json -H "$header" -H "Content-Type: application/json" -X POST $my_server/dbt
-```
-
 **`dbt seed` with one particular seed file (country_code.csv):**
 ```sh
 my_server="https://<SERVER-URL>"
@@ -114,15 +148,4 @@ my_job_uuid=<UUID>
 
 curl -H "$header" $my_server/job/$my_job_uuid/logs
 ```
-
-**Get elementary report:** (at the end of the execution)
-```sh
-my_server="https://<SERVER-URL>"
-my_token=$(gcloud auth print-identity-token)
-header="Authorization: Bearer $my_token"
-my_job_uuid=<UUID>
-
-curl -H "$header" -L $my_server/job/$my_job_uuid/report
-```
-> Note: the `-L` is necessary because the `/report` endpoint is a redirection to the GCS report url.
 

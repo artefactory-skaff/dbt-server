@@ -19,60 +19,6 @@ See repository's [README][README].
 
 
 
-## Local run
-
-You can run the server locally using `dbt_server.py`.
-
-**Be careful, this configuration still connects to GCP and expects an environement configuration as well as some cloud resources** (e.g. a Cloud Storage bucket). This means **you must create different GCP resources beforehand**. To this end, we recommend running the `Terraform` module or the manual resource creation (see [section above](#deployment-on-gcp)).
-
-Make sure you have sufficient permissions (`roles/datastore.owner`, `roles/logging.logWriter`, `roles/logging.viewer`, `roles/storage.admin`, `roles/run.developer`, `roles/iam.serviceAccountUser`).
-
-
-### With Poetry (recommended)
-
-1. **Install poetry** ([installation guide](https://python-poetry.org/docs/))
-2. At the root of the project, **run**:
-```sh
-poetry lock -n; poetry install;
-```
-3. Export the environment variables
-```sh
-export BUCKET_NAME=<bucket-name>
-export DOCKER_IMAGE=<docker-image>
-export SERVICE_ACCOUNT=<service-account-email>
-export PROJECT_ID=<project-id>
-export LOCATION=<location>
-```
-> **Info**: If you used Terraform to create the resources, `<service-account-email>` should be `terraform-job-sa@<project-id>.iam.gserviceaccount.com` and `<bucket-name>` `dbt-server-test`.
-4. Launch the server.
-```sh
-cd dbt_server
-poetry run python3 dbt_server.py --local
-```
-
-### Without Poetry
-
-1. Export the environment variables
-```sh
-export BUCKET_NAME=<bucket-name>
-export DOCKER_IMAGE=<docker-image>
-export SERVICE_ACCOUNT=<service-account-email>
-export PROJECT_ID=<project-id>
-export LOCATION=<location>
-```
-> **Info**: If you used Terraform to create the resources, `<service-account-email>` should be `terraform-job-sa@<project-id>.iam.gserviceaccount.com` and `<bucket-name>` `dbt-server-test`.
-2. Install the dependencies
-```sh
-cd dbt_server; pip install -r requirements.txt
-```
-3. Launch the ```dbt-server```:
-```sh
-python3 dbt_server.py --local
-```
-
-Your dbt-server should run on `http://0.0.0.0:8001`.
-
-
 [//]: #
 
 

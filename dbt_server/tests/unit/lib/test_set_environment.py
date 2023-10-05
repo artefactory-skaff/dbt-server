@@ -26,11 +26,9 @@ def test_set_env_vars_job(MockLogging, MockCloudStorage, MockState):
     os.environ['BUCKET_NAME'] = 'BUCKET'
     os.environ['DBT_COMMAND'] = 'COMMAND'
     os.environ['UUID'] = uuid
-    os.environ['ELEMENTARY'] = 'True'
 
-    BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job(mock_gcs_client,
-                                                                                     mock_dbt_collection,
-                                                                                     mock_logging_client)
-    assert (BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY) == ('BUCKET', 'COMMAND', 'UUID', 'True')
+    BUCKET_NAME, DBT_COMMAND, UUID, DBT_LOGGER, STATE = set_env_vars_job(mock_gcs_client, mock_dbt_collection,
+                                                                         mock_logging_client)
+    assert (BUCKET_NAME, DBT_COMMAND, UUID) == ('BUCKET', 'COMMAND', 'UUID', 'True')
     assert DBT_LOGGER.uuid == uuid
     assert STATE.uuid == uuid

@@ -3,7 +3,6 @@ import msgpack
 import json
 from typing import TypedDict
 import threading
-import time
 
 from google.cloud import logging
 from click.parser import split_arg_string
@@ -12,7 +11,6 @@ from dbt.events.base_types import EventMsg
 from dbt.events.functions import msg_to_json
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import SeedNode
-from elementary.monitor.cli import report
 from fastapi import HTTPException
 
 from lib.state import State
@@ -22,9 +20,8 @@ from lib.firestore import connect_firestore_collection
 
 callback_lock = threading.Lock()
 
-BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
-                                                                                 connect_firestore_collection(),
-                                                                                 logging.Client())
+BUCKET_NAME, DBT_COMMAND, UUID, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
+                                                                     connect_firestore_collection(), logging.Client())
 
 
 def prepare_and_execute_job(state: State) -> ():
@@ -40,10 +37,6 @@ def prepare_and_execute_job(state: State) -> ():
     with callback_lock:
         log = "[job]Command successfully executed"
         DBT_LOGGER.log("INFO", log)
-
-    if ELEMENTARY == 'True':
-        generate_elementary_report()
-        upload_elementary_report(state)
 
     log = "[job]END JOB"
     DBT_LOGGER.log("INFO", log)
@@ -74,43 +67,10 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
     else:
         state.run_status = "failed"
 
-        if ELEMENTARY == 'True':
-            generate_elementary_report()
-            upload_elementary_report(state)
-
         log = "[job]END JOB"
         with callback_lock:
             DBT_LOGGER.log("INFO", log)
         handle_exception(res_dbt.exception)
-
-
-def generate_elementary_report() -> ():
-    log = "[job]Generating elementary report..."
-    DBT_LOGGER.log("INFO", log)
-
-    report_thread = threading.Thread(target=report, name="Report generator")
-    report_thread.start()
-    i, timeout = 0, 120
-    while report_thread.is_alive() and i < timeout:
-        time.sleep(1)
-        i += 1
-
-    log = "[job]Report generated!"
-    DBT_LOGGER.log("INFO", log)
-
-
-def upload_elementary_report(state: State) -> ():
-    log = "[job]Uploading report..."
-    DBT_LOGGER.log("INFO", log)
-
-    cloud_storage_folder = state.cloud_storage_folder
-
-    with open('edr_target/elementary_report.html', 'r') as f:
-        elementary_report = f.read()
-
-    cloud_storage_instance = CloudStorage(connect_client())
-    cloud_storage_instance.write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/elementary_report.html",
-                                           elementary_report)
 
 
 def logger_callback(event: EventMsg):

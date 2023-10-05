@@ -28,12 +28,11 @@ def test_set_env_vars_job():
     os.environ['BUCKET_NAME'] = 'BUCKET'
     os.environ['DBT_COMMAND'] = 'COMMAND'
     os.environ['UUID'] = 'UUID'
-    os.environ['ELEMENTARY'] = 'True'
 
-    BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
-                                                                                     connect_firestore_collection(),
-                                                                                     logging_client=logging.Client())
-    assert (BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY) == ('BUCKET', 'COMMAND', 'UUID', 'True')
+    BUCKET_NAME, DBT_COMMAND, UUID, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
+                                                                         connect_firestore_collection(),
+                                                                         logging_client=logging.Client())
+    assert (BUCKET_NAME, DBT_COMMAND, UUID) == ('BUCKET', 'COMMAND', 'UUID', 'True')
 
     assert DBT_LOGGER.uuid == "UUID"
 

@@ -48,10 +48,10 @@ To save your default manifest and dbt_project files, you can use `dbt-remote con
 
 ## dbt-remote command examples
 
-- run my_model model with Elementary report: 
+- run my_model model: 
 
 ```sh
-dbt-remote --log-level info run --manifest project/manifest.json --select my_model --dbt_project project/dbt_project.yml --extra-packages project/packages.yml --elementary
+dbt-remote --log-level info run --manifest project/manifest.json --select my_model --dbt_project project/dbt_project.yml
 ```
 
 - list with specific profile and target: 

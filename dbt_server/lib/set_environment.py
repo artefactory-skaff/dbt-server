@@ -24,16 +24,15 @@ def set_env_vars() -> tuple[str | None, str | None, str | None, str | None, str 
 def set_env_vars_job(cloud_storage_instance: CloudStorage,
                      dbt_collection: firestore.CollectionReference,
                      logging_client: Client) -> tuple[str | None, str | None, str | None,
-                                                      str | None, DbtLogger, State]:
+                                                      DbtLogger, State]:
     BUCKET_NAME = os.getenv('BUCKET_NAME', default=SERVER_DEFAULT_CONFIG["bucket_name"])
     DBT_COMMAND = os.environ.get("DBT_COMMAND", default='')
     UUID = os.environ.get("UUID", default='0000')
-    ELEMENTARY = os.environ.get("ELEMENTARY", default='False')
     DBT_LOGGER = DbtLogger(cloud_storage_instance=cloud_storage_instance, dbt_collection=dbt_collection,
                            logging_client=logging_client, local=False, server=False)
     DBT_LOGGER.uuid = UUID
     STATE = State(UUID, cloud_storage_instance, dbt_collection)
-    return BUCKET_NAME, DBT_COMMAND, UUID, ELEMENTARY, DBT_LOGGER, STATE
+    return BUCKET_NAME, DBT_COMMAND, UUID, DBT_LOGGER, STATE
 
 
 def get_server_dbt_logger(client_storage_instance: CloudStorage, dbt_collection: firestore.CollectionReference,
