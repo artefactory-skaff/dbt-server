@@ -11,7 +11,7 @@ except ImportError:
     run_v2 = None
 try:
     from azure.containerinstance import ContainerInstanceManagementClient
-    from azure.mgmt.resource import ResourceManagementClient, SubscriptionClient
+    from azure.mgmt.resource import SubscriptionClient
     from azure.identity import DefaultAzureCredential
 except ImportError:
     ContainerInstanceManagementClient = None
@@ -45,7 +45,7 @@ class LocalJob(Job):
             "env": [
                 {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
                 {"name": "UUID", "value": state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
+                {"name": "SCRIPT", "value": "dbt-server job run"},
                 {"name": "BUCKET_NAME", "value": settings.bucket_name},
                 {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
             ],
@@ -72,7 +72,7 @@ class CloudRunJob(Job):
             "env": [
                 {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
                 {"name": "UUID", "value": state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
+                {"name": "SCRIPT", "value": "dbt-server job run"},
                 {"name": "BUCKET_NAME", "value": settings.bucket_name},
                 {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
             ],
@@ -131,7 +131,6 @@ class ContainerAppsJob(Job):
         credential = DefaultAzureCredential()
         subscription_client = SubscriptionClient(credential)
         subscription_id = next(subscription_client.subscriptions.list())
-        resource_client = ResourceManagementClient(credential, subscription_id)
         container_client = ContainerInstanceManagementClient(
             credential, subscription_id
         )
@@ -146,11 +145,16 @@ class ContainerAppsJob(Job):
             "environment_variables": [
                 {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
                 {"name": "UUID", "value": state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
+                {"name": "SCRIPT", "value": "dbt-server job run"},
                 {"name": "BUCKET_NAME", "value": settings.bucket_name},
                 {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
             ],
-            "resources": {"requests": {"cpu": 1.0, "memory_in_gb": 1.5}},
+            "resources": {
+                "requests": {
+                    "cpu": settings.azure.job_cpu,
+                    "memory_in_gb": settings.azure.job_memory_in_gb,
+                }
+            },
         }
 
         container_group = container_client.container_groups.begin_create_or_update(

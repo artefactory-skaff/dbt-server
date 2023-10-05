@@ -17,8 +17,7 @@ packages = [
 
 [tool.poetry.scripts]
 dbt-remote = 'dbt_remote.cli:cli'
-dbt-start-server = 'dbt_server.dbt_server:launch_app'
-dbt-run-job = 'dbt_server.dbt_run_job:run_job'
+dbt-server = 'dbt_server.cli:cli'
 
 
 [tool.poetry.dependencies]

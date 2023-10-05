@@ -6,7 +6,6 @@ import threading
 import time
 from functools import partial
 
-import click
 from click.parser import split_arg_string
 from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
 from dbt.events.base_types import EventMsg
@@ -28,7 +27,14 @@ callback_lock = threading.Lock()
 STORAGE_INSTANCE = StorageFactory().create(settings.storage_service)
 
 
-def prepare_and_execute_job(state: State) -> None:
+def prepare_and_execute_job() -> None:
+    LOGGER.log("INFO", "Job started")
+    state = State(
+        settings.uuid,
+        MetadataDocumentFactory().create(
+            settings.metadata_document_service, settings.collection_name, settings.uuid
+        ),
+    )
     state.get_context_to_local()
 
     manifest = get_manifest()
@@ -192,24 +198,3 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
         if isinstance(node, SeedNode):
             node.root_path = "."
     return manifest
-
-
-@click.command(
-    context_settings=dict(
-        ignore_unknown_options=True,
-    ),
-    help="Run dbt commands from the dbt server.",
-)
-def run_job():
-    LOGGER.log("INFO", "Job started")
-    state = State(
-        settings.uuid,
-        MetadataDocumentFactory().create(
-            settings.metadata_document_service, settings.collection_name, settings.uuid
-        ),
-    )
-    prepare_and_execute_job(state)
-
-
-if __name__ == "__main__":
-    run_job()

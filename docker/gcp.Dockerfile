@@ -36,7 +36,7 @@ RUN chown -R server /home/server/
 
 COPY --from=py-build /home/server/ /home/server/
 
-ENV SCRIPT dbt-start-server
+ENV SCRIPT "dbt-server start"
 ENV LOGGING_SERVICE GoogleCloudLogging
 ENV STORAGE_SERVICE GoogleCloudStorage
 ENV METADATA_DOCUMENT_SERVICE Firestore

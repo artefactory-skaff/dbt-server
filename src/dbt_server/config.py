@@ -41,12 +41,13 @@ class AzureSettings(BaseModel):
     cosmos_db_url: str
     cosmos_db_database: str
     cosmos_db_key: str
+    job_cpu: int = 1
+    job_memory_in_gb: int = 1.5
 
 
 class Settings(BaseSettings):
-
     class Config:
-        env_nested_delimiter = '__'
+        env_nested_delimiter = "__"
 
     docker_image: str
     bucket_name: str
