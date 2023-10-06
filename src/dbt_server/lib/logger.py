@@ -47,23 +47,23 @@ class DbtLogger:
 
 def init_logger(service: Optional[str]) -> Logger:
     logger = logging.getLogger(__name__)
-    if service == "GoogleCloudLogging":
-        client = Client()
-        handler = CloudLoggingHandler(client)
-        logger.addHandler(handler)
-        return logger
-    elif service == "AzureMonitor":
-        if settings.azure:
-            logger.addHandler(
-                AzureLogHandler(
-                    connection_string=settings.azure.applicationinsights_connection_string
+    match service:
+        case "GoogleCloudLogging":
+            client = Client()
+            handler = CloudLoggingHandler(client)
+            logger.addHandler(handler)
+        case "AzureMonitor":
+            if settings.azure:
+                logger.addHandler(
+                    AzureLogHandler(
+                        connection_string=settings.azure.applicationinsights_connection_string
+                    )
                 )
-            )
-        return logger
-    elif service == "Local":
-        return logger
-    else:
-        raise ValueError("Invalid logging type")
+        case "Local":
+            pass
+        case _:
+            raise ValueError("Invalid logging type")
+    return logger
 
 
 def get_log_level(severity: str):

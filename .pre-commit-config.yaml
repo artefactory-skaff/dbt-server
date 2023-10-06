@@ -20,6 +20,7 @@ repos:
     types: [python]
     language: system
     stages: [commit]
+    exclude: ^.venv/
   - id: black
     name: black
     entry: poetry run black --config pyproject.toml

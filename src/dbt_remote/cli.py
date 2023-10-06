@@ -28,6 +28,9 @@ test, seed, snapshot.",
 by default: none and the cli compiles one from current dbt project",
 )
 @click.option(
+    "--profiles", default="profiles.yml", help="profiles.yml file, by default: ./profiles.yml"
+)
+@click.option(
     "--project-dir",
     default=".",
     help="Which directory to look in for the dbt_project.yml file. Default \

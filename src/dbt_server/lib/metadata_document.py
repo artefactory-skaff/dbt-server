@@ -90,6 +90,7 @@ class CosmosDBDocument(MetadataDocument):
             self.container.upsert_item(body=data)
         except exceptions.CosmosHttpResponseError as e:
             print(e.message)
+            print(data)
 
     def update(self, data: Dict[str, Any]) -> None:
         try:
