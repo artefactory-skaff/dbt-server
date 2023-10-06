@@ -9,9 +9,11 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
 
 ## Requirements
 
+You must have a GCP project.
+
 You must have the following roles: `roles/datastore.owner`, `roles/logging.logWriter`, `roles/logging.viewer`, `roles/storage.admin`, `roles/run.developer`, `roles/iam.serviceAccountUser`.
 
-You must have [gcloud CLI](https://cloud.google.com/sdk/docs/authorizing) set up with your project. If not, run:
+You must have [gcloud CLI](https://cloud.google.com/sdk/docs/authorizing) set up with your project. If not, install it and run:
 ```sh
 gcloud auth login
 gcloud auth application-default login
@@ -21,22 +23,26 @@ gcloud config set project <your-project-id>
 
 ## Deployment
 
-Clone this repository and go to the ```dbt-server``` folder.
-```sh
-git clone git@github.com:artefactory-fr/dbt-server.git
-cd dbt-server
-git checkout diff-pr
-```
-
 Export your env variables.
 ```sh
 export PROJECT_ID=<your-project-id> &&
 export LOCATION=europe-west9
 ```
 
+Enable GCP APIs
+```sh
+gcloud services enable \
+    artifactregistry.googleapis.com \
+    cloudbuild.googleapis.com \
+    firestore.googleapis.com \
+    run.googleapis.com \
+    bigquery.googleapis.com \
+    --project=$PROJECT_ID
+```
+
 Create an artifact registry
 ```sh
-gcloud artifacts repositories create dbt-server --repository-format=docker --location=$LOCATION --description="Used to host the dbt-server docker image. https://github.com/artefactory-fr/dbt-server"
+gcloud artifacts repositories create dbt-server-repository --repository-format=docker --location=$LOCATION --description="Used to host the dbt-server docker image. https://github.com/artefactory-fr/dbt-server"
 ```
 
 Create a bucket for artifacts
@@ -46,7 +52,7 @@ gcloud storage buckets create gs://$PROJECT_ID-dbt-server --project=$PROJECT_ID 
 
 Create a service account that will be used for dbt runs
 ```sh
-gcloud iam service-accounts create dbt-server --project=${PROJECT_ID};
+gcloud iam service-accounts create dbt-server-service-account --project=${PROJECT_ID}
 ```
 
 Assign roles to the SA
@@ -67,41 +73,36 @@ ROLES=(
 for ROLE in ${ROLES[@]}
 do
   gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-  --member=serviceAccount:dbt-server@${PROJECT_ID}.iam.gserviceaccount.com \
+  --member=serviceAccount:dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com \
   --role=roles/${ROLE};
 done
 ```
 
-Enable GCP APIs
+Create Firestore database (default) if it does not exist (if it does, you will receive an error message but it is OK).
 ```sh
-gcloud services enable \
-    cloudbuild.googleapis.com \
-    firestore.googleapis.com \
-    run.googleapis.com \
-    bigquery.googleapis.com \
-    --project=$PROJECT_ID
+gcloud firestore databases create --location=$LOCATION
 ```
 
-Create Firestore database (default) if it does not exist
+Install `dbt-remote` CLI
 ```sh
-gcloud firestore databases create --location=$LOCATION;
+python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-remote --no-cache-dir
 ```
 
 Build the server image
 ```sh
-gcloud builds submit ./dbt_server/ --region=$LOCATION --tag $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server/dbt-server
+dbt-remote image submit --location $LOCATION --artifact-registry $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server-repository
 ```
 
 Deploy the server on Cloud Run
 ```sh
 gcloud run deploy dbt-server \
-	--image ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server/dbt-server \
+	--image ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository/server-image \
 	--platform managed \
 	--region ${LOCATION} \
-	--service-account=dbt-server@${PROJECT_ID}.iam.gserviceaccount.com \
+	--service-account=dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com \
 	--set-env-vars=BUCKET_NAME=${PROJECT_ID}-dbt-server \
-	--set-env-vars=DOCKER_IMAGE=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server/dbt-server \
-	--set-env-vars=SERVICE_ACCOUNT=dbt-server@${PROJECT_ID}.iam.gserviceaccount.com \
+	--set-env-vars=DOCKER_IMAGE=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository/server-image \
+	--set-env-vars=SERVICE_ACCOUNT=dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com \
 	--set-env-vars=PROJECT_ID=${PROJECT_ID} \
 	--set-env-vars=LOCATION=${LOCATION} \
   --no-allow-unauthenticated
@@ -109,7 +110,7 @@ gcloud run deploy dbt-server \
 
 The deployment of your dbt-server is finished! 
 
-To test it, you can [install the `dbt-remote` CLI](../README.md) and run it to execute dbt commands on your server, such as
+To test it, you run [the `dbt-remote` CLI](../README.md) **in a dbt project** to execute dbt commands on your server, such as
 ```sh
 dbt-remote debug
 ```

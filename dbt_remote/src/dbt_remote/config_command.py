@@ -36,7 +36,7 @@ DEFAULT_CONFIG = {
 def config(config_command: str, args: List[str]):
     match(config_command):
         case "help":
-            help()
+            help_config()
         case "init":
             init()
         case "list":
@@ -48,20 +48,20 @@ def config(config_command: str, args: List[str]):
         case "delete":
             delete(args)
         case _:
-            raise click.ClickException("dbt-remote config command not recognized")
+            raise click.ClickException(f"`dbt-remote config {config_command}` command unknown. Please run `dbt-remote config help`.")
 
 
-def help():
+def help_config():
     click.echo(f"""
     Configure dbt-remote parameters. This config is stored in {CONFIG_FILE}.
 
     Commands:
-        init: create (or reset) a default config file ({CONFIG_FILE}). ex: dbt-remote config init
-        list: list current config. ex: dbt-remote config list
-        set: set config parameters. ex: dbt-remote config set server_url=https://server.com
-        get: get config parameters. ex: dbt-remote config get server_url
-        delete: delete config parameters or replace by default value. ex: dbt-remote config delete server_url
-        help: see this message. ex: dbt-remote config help
+        init: create (or reset) a default config file ({CONFIG_FILE}). ex: `dbt-remote config init`
+        list: list current config. ex: `dbt-remote config list`
+        set: set config parameters. ex: `dbt-remote config set server_url=https://server.com`
+        get: get config parameters. ex: `dbt-remote config get server_url`
+        delete: delete config parameters or replace by default value. ex: `dbt-remote config delete server_url`
+        help: see this message. ex: `dbt-remote config help`
 
     Config parameters:
         manifest, project_dir, dbt_project, profiles, extra_packages, seeds_path, server_url, location

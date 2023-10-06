@@ -11,6 +11,9 @@ Architecture overview:
 ![Simplified architecture](images/intro-README.png)
 
 
+## Project guidelines
+
+The goal of this project is to simplify the life of analytics engineers.
 
 
 [//]: #

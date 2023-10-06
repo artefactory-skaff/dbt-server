@@ -32,7 +32,7 @@ def test_set_env_vars_job():
     BUCKET_NAME, DBT_COMMAND, UUID, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
                                                                          connect_firestore_collection(),
                                                                          logging_client=logging.Client())
-    assert (BUCKET_NAME, DBT_COMMAND, UUID) == ('BUCKET', 'COMMAND', 'UUID', 'True')
+    assert (BUCKET_NAME, DBT_COMMAND, UUID) == ('BUCKET', 'COMMAND', 'UUID')
 
     assert DBT_LOGGER.uuid == "UUID"
 

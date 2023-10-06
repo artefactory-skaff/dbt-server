@@ -8,11 +8,6 @@ This section is dedicated to `dbt-server` deployment and maintenance by system a
 ![Simplified architecture](images/dbt-remote-schema-simplified.png)
 
 
-- [Requirements](#requirement-submit-docker-image)
-- [Deployment](#deployment-on-gcp)
-- [Requests examples using curl](#send-requests-to-dbt-server)
-- [Local run](#local-run)
-
 ## Requirement and installation
 
 See repository's [README][README].

@@ -12,3 +12,4 @@ nav:
   - dbt-server: dbt_server.md
   - Explanation: explanation.md
   - Advanced usage: advanced.md
+  - Contributing: contributing.md

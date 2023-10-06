@@ -18,6 +18,10 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
     project_id = get_project_id()
     location = cli_config.location  # can be None
 
+    if cli_config.location is not None:
+        click.echo(f"\nNo server url given. Looking for dbt server available on Cloud Run on location {location}...")
+    else:
+        click.echo("\nNo server url given. Looking for dbt server available on Cloud Run on all locations...")
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
 
     for service in cloud_run_services:

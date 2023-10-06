@@ -6,12 +6,12 @@ The global project architecture is summed up as follow.
 
 The main components are:
 
-- the [dbt-remote cli](#dbt-remote-cli): it handles user command and interacts with the server (by sending the dbt command and streaming the logs). More precisely, it receives the user commands, loads the required files (manifest.json, dbt_project.yml, and possibly packages.yml and seeds files), crafts a HTTP request and sends it to the dbt-server (waiting for the server response). Once the server replies with job UUID and links to follow its execution, the cli will send requests to the server every second to follow up the job status and logs.
+- the [dbt-remote cli](dbt_remote.md): it handles user command and interacts with the server (by sending the dbt command and streaming the logs). More precisely, it receives the user commands, loads the required files (`manifest.json`, `dbt_project.yml`, `profiles.yml`, and possibly `packages.yml` and seeds files), crafts a HTTP request and sends it to the dbt-server (waiting for the server response). Once the server replies with job UUID and links to follow its execution, the cli will send requests to the server every second to follow up the job status and logs.
 
-- the [dbt-server](#dbt-server) (Fastapi server on Cloud Run service): it handles dbt command requests by creating and launching Cloud Run jobs. It also allows the cli to stream logs by requesting the State
+- the [dbt-server](dbt_server.md) (Fastapi server on Cloud Run service): it handles dbt command requests by creating and launching Cloud Run jobs. It also allows the cli to stream logs by requesting the State
 
 - the State: it is an object used by both the dbt-server and the dbt-job to store the job state. It interacts with Firestore and Google Cloud Storage and stores information such as: the uuid, the run status (running/succes/failed...), the user command, the job logs (stored on GCS).
-- the dbt-job (Python script running on a Cloud Run Job): it first loads the context files (manifest.json, dbt_project.yml and others) then executes the dbt command. During the execution, it logs both on Cloud Logging and using the State. This allows the cli to follow the execution in near real-time.
+- the dbt-job (Python script running on a Cloud Run Job): it first loads the context files (`manifest.json`, `dbt_project.yml` and others) then executes the dbt command. During the execution, it logs both on Cloud Logging and using the State. This allows the cli to follow the execution in near real-time.
 
 These operations can be divided in 3 main flows:
 
@@ -28,7 +28,7 @@ When a user uses the `dbt-remote` cli to execute a dbt command:
 The cli:
 
 - detects the dbt-server. To this end, it invokes the automatic server detection (see `dbt_remote/src/dbt_remote/dbt_server_detector.py`). Using the given location, the cli sends a request to Cloud Run to list all available services, then tries to ping each service on the `/check` endpoint. If a dbt-server is running on this location, the cli should receive a message similar to `{"response":"Running dbt-server on port 8001"}`.
-- fetches the required files. The dbt job will need different files to be able to run: `manifest.json` and `dbt_project.yml` are compulsory, but the cli may need to add `packages.yml` or seed files. These files are base64-encoded.
+- fetches the required files. The dbt job will need different files to be able to run: `manifest.json`, `dbt_project.yml` and `profiles.yml` are compulsory, but the cli may need to add `packages.yml` or seed files. These files are base64-encoded.
 - gets a GCP `id_token`. The cli will fetch an `id_token` using `gcloud auth print-identity-token`, then add an `Authorization` header to requests.
 - it sends the request to the server.
 

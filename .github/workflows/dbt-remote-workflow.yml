@@ -23,7 +23,7 @@ jobs:
           ls -la /home/runner/.dbt
 
       - name: Test dbt_remote/ with pytest
-        run: poetry run pytest dbt_remote/tests --ignore dbt_remote/tests/integration
+        run: poetry run pytest dbt_remote/tests/unit
   
   publish:
     runs-on: ubuntu-latest

@@ -30,9 +30,9 @@ python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-r
 
 ### Check the installation
 
-1. Make sure your dbt project is setup properly locally.
+1. Make sure your dbt project is properly setup locally.
 ```sh
-dbt debug --profiles-dir .
+dbt debug
 ```
 Expected: `All checks passed!`
 
