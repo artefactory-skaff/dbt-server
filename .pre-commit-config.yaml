@@ -33,6 +33,7 @@ repos:
     types: [python]
     language: system
     stages: [push]
+    pass_filenames: false
   - id: mypy_dbt_remote
     name: mypy_dbt_remote
     entry: poetry run mypy -p dbt_remote
@@ -40,3 +41,4 @@ repos:
     types: [python]
     language: system
     stages: [push]
+    pass_filenames: false
