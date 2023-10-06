@@ -1,13 +1,13 @@
-from typing import List, Dict, Tuple
-from datetime import date, datetime, timezone
+from typing import Dict, List, Tuple
+
 import logging
 import traceback
+from datetime import date, datetime, timezone
 
 from dbt_server.config import Settings
-from dbt_server.lib.metadata_document import MetadataDocument
 from dbt_server.lib.dbt_classes import DbtCommand
+from dbt_server.lib.metadata_document import MetadataDocument
 from dbt_server.lib.storage import StorageFactory
-
 
 settings = Settings()
 STORAGE_INSTANCE = StorageFactory().create(settings.storage_service)
@@ -17,7 +17,7 @@ class State:
     def __init__(self, uuid: str, metadata_document: MetadataDocument):
         self._uuid = uuid
         self.run_logs = DbtRunLogs(uuid)
-        self.run_logs_buffer = []
+        self.run_logs_buffer: List[str] = []
         self.metadata_document = metadata_document
         initial_state = {
             "uuid": self._uuid,
@@ -35,7 +35,7 @@ class State:
 
     @property
     def run_status(self) -> str:
-        run_status = self.metadata_document.get().to_dict()["run_status"]
+        run_status = self.metadata_document.get()["run_status"]
         return run_status
 
     @run_status.setter
@@ -44,7 +44,7 @@ class State:
 
     @property
     def user_command(self) -> str:
-        run_status = self.metadata_document.get().to_dict()["user_command"]
+        run_status = self.metadata_document.get()["user_command"]
         return run_status
 
     @user_command.setter
@@ -53,7 +53,7 @@ class State:
 
     @property
     def log_starting_byte(self) -> int:
-        log_starting_byte = self.metadata_document.get().to_dict()["log_starting_byte"]
+        log_starting_byte = self.metadata_document.get()["log_starting_byte"]
         return log_starting_byte
 
     @log_starting_byte.setter
@@ -62,7 +62,7 @@ class State:
 
     @property
     def storage_folder(self) -> str:
-        storage_folder = self.metadata_document.get().to_dict()["storage_folder"]
+        storage_folder = self.metadata_document.get()["storage_folder"]
         return storage_folder
 
     @storage_folder.setter
@@ -161,9 +161,7 @@ class DbtRunLogs:
     def log(self, logs: List[str]) -> None:
         new_log_file = "\n".join(logs)
         try:
-            STORAGE_INSTANCE.write_file(
-                settings.bucket_name, self.log_file, new_log_file
-            )
+            STORAGE_INSTANCE.write_file(settings.bucket_name, self.log_file, new_log_file)
         except Exception:
             traceback_str = traceback.format_exc()
             print("Error", "Error uploading log to bucket")

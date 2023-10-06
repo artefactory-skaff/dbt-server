@@ -1,11 +1,12 @@
+from typing import Any, Dict, List, Optional
+
+import traceback
+
+from click.core import Command, Context
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import cli
-from click.core import Command, Context
 from fastapi import HTTPException
-
-from typing import List, Dict, Any
-import traceback
 
 
 def process_command(command: str) -> str:
@@ -46,7 +47,10 @@ def get_sub_command_name(sub_command_click_context: Context) -> str:
     if sub_command_name == "freshness":
         sub_command_name = "source freshness"
 
-    return sub_command_name
+    if sub_command_name:
+        return sub_command_name
+    else:
+        return ""
 
 
 def get_command_args_list(command_args_list: List[str]) -> List[str]:
@@ -60,13 +64,11 @@ def get_command_args_list(command_args_list: List[str]) -> List[str]:
     command_params_key_diff = get_key_differences_between_dict(
         default_params_dict, command_params_dict
     )
-    command_args = get_args_list_from_params_dict(
-        command_params_key_diff, command_params_dict
-    )
+    command_args = get_args_list_from_params_dict(command_params_key_diff, command_params_dict)
     return command_args
 
 
-def override_command_params(params: Dict[str, str]) -> Dict[str, str]:
+def override_command_params(params: Dict[str, str | bool]) -> Dict[str, str | bool]:
     params["log_format"] = "json"
     params["log_level"] = "debug"
     params["debug"] = True
@@ -80,14 +82,10 @@ def get_sub_command_click_context(args_list: List[str]) -> Context:
         return sub_command_click_context
     except Exception:
         traceback_str = traceback.format_exc()
-        raise HTTPException(
-            status_code=400, detail="dbt command failed: " + traceback_str
-        )
+        raise HTTPException(status_code=400, detail="dbt command failed: " + traceback_str)
 
 
-def get_sub_command_args_list(
-    args_list: List[str], command_click_context: Context
-) -> List[str]:
+def get_sub_command_args_list(args_list: List[str], command_click_context: Context) -> List[str]:
     sub_command: Command = command_click_context.command
     default_params_dict = get_sub_command_default_params(sub_command)
 
@@ -111,7 +109,7 @@ def override_sub_command_params(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_sub_command_default_params(command: Command) -> Dict[str, Any]:
-    default_args_list = [command.name]
+    default_args_list = [command.name if command.name else ""]
     default_context = cli.make_context(info_name=command.name, args=default_args_list)
     command.parse_args(default_context, default_args_list)
     default_params = default_context.params

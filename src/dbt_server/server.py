@@ -1,18 +1,12 @@
-import uuid
-import uvicorn
-import click
-from fastapi import FastAPI, status
-
-
 from dbt_server.config import Settings
-from dbt_server.lib.logger import LOGGER
-from dbt_server.lib.job import Job, JobFactory
-from dbt_server.lib.dbt_classes import DbtCommand, FollowUpLink
 from dbt_server.lib.command_processor import process_command
+from dbt_server.lib.dbt_classes import DbtCommand, FollowUpLink
+from dbt_server.lib.job import Job, JobFactory
+from dbt_server.lib.logger import LOGGER
+from dbt_server.lib.metadata_document import MetadataDocumentFactory
 from dbt_server.lib.state import State
 from dbt_server.lib.storage import StorageFactory
-from dbt_server.lib.metadata_document import MetadataDocumentFactory
-
+from fastapi import FastAPI, status
 
 settings = Settings()
 app = FastAPI()
@@ -37,7 +31,7 @@ def run_command(dbt_command: DbtCommand):
 
     state.load_context(dbt_command)
 
-    job = Job(JobFactory().create(settings.job_service))
+    job = JobFactory().create(settings.job_service)
     job_name = job.create(state, dbt_command)
     job.launch(state, job_name)
 
@@ -45,9 +39,7 @@ def run_command(dbt_command: DbtCommand):
         "uuid": settings.uuid,
         "links": [
             FollowUpLink("run_status", f"{dbt_command.server_url}job/{settings.uuid}"),
-            FollowUpLink(
-                "last_logs", f"{dbt_command.server_url}job/{settings.uuid}/last_logs"
-            ),
+            FollowUpLink("last_logs", f"{dbt_command.server_url}job/{settings.uuid}/last_logs"),
         ],
     }
 
@@ -100,22 +92,3 @@ def get_report(uuid: str):
 def check():
     LOGGER.log("INFO", f"Running dbt-server on port : {settings.port}")
     return {"response": f"Running dbt-server on port {settings.port}"}
-
-
-@click.command(
-    context_settings=dict(
-        ignore_unknown_options=True,
-    ),
-    help="Run dbt commands from the dbt server.",
-)
-def launch_app():
-    uvicorn.run(
-        "dbt_server.dbt_server:app",
-        port=settings.port,
-        host="0.0.0.0",
-        reload=True,
-    )
-
-
-if __name__ == "__main__":
-    launch_app()

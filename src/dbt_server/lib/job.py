@@ -1,31 +1,48 @@
-from typing import Dict, Any
-import traceback
+from typing import Any, Dict, List
+
 import subprocess
+import traceback
 from abc import ABC, abstractmethod
+from enum import Enum
 
 from fastapi import HTTPException
 
 try:
     from google.cloud import run_v2
 except ImportError:
-    run_v2 = None
+    run_v2 = None  # type: ignore
 try:
     from azure.containerinstance import ContainerInstanceManagementClient
-    from azure.mgmt.resource import ResourceManagementClient, SubscriptionClient
     from azure.identity import DefaultAzureCredential
+    from azure.mgmt.resource import SubscriptionClient
 except ImportError:
-    ContainerInstanceManagementClient = None
-    ResourceManagementClient, SubscriptionClient = None, None
-    DefaultAzureCredential = None
+    ContainerInstanceManagementClient = None  # type: ignore
+    ResourceManagementClient, SubscriptionClient = None, None  # type: ignore
+    DefaultAzureCredential = None  # type: ignore
 
 
 from dbt_server.config import Settings
+from dbt_server.lib.dbt_classes import DbtCommand
 from dbt_server.lib.logger import LOGGER
 from dbt_server.lib.state import State
-from dbt_server.lib.dbt_classes import DbtCommand
-
 
 settings = Settings()
+
+
+def settings_to_env_vars(settings: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
+    # Serialize the Settings object to a dictionary
+    env_vars: Dict[str, Any] = {}
+    for key, value in settings.items():
+        if isinstance(value, Enum):
+            value = str(value)
+        elif isinstance(value, dict):
+            # If the value is a dictionary, we need to handle nested environment variables
+            env_vars = env_vars | settings_to_env_vars(value, f"{key}__")
+        elif value is None:
+            continue
+        else:
+            env_vars[f"{prefix.upper()}{key.upper()}"] = value
+    return env_vars
 
 
 class Job(ABC):
@@ -40,21 +57,30 @@ class Job(ABC):
 
 class LocalJob(Job):
     def create(self, state: State, dbt_command: DbtCommand) -> str:
+        old_env_vars = settings_to_env_vars(settings.dict())
+        new_env_vars = {
+            "DBT_COMMAND": dbt_command.processed_command,
+            "UUID": state.uuid,
+            "SCRIPT": "dbt-server job run",
+            "ELEMENTARY": str(dbt_command.elementary),
+        }
+        env_vars = old_env_vars | new_env_vars
         task_container = {
             "image": settings.docker_image,
-            "env": [
-                {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
-                {"name": "UUID", "value": state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
-                {"name": "BUCKET_NAME", "value": settings.bucket_name},
-                {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
-            ],
+            "env": [{"name": key, "value": value} for key, value in env_vars.items()],
         }
-        env_vars = " ".join(
-            [f'-e {var["name"]}={var["value"]}' for var in task_container["env"]]
-        )
-        command = f'docker run --rm -d {env_vars} {task_container["image"]}'
-        subprocess.Popen(command, shell=True)
+        formatted_env_vars = ""
+        if isinstance(task_container["env"], list):
+            formatted_env_vars = (
+                " ".join([f'-e {var["name"]}={var["value"]}' for var in task_container["env"]])
+                + " "
+            )
+        command = f'docker run --rm -d {formatted_env_vars}{task_container["image"]}'
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        if process.returncode != 0:
+            raise Exception(f"Failed to run command. Error: {str(error)}")
+        return output.decode("utf-8").strip()
 
     def launch(self, state: State, job_name: str) -> None:
         state.run_status = "running"
@@ -66,29 +92,32 @@ class CloudRunJob(Job):
             "INFO",
             f"Creating cloud run job {state.uuid} with command '{dbt_command.processed_command}'",
         )
+        old_env_vars = settings_to_env_vars(settings.dict())
+        new_env_vars = {
+            "DBT_COMMAND": dbt_command.processed_command,
+            "UUID": state.uuid,
+            "SCRIPT": "dbt-server job run",
+            "ELEMENTARY": str(dbt_command.elementary),
+        }
+        env_vars = old_env_vars | new_env_vars
         client = run_v2.JobsClient()
         task_container = {
             "image": settings.docker_image,
-            "env": [
-                {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
-                {"name": "UUID", "value": state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
-                {"name": "BUCKET_NAME", "value": settings.bucket_name},
-                {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
-            ],
+            "env": [{"name": key, "value": value} for key, value in env_vars.items()],
         }
         # job_id must start with a letter and cannot contain '-'
         job_id = "u" + state.uuid.replace("-", "")
-        job_parent = (
-            "projects/"
-            + settings.gcp.project_id
-            + "/locations/"
-            + settings.gcp.location
-        )
+        job_parent = None
+        gcp_service_account = None
+        if settings.gcp:
+            job_parent = (
+                "projects/" + settings.gcp.project_id + "/locations/" + settings.gcp.location
+            )
+            gcp_service_account = settings.gcp.service_account
         job = run_v2.Job()
         job.template.template.max_retries = 0
         job.template.template.containers = [task_container]
-        job.template.template.service_account = settings.gcp.service_account
+        job.template.template.service_account = gcp_service_account
         request = run_v2.CreateJobRequest(
             parent=job_parent,
             job=job,
@@ -128,36 +157,50 @@ class ContainerAppsJob(Job):
             "INFO",
             f"Creating Azure Container job {state.uuid} with command '{dbt_command.processed_command}'",
         )
+        old_env_vars = settings_to_env_vars(settings.dict())
+        new_env_vars = {
+            "DBT_COMMAND": dbt_command.processed_command,
+            "UUID": state.uuid,
+            "SCRIPT": "dbt-server job run",
+            "ELEMENTARY": str(dbt_command.elementary),
+        }
+        env_vars = old_env_vars | new_env_vars
         credential = DefaultAzureCredential()
         subscription_client = SubscriptionClient(credential)
         subscription_id = next(subscription_client.subscriptions.list())
-        resource_client = ResourceManagementClient(credential, subscription_id)
-        container_client = ContainerInstanceManagementClient(
-            credential, subscription_id
-        )
+        container_client = ContainerInstanceManagementClient(credential, subscription_id)
 
         # job_id must start with a letter and cannot contain '-'
         job_id = "u" + state.uuid.replace("-", "")
-        resource_group_name = settings.azure.resource_group_name
+        azure_resource_group_name = None
+        azure_job_memory_in_gb = None
+        azure_job_cpu = None
+        azure_location = None
+        if settings.azure:
+            azure_resource_group_name = settings.azure.resource_group_name
+            azure_job_memory_in_gb = settings.azure.job_memory_in_gb
+            azure_job_cpu = settings.azure.job_cpu
+            azure_location = settings.azure.location
 
         task_container = {
             "name": job_id,
             "image": settings.docker_image,
             "environment_variables": [
-                {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
-                {"name": "UUID", "value": state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
-                {"name": "BUCKET_NAME", "value": settings.bucket_name},
-                {"name": "ELEMENTARY", "value": str(dbt_command.elementary)},
+                {"name": key, "value": value} for key, value in env_vars.items()
             ],
-            "resources": {"requests": {"cpu": 1.0, "memory_in_gb": 1.5}},
+            "resources": {
+                "requests": {
+                    "cpu": azure_job_cpu,
+                    "memory_in_gb": azure_job_memory_in_gb,
+                }
+            },
         }
 
         container_group = container_client.container_groups.begin_create_or_update(
-            resource_group_name,
+            azure_resource_group_name,
             job_id,
             {
-                "location": settings.azure.location,
+                "location": azure_location,
                 "containers": [task_container],
                 "os_type": "Linux",
                 "restart_policy": "Never",

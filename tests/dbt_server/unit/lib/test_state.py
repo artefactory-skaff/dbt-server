@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import Mock, patch
-from dbt_server.lib.state import State, DbtRunLogs
-from dbt_server.lib.metadata_document import MetadataDocument
+
+import pytest
 from dbt_server.lib.dbt_classes import DbtCommand
+from dbt_server.lib.metadata_document import MetadataDocument
+from dbt_server.lib.state import DbtRunLogs, State
 
 
 def test_state_init():

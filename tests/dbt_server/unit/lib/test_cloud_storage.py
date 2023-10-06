@@ -1,11 +1,7 @@
-import pytest
 from unittest.mock import Mock, patch
-from dbt_server.lib.storage import (
-    Storage,
-    GoogleCloudStorage,
-    AzureBlobStorage,
-    StorageFactory,
-)
+
+import pytest
+from dbt_server.lib.storage import AzureBlobStorage, GoogleCloudStorage, Storage, StorageFactory
 
 
 class TestGoogleCloudStorage:

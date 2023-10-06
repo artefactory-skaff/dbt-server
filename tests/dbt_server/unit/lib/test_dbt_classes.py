@@ -24,9 +24,7 @@ def test_dbt_command():
 
 
 def test_follow_up_link():
-    follow_up_link = FollowUpLink(
-        action_name="my_action", link="http://localhost:8001/my_action"
-    )
+    follow_up_link = FollowUpLink(action_name="my_action", link="http://localhost:8001/my_action")
 
     assert follow_up_link.action_name == "my_action"
     assert follow_up_link.link == "http://localhost:8001/my_action"

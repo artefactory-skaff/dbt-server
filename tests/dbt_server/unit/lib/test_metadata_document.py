@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from dbt_server.lib.metadata_document import (
-    MetadataDocument,
-    FirestoreDocument,
     CosmosDBDocument,
+    FirestoreDocument,
+    MetadataDocument,
     MetadataDocumentFactory,
 )
 

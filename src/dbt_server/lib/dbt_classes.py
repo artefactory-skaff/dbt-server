@@ -1,6 +1,8 @@
-from pydantic import BaseModel
-from typing import Dict
+from typing import Dict, Optional
+
 from dataclasses import dataclass
+
+from pydantic import BaseModel
 
 
 class DbtCommand(BaseModel):
@@ -9,9 +11,9 @@ class DbtCommand(BaseModel):
     processed_command: str = ""
     manifest: str
     dbt_project: str
-    profiles : str
-    seeds: Dict[str, str] = None
-    packages: str = None
+    profiles: str
+    seeds: Optional[Dict[str, str]] = None
+    packages: Optional[str] = None
     elementary: bool = False
 
 

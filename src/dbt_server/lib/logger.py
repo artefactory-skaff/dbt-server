@@ -1,6 +1,7 @@
+from typing import Optional
+
 import logging
 from logging import Logger
-from typing import Optional
 
 try:
     from google.cloud.logging import Client
@@ -13,10 +14,9 @@ try:
 except ImportError:
     AzureLogHandler = None
 
-from dbt_server.lib.state import State
-from dbt_server.lib.metadata_document import MetadataDocumentFactory
 from dbt_server.config import Settings
-
+from dbt_server.lib.metadata_document import MetadataDocumentFactory
+from dbt_server.lib.state import State
 
 settings = Settings()
 
@@ -47,18 +47,23 @@ class DbtLogger:
 
 def init_logger(service: Optional[str]) -> Logger:
     logger = logging.getLogger(__name__)
-    if service == "GoogleCloudLogging":
-        client = Client()
-        handler = CloudLoggingHandler(client)
-        logger.addHandler(handler)
-        return logger
-    elif service == "AzureMonitor":
-        logger.addHandler(AzureLogHandler(connection_string=settings.azure.applicationinsights_connection_string))
-        return logger
-    elif service == "Local":
-        return logger
-    else:
-        raise ValueError("Invalid logging type")
+    match service:
+        case "GoogleCloudLogging":
+            client = Client()
+            handler = CloudLoggingHandler(client)
+            logger.addHandler(handler)
+        case "AzureMonitor":
+            if settings.azure:
+                logger.addHandler(
+                    AzureLogHandler(
+                        connection_string=settings.azure.applicationinsights_connection_string
+                    )
+                )
+        case "Local":
+            pass
+        case _:
+            raise ValueError("Invalid logging type")
+    return logger
 
 
 def get_log_level(severity: str):

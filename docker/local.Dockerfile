@@ -36,7 +36,7 @@ RUN chown -R server /home/server/
 
 COPY --from=py-build /home/server/ /home/server/
 
-ENV SCRIPT dbt-start-server
+ENV SCRIPT "dbt-server start"
 ENV LOGGING_SERVICE Local
 ENV STORAGE_SERVICE LocalStorage
 ENV METADATA_DOCUMENT_SERVICE Local

@@ -1,6 +1,8 @@
 from typing import List, Optional
-from pydantic import BaseModel
+
 from dataclasses import dataclass
+
+from pydantic import BaseModel
 
 
 @dataclass

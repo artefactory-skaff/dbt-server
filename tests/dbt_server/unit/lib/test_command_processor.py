@@ -1,19 +1,20 @@
+from unittest.mock import Mock, patch
+
 import pytest
 from click import Command, Context
-from unittest.mock import Mock, patch
 from dbt_server.lib.command_processor import (
-    process_command,
-    get_sub_command_name,
-    get_command_args_list,
-    override_command_params,
-    get_sub_command_click_context,
-    get_sub_command_args_list,
-    override_sub_command_params,
-    get_sub_command_default_params,
-    get_args_list_from_params_dict,
-    get_key_differences_between_dict,
     get_arg_list_from_param,
+    get_args_list_from_params_dict,
+    get_command_args_list,
+    get_key_differences_between_dict,
+    get_sub_command_args_list,
+    get_sub_command_click_context,
+    get_sub_command_default_params,
+    get_sub_command_name,
+    override_command_params,
+    override_sub_command_params,
     param_name_to_key_arg_name,
+    process_command,
 )
 
 

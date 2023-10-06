@@ -17,8 +17,7 @@ packages = [
 
 [tool.poetry.scripts]
 dbt-remote = 'dbt_remote.cli:cli'
-dbt-start-server = 'dbt_server.dbt_server:launch_app'
-dbt-run-job = 'dbt_server.dbt_run_job:run_job'
+dbt-server = 'dbt_server.cli:cli'
 
 
 [tool.poetry.dependencies]
@@ -43,6 +42,11 @@ pytest = "7.3.1"
 pytest-env = "1.0.1"
 requests-mock = "1.11.0"
 httpx = "0.25.0"
+isort = "5.12.0"
+pyupgrade = "3.14.0"
+black = "23.9.1"
+mypy = "1.5.1"
+types-requests = "2.31.0.0"
 
 
 [tool.poetry.group.gcp]
@@ -73,6 +77,29 @@ azure-mgmt-resource = "23.0.1"
 azure-identity = "1.14.0"
 azure-cosmos = "4.5.1"
 opencensus-ext-azure = "1.1.10"
+
+
+[tool.black]
+# https://github.com/psf/black
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+
+[tool.isort]
+# https://github.com/timothycrosley/isort/
+known_typing = "typing,types,typing_extensions,mypy,mypy_extensions"
+sections = "FUTURE,TYPING,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
+include_trailing_comma = true
+default_section = "FIRSTPARTY"
+multi_line_output = 3
+indent = 4
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 100
 
 
 [tool.pytest.ini_options]
