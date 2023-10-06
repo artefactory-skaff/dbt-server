@@ -1,9 +1,8 @@
 import pytest
-
 from dbt_remote.cli import (
     assemble_dbt_command,
-    parse_server_response,
     get_selected_nodes,
+    parse_server_response,
     send_command,
 )
 
@@ -145,9 +144,9 @@ def test_parse_server_response():
         assert server_response.uuid == expected_response["uuid"]
         assert server_response.detail == expected_response["detail"]
 
-        assert (
-            server_response.links is None and expected_response["links"] is None
-        ) or (len(server_response.links) == len(expected_response["links"]))
+        assert (server_response.links is None and expected_response["links"] is None) or (
+            len(server_response.links) == len(expected_response["links"])
+        )
         if server_response.links is not None:
             for i in range(len(server_response.links)):
                 expected_link = expected_response["links"][i]

@@ -1,22 +1,22 @@
-import os
 from typing import Dict
+
+import os
 from abc import ABC, abstractmethod
 
 try:
-    from google.cloud import storage
     from google.api_core import exceptions
     from google.api_core.retry import Retry
+    from google.cloud import storage
 except ImportError:
-    storage = None
-    exceptions = None
-    Retry = None
+    storage = None  # type: ignore
+    exceptions = None  # type: ignore
+    Retry = None  # type: ignore
 try:
     from azure.storage.blob import BlobServiceClient
 except ImportError:
-    BlobServiceClient = None
+    BlobServiceClient = None  # type: ignore
 
 from dbt_server.config import Settings
-
 
 settings = Settings()
 
@@ -35,9 +35,7 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def get_files_in_folder(
-        self, bucket_name: str, folder_name: str
-    ) -> Dict[str, bytes]:
+    def get_files_in_folder(self, bucket_name: str, folder_name: str) -> Dict[str, bytes]:
         pass
 
 
@@ -54,14 +52,15 @@ class LocalStorage(Storage):
     def get_file_console_url(self, bucket_name: str, file_name: str) -> str:
         return f"{bucket_name}/{file_name}"
 
-    def get_files_in_folder(
-        self, bucket_name: str, folder_name: str
-    ) -> Dict[str, bytes]:
-        return [
-            os.path.join(dp, f)
-            for dp, dn, filenames in os.walk(f"{bucket_name}/{folder_name}")
-            for f in filenames
-        ]
+    def get_files_in_folder(self, bucket_name: str, folder_name: str) -> Dict[str, bytes]:
+        return {
+            file: open(file, "rb").read()
+            for file in [
+                os.path.join(dp, f)
+                for dp, dn, filenames in os.walk(f"{bucket_name}/{folder_name}")
+                for f in filenames
+            ]
+        }
 
 
 class GoogleCloudStorage(Storage):
@@ -90,9 +89,7 @@ class GoogleCloudStorage(Storage):
         console_url = "https://console.cloud.google.com/storage/browser/_details"
         return f"{console_url}/{bucket_name}/{blob_client.path}"
 
-    def get_files_in_folder(
-        self, bucket_name: str, folder_name: str
-    ) -> Dict[str, bytes]:
+    def get_files_in_folder(self, bucket_name: str, folder_name: str) -> Dict[str, bytes]:
         # Implement Google Cloud Storage specific logic here
         blobs = {}
         for blob in self.client.list_blobs(bucket_name, prefix=folder_name):
@@ -100,7 +97,7 @@ class GoogleCloudStorage(Storage):
         return blobs
 
     @staticmethod
-    def define_retry_policy(self):
+    def define_retry_policy():
         _MY_RETRIABLE_TYPES = [
             exceptions.TooManyRequests,  # 429
             exceptions.InternalServerError,  # 500
@@ -112,9 +109,7 @@ class GoogleCloudStorage(Storage):
             return isinstance(exc, _MY_RETRIABLE_TYPES)
 
         retry_policy = Retry(predicate=is_retryable)
-        retry_policy = retry_policy.with_delay(
-            initial=1.5, multiplier=1.2, maximum=45.0
-        )
+        retry_policy = retry_policy.with_delay(initial=1.5, multiplier=1.2, maximum=45.0)
 
 
 class AzureBlobStorage(Storage):
@@ -137,9 +132,7 @@ class AzureBlobStorage(Storage):
         blob_client = self.client.get_blob_client(bucket_name, file_name)
         return blob_client.url
 
-    def get_files_in_folder(
-        self, bucket_name: str, folder_name: str
-    ) -> Dict[str, bytes]:
+    def get_files_in_folder(self, bucket_name: str, folder_name: str) -> Dict[str, bytes]:
         container_client = self.client.get_container_client(bucket_name)
         blob_list = container_client.list_blobs(name_starts_with=folder_name)
         return {blob.name: self.get_file(bucket_name, blob.name) for blob in blob_list}

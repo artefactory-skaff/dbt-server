@@ -1,6 +1,7 @@
-import pytest
 from unittest.mock import Mock, patch
-from dbt_server.lib.logger import DbtLogger, init_logger, get_log_level
+
+import pytest
+from dbt_server.lib.logger import DbtLogger, get_log_level, init_logger
 from dbt_server.lib.state import State
 
 

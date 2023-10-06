@@ -1,33 +1,34 @@
-# CI/CD
+# DBT Server
 
-## Build the package
+DBT Server is a FastAPI application that provides an interface for running DBT (Data Build Tool) commands.
 
-From the root of the project:
+## Features
 
-```poetry build```
+- Run DBT commands via HTTP requests.
+- Retrieve the status of a job using a unique UUID.
+- Access the last logs of a job.
+- Get a report of a job.
 
-## To run integration tests in the CI
+## Installation
 
-Integration tests require authentication to GCP. To this end, you need to set up the Workload Identity Federation
+1. Clone the repository:
 
-Create pool:
-```gcloud iam workload-identity-pools create my-pool --project="stc-dbt-test-9e19" --location="global" --display-name="Demo pool"```
+git clone https://github.com/artefactory/dbt_server.git
 
-Create provider:
-```gcloud iam workload-identity-pools providers create-oidc "my-provider" --project="stc-dbt-test-9e19" \```
-  ```--location="global" \ ```
-  ```--workload-identity-pool="my-pool" \ ```
-  ```--display-name="Demo provider" \ ```
-  ```--attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.aud=assertion.aud,attribute.repository=assertion.repository" \ ```
-  ```--issuer-uri="https://token.actions.githubusercontent.com"```
+2. Install the dependencies:
 
-Link pool to repo:
-```gcloud iam service-accounts add-iam-policy-binding "stc-dbt-sa@stc-dbt-test-9e19.iam.gserviceaccount.com" \ ```
-  ```--project="stc-dbt-test-9e19" \ ```
-  ```--role="roles/iam.serviceAccountTokenCreator" \ ```
-  ```--member="principalSet://iam.googleapis.com/projects/956787288/locations/global/workloadIdentityPools/my-pool/attribute.repository/artefactory-fr/dbt-server"```
 
-permissions to set:
-- roles/iam.serviceAccountTokenCreator
-- iam.serviceAccountUser
-- roles/iam.workloadIdentityUser
+## Usage
+
+Start the server:
+
+
+## Contributing
+
+Pull requests are welcome.
+For major changes, please open an issue first to discuss what you would like to change.
+Feel free to check the [CONTRIBUTING](./CONTRIBUTING.md) guidelines !
+
+## License
+
+[MIT](https://choosealicense.com/licenses/mit/)

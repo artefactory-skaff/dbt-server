@@ -5,3 +5,38 @@ repos:
   - id: trailing-whitespace
   - id: end-of-file-fixer
   - id: mixed-line-ending
+
+- repo: local
+  hooks:
+  - id: isort
+    name: isort
+    entry: poetry run isort --settings-path pyproject.toml
+    types: [python]
+    language: system
+    stages: [commit]
+  - id: pyupgrade
+    name: pyupgrade
+    entry: poetry run pyupgrade --py37-plus
+    types: [python]
+    language: system
+    stages: [commit]
+  - id: black
+    name: black
+    entry: poetry run black --config pyproject.toml
+    types: [python]
+    language: system
+    stages: [commit]
+  - id: mypy_dbt_server
+    name: mypy_dbt_server
+    entry: poetry run mypy -p dbt_server
+    require_serial: true
+    types: [python]
+    language: system
+    stages: [push]
+  - id: mypy_dbt_remote
+    name: mypy_dbt_remote
+    entry: poetry run mypy -p dbt_remote
+    require_serial: true
+    types: [python]
+    language: system
+    stages: [push]

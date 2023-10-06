@@ -1,7 +1,9 @@
-from enum import Enum
-import uuid
 from typing import Optional
-from pydantic import BaseModel, root_validator, BaseSettings
+
+import uuid
+from enum import Enum
+
+from pydantic import BaseModel, BaseSettings, root_validator
 
 
 class LoggingServiceEnum(str, Enum):
@@ -42,7 +44,7 @@ class AzureSettings(BaseModel):
     cosmos_db_database: str
     cosmos_db_key: str
     job_cpu: int = 1
-    job_memory_in_gb: int = 1.5
+    job_memory_in_gb: float = 1.5
 
 
 class Settings(BaseSettings):

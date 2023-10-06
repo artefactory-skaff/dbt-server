@@ -1,6 +1,11 @@
-from dbt_remote.stream_logs import parse_log, get_last_logs, show_last_logs
-from dbt_remote.stream_logs import get_run_status, get_link_from_action_name
 from dbt_remote.server_response_classes import FollowUpLink
+from dbt_remote.stream_logs import (
+    get_last_logs,
+    get_link_from_action_name,
+    get_run_status,
+    parse_log,
+    show_last_logs,
+)
 
 
 def test_parse_log():
@@ -31,9 +36,7 @@ def test_get_link_from_action_name():
 def test_get_run_status(requests_mock):
     run_status_url = "https://test-server.test/run_status"
     run_status_json = {"run_status": "started"}
-    request_mock = requests_mock.get(
-        run_status_url, status_code=200, json=run_status_json
-    )
+    request_mock = requests_mock.get(run_status_url, status_code=200, json=run_status_json)
 
     run_status_results = get_run_status(run_status_url)
 

@@ -1,18 +1,15 @@
-import requests
-import time
-from datetime import datetime, timezone
-import click
-import traceback
 from typing import List
 
-from dbt_remote.server_response_classes import (
-    DbtResponseLogs,
-    DbtResponseRunStatus,
-    FollowUpLink,
-)
+import time
+import traceback
+from datetime import datetime, timezone
+
+import click
+import requests
+from dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus, FollowUpLink
 
 
-def stream_logs(links: List[FollowUpLink]) -> ():
+def stream_logs(links: List[FollowUpLink]) -> None:
     run_status_link = get_link_from_action_name(links, "run_status")
     last_logs_link = get_link_from_action_name(links, "last_logs")
     run_status = get_run_status(run_status_link).run_status
@@ -47,7 +44,7 @@ def get_run_status(run_status_link: str) -> DbtResponseRunStatus:
 
     try:
         results = DbtResponseRunStatus.parse_raw(res.text)
-        results.status_code = res.status_code
+        results.status_code = str(res.status_code)
         return results
     except Exception:
         traceback_str = traceback.format_exc()
@@ -58,11 +55,11 @@ def get_run_status(run_status_link: str) -> DbtResponseRunStatus:
 
 def show_last_logs(last_logs_link: str) -> bool:
     logs = get_last_logs(last_logs_link).run_logs
-
-    for log in logs:
-        show_log(log)
-        if "END JOB" in log:
-            return True
+    if logs:
+        for log in logs:
+            show_log(log)
+            if "END JOB" in log:
+                return True
     return False
 
 
@@ -71,7 +68,7 @@ def get_last_logs(last_logs_link: str) -> DbtResponseLogs:
 
     try:
         results = DbtResponseLogs.parse_raw(res.text)
-        results.status_code = res.status_code
+        results.status_code = str(res.status_code)
         return results
     except Exception:
         traceback_str = traceback.format_exc()
@@ -80,7 +77,7 @@ def get_last_logs(last_logs_link: str) -> DbtResponseLogs:
         )
 
 
-def show_log(log: str) -> ():
+def show_log(log: str) -> None:
     parsed_log = parse_log(log)
     if parsed_log is None:
         return
@@ -106,14 +103,14 @@ def show_log(log: str) -> ():
 
 def parse_log(log: str) -> tuple[str, str] | None:
     if log == "":
-        return
+        pass
 
     parsed_log = log.split("\t")
 
     if len(parsed_log) < 3:
         click.echo(click.style("ERROR", fg="red") + "\t" + "Error in log parsing:")
         click.echo(log)
-        return
+        pass
 
     log_level = parsed_log[1]
     log_content = "  ".join(parsed_log[2:])

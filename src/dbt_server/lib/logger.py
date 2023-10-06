@@ -1,6 +1,7 @@
+from typing import Optional
+
 import logging
 from logging import Logger
-from typing import Optional
 
 try:
     from google.cloud.logging import Client
@@ -13,10 +14,9 @@ try:
 except ImportError:
     AzureLogHandler = None
 
-from dbt_server.lib.state import State
-from dbt_server.lib.metadata_document import MetadataDocumentFactory
 from dbt_server.config import Settings
-
+from dbt_server.lib.metadata_document import MetadataDocumentFactory
+from dbt_server.lib.state import State
 
 settings = Settings()
 

@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import Mock, patch
-from dbt_server.lib.job import Job, CloudRunJob, ContainerAppsJob, JobFactory
-from dbt_server.lib.state import State
+
+import pytest
 from dbt_server.lib.dbt_classes import DbtCommand
+from dbt_server.lib.job import CloudRunJob, ContainerAppsJob, Job, JobFactory
+from dbt_server.lib.state import State
 
 
 @patch("dbt_server.lib.job.State")

@@ -1,14 +1,14 @@
-import requests
+from typing import Any, Dict, List, Optional, Tuple
+
 import os
 import traceback
-from typing import Tuple, Dict, List, Any
 
 import click
+import requests
 from click.parser import split_arg_string
 from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner
-
-from dbt_remote.server_response_classes import DbtResponse
+from dbt_remote.server_response_classes import DbtResponse, FollowUpLink
 from dbt_remote.stream_logs import stream_logs
 
 
@@ -77,7 +77,7 @@ def cli(
 
     click.echo("Sending request to server. Waiting for job creation...")
     server_response = send_command(
-        server_url,
+        str(server_url),
         dbt_command,
         project_dir,
         manifest,
@@ -92,13 +92,12 @@ def cli(
     click.echo(f"Job links: {links}")
 
     click.echo("Waiting for job execution...")
-    stream_logs(links)
+    if links:
+        stream_logs(links)
 
 
 def assemble_dbt_command(user_command: str, args: Any) -> str:
-    args = [
-        "'" + arg + "'" for arg in args
-    ]  # needed to handle cases such as --args '{key: value}'
+    args = ["'" + arg + "'" for arg in args]  # needed to handle cases such as --args '{key: value}'
     dbt_command = user_command
     if args != [] and args is not None:
         dbt_command += " " + " ".join(args)
@@ -125,7 +124,7 @@ def send_command(
     manifest_str = read_file(project_dir + "/" + manifest)
     dbt_project_str = read_file(project_dir + "/" + dbt_project)
 
-    data = {
+    data: Dict[str, Any] = {
         "server_url": server_url,
         "user_command": command,
         "manifest": manifest_str,
@@ -152,14 +151,12 @@ def get_selected_seeds_dict(seeds_path: str, command: str) -> Dict[str, str]:
     seed_files = get_filenames_from_dir(seeds_path)
 
     selected_seeds = get_selected_nodes(command)
-    if (
-        len(selected_seeds) == 0
-    ):  # if no seed is selected, the command is executed on all seeds
+    if len(selected_seeds) == 0:  # if no seed is selected, the command is executed on all seeds
         selected_seeds = get_all_seeds(seed_files)
 
     for seed_file in seed_files:
         if seed_file.replace(".csv", "") in selected_seeds:
-            with open(seeds_path + seed_file, "r") as f:
+            with open(seeds_path + seed_file) as f:
                 seeds_dict["seeds/" + seed_file] = f.read()
     return seeds_dict
 
@@ -177,23 +174,22 @@ def get_all_seeds(seed_files: List[str]) -> List[str]:
 
 def get_job_uuid_and_links(
     server_response: requests.Response,
-) -> Tuple[str, Dict[str, str]]:
+) -> Tuple[str, Optional[List[FollowUpLink]]]:
     results = parse_server_response(server_response)
 
     if results.status_code != 202 or results.detail is not None:
         error_msg = results.detail
         click.echo(
-            click.style("ERROR", fg="red")
-            + "\t"
-            + "Status code: "
-            + str(results.status_code)
+            click.style("ERROR", fg="red") + "\t" + "Status code: " + str(results.status_code)
         )
-        raise click.ClickException(error_msg)
+        raise click.ClickException(str(error_msg))
 
     if results.uuid is not None:
         uuid = results.uuid
         links = results.links
         return uuid, links
+    else:
+        raise click.ClickException("Could not find a valid UUID.")
 
 
 def parse_server_response(res: requests.Response) -> DbtResponse:
@@ -202,10 +198,7 @@ def parse_server_response(res: requests.Response) -> DbtResponse:
     except Exception:
         traceback_str = traceback.format_exc()
         raise click.ClickException(
-            "Error in parse_server: "
-            + traceback_str
-            + "\n Original message: "
-            + res.text
+            "Error in parse_server: " + traceback_str + "\n Original message: " + res.text
         )
 
     if dbt_response_is_none(results):
@@ -213,7 +206,7 @@ def parse_server_response(res: requests.Response) -> DbtResponse:
         raise click.ClickException(res.text)
 
     else:
-        results.status_code = res.status_code
+        results.status_code = str(res.status_code)
         return results
 
 
@@ -223,7 +216,7 @@ def dbt_response_is_none(results: DbtResponse):
 
 
 def read_file(filename) -> str:
-    with open(filename, "r") as f:
+    with open(filename) as f:
         file_str = f.read()
     return file_str
 

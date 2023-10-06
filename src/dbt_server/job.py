@@ -1,26 +1,25 @@
-import os
-import msgpack
-import json
 from typing import TypedDict
+
+import json
+import os
 import threading
 import time
 from functools import partial
 
+import msgpack
 from click.parser import split_arg_string
-from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
-from dbt.events.base_types import EventMsg
-from dbt.events.functions import msg_to_json
+from dbt.cli.main import cli, dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import SeedNode
-from elementary.monitor.cli import report
-from fastapi import HTTPException
-
+from dbt.events.base_types import BaseEvent
+from dbt.events.functions import msg_to_json
 from dbt_server.config import Settings
 from dbt_server.lib.logger import LOGGER
-from dbt_server.lib.state import State
 from dbt_server.lib.metadata_document import MetadataDocumentFactory
+from dbt_server.lib.state import State
 from dbt_server.lib.storage import StorageFactory
-
+from elementary.monitor.cli import report
+from fastapi import HTTPException
 
 settings = Settings()
 callback_lock = threading.Lock()
@@ -57,7 +56,7 @@ def install_dependencies(state: State, manifest: Manifest) -> None:
     packages_path = "./packages.yml"
     check_file = os.path.isfile(packages_path)
     if check_file:
-        with open("packages.yml", "r") as f:
+        with open("packages.yml") as f:
             packages_str = f.read()
         if packages_str != "":
             run_dbt_command(state, manifest, "deps")
@@ -105,7 +104,7 @@ def upload_elementary_report(state: State) -> None:
 
     storage_folder = state.storage_folder
 
-    with open("edr_target/elementary_report.html", "r") as f:
+    with open("edr_target/elementary_report.html") as f:
         elementary_report = f.read()
 
     STORAGE_INSTANCE.write_file(
@@ -115,7 +114,7 @@ def upload_elementary_report(state: State) -> None:
     )
 
 
-def logger_callback(uuid: str, event: EventMsg):
+def logger_callback(uuid: str, event: BaseEvent):
     state = State(
         uuid,
         MetadataDocumentFactory().create(
@@ -159,7 +158,9 @@ def logger_callback(uuid: str, event: EventMsg):
                 LOGGER.log(event.info.level.upper(), msg)
 
 
-LogConfiguration = TypedDict("LogConfiguration", {"log_format": str, "log_level": str})
+class LogConfiguration(TypedDict):
+    log_format: str
+    log_level: str
 
 
 def get_user_request_log_configuration(user_command: str) -> LogConfiguration:
@@ -173,7 +174,7 @@ def get_user_request_log_configuration(user_command: str) -> LogConfiguration:
 
 
 def handle_exception(dbt_exception: BaseException | None):
-    LOGGER.log("ERROR", {"error": dbt_exception})
+    LOGGER.log("ERROR", str({"error": dbt_exception}))
     if dbt_exception is not None:
         raise HTTPException(status_code=400, detail=dbt_exception)
     else:
@@ -181,7 +182,7 @@ def handle_exception(dbt_exception: BaseException | None):
 
 
 def get_manifest() -> Manifest:
-    with open("manifest.json", "r") as f:
+    with open("manifest.json") as f:
         manifest_json = json.loads(f.read())
     partial_parse = msgpack.packb(manifest_json)
     manifest: Manifest = Manifest.from_msgpack(partial_parse)
