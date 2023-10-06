@@ -43,6 +43,7 @@ class AzureSettings(BaseModel):
     cosmos_db_url: str
     cosmos_db_database: str
     cosmos_db_key: str
+    applicationinsights_connection_string: str
     job_cpu: int = 1
     job_memory_in_gb: float = 1.5
 

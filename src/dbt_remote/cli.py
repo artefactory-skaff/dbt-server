@@ -39,6 +39,9 @@ is the current directory.",
     help="dbt_project file, by default: dbt_project.yml",
 )
 @click.option(
+    "--profiles", default="profiles.yml", help="profiles.yml file, by default: ./profiles.yml"
+)
+@click.option(
     "--extra-packages",
     help="packages.yml file, by default none. Add this option is necessary to use\
 external packages such as elementary.",
@@ -60,6 +63,7 @@ def cli(
     project_dir: str,
     manifest: str | None,
     dbt_project: str,
+    profiles: str,
     extra_packages: str | None,
     seeds_path: str,
     server_url: str | None,
@@ -82,6 +86,7 @@ def cli(
         project_dir,
         manifest,
         dbt_project,
+        profiles,
         extra_packages,
         seeds_path,
         elementary,
@@ -115,6 +120,7 @@ def send_command(
     project_dir: str,
     manifest: str,
     dbt_project: str,
+    profiles: str,
     packages: str | None,
     seeds_path: str,
     elementary: bool,
@@ -123,12 +129,14 @@ def send_command(
 
     manifest_str = read_file(project_dir + "/" + manifest)
     dbt_project_str = read_file(project_dir + "/" + dbt_project)
+    profiles_str = read_file(project_dir + "/" + profiles)
 
     data: Dict[str, Any] = {
         "server_url": server_url,
         "user_command": command,
         "manifest": manifest_str,
         "dbt_project": dbt_project_str,
+        "profiles": profiles_str,
     }
 
     if "seed" in command.split(" ") or "build" in command.split(" "):

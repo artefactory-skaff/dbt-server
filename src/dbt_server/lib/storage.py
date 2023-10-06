@@ -12,9 +12,11 @@ except ImportError:
     exceptions = None  # type: ignore
     Retry = None  # type: ignore
 try:
+    from azure.core.exceptions import ResourceExistsError
     from azure.storage.blob import BlobServiceClient
 except ImportError:
     BlobServiceClient = None  # type: ignore
+    ResourceExistsError = None  # type: ignore
 
 from dbt_server.config import Settings
 
@@ -41,7 +43,7 @@ class Storage(ABC):
 
 class LocalStorage(Storage):
     def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
-        with open(f"{bucket_name}/{file_name}", "w") as file:
+        with open(f"{bucket_name}/{file_name}", "w+") as file:
             file.write(data)
 
     def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
@@ -68,11 +70,17 @@ class GoogleCloudStorage(Storage):
         self.client = storage.Client()
 
     def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
+        # TODO : Change this method to append the data if already exists
         # Implement Google Cloud Storage specific logic here
         blob = self.client.bucket(bucket_name).blob(file_name)
         retry_policy = (
             GoogleCloudStorage.define_retry_policy()
         )  # handle 429 error with exponential backoff
+        if blob.exists():
+            # If blob exists, download the current content
+            current_data = blob.download_as_text()
+            # Append new data to the current content
+            data = current_data + data
         blob.upload_from_string(data, num_retries=5, retry=retry_policy)
 
     def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
@@ -120,7 +128,11 @@ class AzureBlobStorage(Storage):
 
     def write_file(self, bucket_name: str, file_name: str, data: str) -> None:
         blob_client = self.client.get_blob_client(bucket_name, file_name)
-        blob_client.upload_blob(data)
+        try:
+            blob_client.create_append_blob()
+        except ResourceExistsError:
+            pass  # Blob already exists, we can append data
+        blob_client.append_block(data)
 
     def get_file(self, bucket_name: str, file_name: str, start_byte: int = 0) -> bytes:
         blob_client = self.client.get_blob_client(bucket_name, file_name)

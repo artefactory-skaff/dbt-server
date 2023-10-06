@@ -11,6 +11,7 @@ class DbtCommand(BaseModel):
     processed_command: str = ""
     manifest: str
     dbt_project: str
+    profiles: str
     seeds: Optional[Dict[str, str]] = None
     packages: Optional[str] = None
     elementary: bool = False
