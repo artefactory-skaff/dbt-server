@@ -60,6 +60,14 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
         artifact_registry: str | None, args):
 
+    if user_command == "config":
+        if len(args) < 1:
+            raise click.ClickException(f"{click.style('ERROR', fg='red')}\tYou must provide a config command.")
+        return ctx.invoke(config, config_command=args[0], args=args[1:])
+
+    if user_command == "image":  # expected: dbt-remote image submit
+        return build_image(location, artifact_registry, args)
+
     cli_config = CliConfig(
         manifest=manifest,
         project_dir=project_dir,
@@ -70,47 +78,43 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         server_url=server_url,
         location=location,
     )
-    cli_config = load_config(cli_config)
-    click.echo(click.style('Config: ', blink=True, bold=True))
-    for key, value in cli_config.__dict__.items():
-        click.echo(f"   {key}: {value}")
-
-    if user_command == "config":
-        if len(args) < 1:
-            raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"You must provide a config command.")
-        return ctx.invoke(config, config_command=args[0], args=args[1:])
-
-    if user_command == "image":  # expected: dbt-remote image submit
-        return build_image(location, artifact_registry, args)
-
+    cli_config = load_config_file(cli_config)
     cli_config.profiles = search_profiles_file(assemble_dbt_command(user_command, args), cli_config)
 
-    check_if_dbt_project(cli_config)
+    if cli_config.server_url is not None:
+        click.echo(f"{click.style('dbt-server url:', blink=True, bold=True)} {cli_config.server_url}")
+    else:
+        click.echo(f"{click.style('dbt-server url:', blink=True, bold=True)} unknown.")
 
     dbt_command = assemble_dbt_command(user_command, args)
     click.echo(f"{click.style('Command:', blink=True, bold=True)} dbt {dbt_command}")
 
+    click.echo(click.style('Config:', blink=True, bold=True))
+    for key, value in cli_config.__dict__.items():
+        click.echo(f"   {key}: {value}")
+
+    check_if_dbt_project(cli_config)
+
     cloud_run_client = run_v2.ServicesClient()
     cli_config.server_url = get_server_uri(cli_config, cloud_run_client)
-    click.echo(click.style('dbt-server url: ', blink=True, bold=True)+cli_config.server_url)
     auth_session = get_auth_session()
 
     if cli_config.manifest is None:
         compile_and_store_manifest(cli_config)
-        cli_config.manifest = "./target/manifest.json"
+        cli_config.manifest = cli_config.project_dir+"/target/manifest.json"
 
     click.echo('\nSending request to server. Waiting for job creation...')
     server_response = send_command(dbt_command, cli_config, auth_session)
 
     uuid, links = get_job_uuid_and_links(server_response)
-    click.echo("Job created with uuid: " + click.style(uuid, blink=True, bold=True))
+    click.echo(f"Job created with uuid: {click.style(uuid, blink=True, bold=True)}")
     display_links(links)
 
     click.echo('Waiting for job execution...')
     stream_logs(links, auth_session)
 
 
-def load_config(cli_config: CliConfig) -> CliConfig:
+def load_config_file(cli_config: CliConfig) -> CliConfig:
     if not os.path.isfile(CONFIG_FILE):
         click.echo("No config file found. Creating config...")
         init()
@@ -122,6 +126,11 @@ def load_config(cli_config: CliConfig) -> CliConfig:
     for key in cli_config_dict.keys():
         if cli_config_dict[key] is None:
             cli_config_dict[key] = config[key]
+
+    for key in cli_config_dict.keys():
+        if cli_config_dict[key] is not None and key in ['manifest', 'dbt_project', 'extra_packages', 'seeds_path']:
+            cli_config_dict[key] = cli_config_dict['project_dir']+"/"+cli_config_dict[key]
+
     return cli_config
 
 
@@ -129,21 +138,17 @@ def search_profiles_file(command: str, cli_config: CliConfig) -> str:
     if "--profiles-dir" in command:
         profiles_dir = get_profiles_dir_from_command(command)
         if os.path.isfile(profiles_dir + "/profiles.yml"):
-            click.echo(f"Using profiles file from --profiles-dir: {profiles_dir}/profiles.yml")
             return profiles_dir + "/profiles.yml"
         else:
-            raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"Incorrect --profiles-dir value given.")
+            raise click.ClickException(f"{click.style('ERROR', fg='red')}\tIncorrect --profiles-dir value given.")
     elif "DBT_PROFILES_DIR" in os.environ:
-        click.echo(f"Using profiles file from env variable: {os.environ['DBT_PROFILES_DIR']}")
         return os.environ["DBT_PROFILES_DIR"]
     elif cli_config.profiles is not None and os.path.isfile(cli_config.profiles):
-        click.echo(f"Using profiles file from config: {cli_config.profiles}")
         return cli_config.profiles
     elif os.path.isfile(str(Path.home())+"/.dbt/profiles.yml"):
-        click.echo(f"Using profiles file from .dbt home directory: {str(Path.home())}/.dbt/profiles.yml")
         return str(Path.home())+"/.dbt/profiles.yml"
     else:
-        raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"You must provide a profiles file.")
+        raise click.ClickException(f"{click.style('ERROR', fg='red')}\tYou must provide a profiles file.")
 
 
 def get_profiles_dir_from_command(command: str) -> str:
@@ -155,18 +160,16 @@ def get_profiles_dir_from_command(command: str) -> str:
 
 def check_if_dbt_project(cli_config: CliConfig):
     files_to_check = dbt_files_to_check(cli_config)
-    click.echo(click.style('Checking dbt files: ', blink=True, bold=True)+' '+str(files_to_check))
 
     for filename in files_to_check.keys():
         path_to_file = files_to_check[filename]
         if not check_if_file_exist(path_to_file):
             if filename == 'manifest':  # not mandatory because it can be generated
-                click.echo(click.style("WARNING", fg="red")+f" {filename} file not found.")
+                click.echo(f"{click.style('WARNING', fg='red')} {filename} not found.")
             else:
-                click.echo(click.style("ERROR", fg="red")+f" {filename} file not found.\n")
-                raise click.ClickException("You are not in a dbt project directory or the dbt files are not in the \
-expected place. "+click.style('Please make sure that you are in a dbt project directory or create one using `dbt init \
---profiles-dir .`', blink=True, bold=True))
+                click.echo(f"{click.style('ERROR', fg='red')} {filename} not found.\n")
+                raise click.ClickException(f"You are not in a dbt project directory or the dbt files are not in the \
+expected place. {click.style('Please make sure that you are in a dbt project directory or create one using `dbt init --profiles-dir .`', blink=True, bold=True)}")
 
 
 def display_links(links: Dict[str, str]):
@@ -211,8 +214,8 @@ def compile_manifest(project_dir: str) -> Manifest:
 def send_command(command: str, cli_config: CliConfig, auth_session: requests.Session) -> requests.Response:
     url = cli_config.server_url + "dbt"
 
-    manifest_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.manifest)
-    dbt_project_str = read_file_as_b64(cli_config.project_dir + '/' + cli_config.dbt_project)
+    manifest_str = read_file_as_b64(cli_config.manifest)
+    dbt_project_str = read_file_as_b64(cli_config.dbt_project)
     profiles_str = read_file_as_b64(cli_config.profiles)
 
     data = {
@@ -224,11 +227,11 @@ def send_command(command: str, cli_config: CliConfig, auth_session: requests.Ses
         }
 
     if 'seed' in command.split(' ') or 'build' in command.split(' '):
-        seeds_dict = get_selected_seeds_dict(cli_config.project_dir + "/" + cli_config.seeds_path, command)
+        seeds_dict = get_selected_seeds_dict(cli_config.seeds_path, command)
         data["seeds"] = seeds_dict
 
     if cli_config.extra_packages is not None:
-        extra_packages_str = read_file_as_b64(cli_config.project_dir + "/" + cli_config.extra_packages)
+        extra_packages_str = read_file_as_b64(cli_config.extra_packages)
         data["packages"] = extra_packages_str
 
     res = auth_session.post(url=url, json=data)
@@ -267,7 +270,7 @@ def get_job_uuid_and_links(server_response: requests.Response) -> (str, Dict[str
 
     if results.status_code != 202 or results.detail is not None:
         error_msg = results.detail
-        click.echo(click.style("ERROR", fg="red") + '\t' + 'Status code: ' + str(results.status_code))
+        click.echo(f"{click.style('ERROR', fg='red')}\tStatus code: {str(results.status_code)}")
         raise click.ClickException(error_msg)
 
     if results.uuid is not None:
@@ -280,12 +283,11 @@ def parse_server_response(res: requests.Response) -> DbtResponse:
     try:
         results = DbtResponse.parse_raw(res.text)
     except Exception:
-        traceback_str = traceback.format_exc()
-        raise click.ClickException(click.style("ERROR", fg="red")+f" in parse_server: {traceback_str}\
-\nOriginal message: {res.text}")
+        raise click.ClickException(f"{click.style('ERROR', fg='red')} in while parsing server response (parse_server_response).\
+\nReceived message: {res.text}")
 
     if dbtResponse_is_none(results):
-        click.echo(click.style("ERROR", fg="red") + '\t' + 'Error in parsing: ')
+        click.echo(f"{click.style('ERROR', fg='red')}\tError in parsing:")
         raise click.ClickException(res.text)
 
     else:
@@ -304,12 +306,12 @@ def dbt_files_to_check(cli_config: CliConfig) -> Dict[str, str]:
     if cli_config.manifest is None:
         files_to_check['manifest'] = cli_config.project_dir + '/target/manifest.json'
     else:
-        files_to_check['manifest'] = cli_config.project_dir + '/' + cli_config.manifest
+        files_to_check['manifest'] = cli_config.manifest
 
     if cli_config.dbt_project is None:
         files_to_check['dbt_project'] = cli_config.project_dir + 'dbt_project.yml'
     else:
-        files_to_check['dbt_project'] = cli_config.project_dir + '/' + cli_config.dbt_project
+        files_to_check['dbt_project'] = cli_config.dbt_project
 
     if cli_config.profiles is None:
         files_to_check['profiles'] = 'profiles.yml'

@@ -24,7 +24,7 @@ DEFAULT_CONFIG = {
     'dbt_project': 'dbt_project.yml',
     'profiles': 'profiles.yml',
     'extra_packages': None,
-    'seeds_path': './seeds/',
+    'seeds_path': 'seeds/',
     'server_url': None,
     'location': None,
 }
@@ -108,7 +108,7 @@ def get(args: List[str]):
         if arg in config.keys():
             click.echo(f"{arg}={config[arg]}")
         else:
-            click.echo(click.style('Error ', fg='red')+f"{arg} not found in config")
+            click.echo(f"{click.style('ERROR', fg='red')} {arg} not found in config")
 
 
 def delete(args: List[str]):
@@ -123,7 +123,7 @@ def delete(args: List[str]):
             del config[arg]
             click.echo(f"{arg} deleted from config")
         else:
-            click.echo(click.style('Error ', fg='red')+f"{arg} not found in config")
+            click.echo(f"{click.style('ERROR', fg='red')} {arg} not found in config")
 
     with open(CONFIG_FILE, 'w') as f:
         yaml.dump(config, f)

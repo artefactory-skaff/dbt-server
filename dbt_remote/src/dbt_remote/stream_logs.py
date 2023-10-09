@@ -36,7 +36,7 @@ def get_link_from_action_name(links: List[FollowUpLink], action_name: str) -> st
     for follow_up_link in links:
         if follow_up_link.action_name == action_name:
             return follow_up_link.link
-    raise click.ClickException('Error in parsing server response: no link for action name {action_name}')
+    raise click.ClickException(f'Error in parsing server response: no link for action name {action_name}')
 
 
 def get_run_status(run_status_link: str, auth_session: requests.Session) -> DbtResponseRunStatus:
@@ -47,8 +47,8 @@ def get_run_status(run_status_link: str, auth_session: requests.Session) -> DbtR
         results.status_code = res.status_code
         return results
     except Exception:
-        traceback_str = traceback.format_exc()
-        raise click.ClickException("Error in parsing: " + traceback_str + "\n Original message: " + res.text)
+        raise click.ClickException(f"{click.style('ERROR', fg='red')} in while parsing server response (get_run_status).\
+\nReceived message: {res.text}")
 
 
 def show_last_logs(last_logs_link: str, auth_session: requests.Session) -> bool:
@@ -70,8 +70,8 @@ def get_last_logs(last_logs_link: str, auth_session: requests.Session) -> DbtRes
         results.status_code = res.status_code
         return results
     except Exception:
-        traceback_str = traceback.format_exc()
-        raise click.ClickException("Error in parsing: " + traceback_str + "\n Original message: " + res.text)
+        raise click.ClickException(f"{click.style('ERROR', fg='red')} in while parsing server response (get_last_logs).\
+\nReceived message: {res.text}")
 
 
 def show_log(log: str) -> ():
@@ -104,7 +104,7 @@ def show_log(log: str) -> ():
         case _:
             log_level_color = 'black'
 
-    click.echo(click.style(log_level, fg=log_level_color) + '\t' + click.style(log_content, fg=log_content_color))
+    click.echo(f"{click.style(log_level, fg=log_level_color)}\t{click.style(log_content, fg=log_content_color)}")
 
 
 def parse_log(log: str) -> (tuple[str, str] | None):
@@ -114,7 +114,7 @@ def parse_log(log: str) -> (tuple[str, str] | None):
     parsed_log = log.split('\t')
 
     if len(parsed_log) < 3:
-        click.echo(click.style("ERROR", fg="red") + '\t' + "Error in log parsing:")
+        click.echo(f"{click.style('ERROR', fg='red')}\tError in log parsing:")
         click.echo(log)
         return
 

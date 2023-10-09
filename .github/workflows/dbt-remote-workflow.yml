@@ -16,12 +16,6 @@ jobs:
       - name: Install Python and Poetry
         uses: ./.github/actions/poetry
 
-      - name: Init .dbt for click execution
-        run: |
-          mkdir ../../../.dbt
-          cp dbt_server/profiles.yml /home/runner/.dbt
-          ls -la /home/runner/.dbt
-
       - name: Test dbt_remote/ with pytest
         run: poetry run pytest dbt_remote/tests/unit
   

@@ -77,7 +77,7 @@ def get_sub_command_click_context(args_list: List[str]) -> Context:
         return sub_command_click_context
     except Exception:
         traceback_str = traceback.format_exc()
-        raise HTTPException(status_code=400, detail="dbt command failed: " + traceback_str)
+        raise HTTPException(status_code=400, detail=f"dbt command failed: {traceback_str}")
 
 
 def get_sub_command_args_list(args_list: List[str], command_click_context: Context) -> List[str]:

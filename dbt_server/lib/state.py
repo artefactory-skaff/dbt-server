@@ -104,7 +104,7 @@ class State:
 
     def get_context_to_local(self) -> ():
         cloud_storage_folder = self.cloud_storage_folder
-        logging.info("load data from folder " + cloud_storage_folder)
+        logging.info(f"load data from folder {cloud_storage_folder}")
         blob_context_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME, cloud_storage_folder)
         write_files(blob_context_files)
         blob_seed_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME,
@@ -127,7 +127,7 @@ class State:
             self.run_logs_buffer = all_previous_logs
 
         dt_time = current_date_time()
-        new_log = (dt_time + "\t" + severity + "\t" + new_log)
+        new_log = (f"{dt_time}\t{severity}\t{new_log}")
 
         self.run_logs_buffer.append(new_log)
         self.run_logs.log(self.run_logs_buffer)
@@ -137,12 +137,12 @@ class DbtRunLogs:
 
     def __init__(self, uuid: str, cloud_storage_instance: CloudStorage):
         self._uuid = uuid
-        self.log_file = 'logs/' + uuid + '.txt'
+        self.log_file = f'logs/{uuid}.txt'
         self.cloud_storage_instance = cloud_storage_instance
 
     def init_log_file(self) -> ():
         dt_time = current_date_time()
-        self.cloud_storage_instance.write_to_bucket(BUCKET_NAME, self.log_file, dt_time + "\t" + "INFO" + "\t" + "Init")
+        self.cloud_storage_instance.write_to_bucket(BUCKET_NAME, self.log_file, dt_time+"\tINFO\tInit")
 
     def get(self, starting_byte: int = 0) -> (List[str], int):
         current_log_file = self.cloud_storage_instance.get_blob_from_bucket(BUCKET_NAME, self.log_file, starting_byte)
@@ -169,7 +169,7 @@ def write_files(files: Dict[str, bytes], prefix: str = ""):
                 f.write(files[filename])
         except Exception:
             traceback_str = traceback.format_exc()
-            print("ERROR", "Couldn't write file" + filename)
+            print("ERROR", f"Couldn't write file {filename}")
             print(traceback_str)
 
 
@@ -182,5 +182,5 @@ def current_date_time() -> str:
 def generate_folder_name(uuid: str) -> str:
     today = date.today()
     today_str = today.strftime("%Y-%m-%d")
-    cloud_storage_folder = today_str+"-"+uuid
+    cloud_storage_folder = f"{today_str}-{uuid}"
     return cloud_storage_folder

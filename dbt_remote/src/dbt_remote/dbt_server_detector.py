@@ -6,7 +6,6 @@ from subprocess import check_output
 
 import click
 from google.cloud import run_v2
-from google.api_core.exceptions import PermissionDenied
 
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
 from dbt_remote.src.dbt_remote.authentication import get_auth_session
@@ -25,7 +24,7 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
 
     for service in cloud_run_services:
-        click.echo('Checking Cloud Run service: ' + service.name)
+        click.echo(f"Checking Cloud Run service: {service.name}")
         auth_session = get_auth_session()
 
         if check_if_server_is_dbt_server(service, auth_session):
@@ -115,8 +114,8 @@ def parse_check_server_response(res: requests.Response) -> DbtResponseCheck:
     try:
         results = DbtResponseCheck.parse_raw(res.text)
     except Exception:
-        traceback_str = traceback.format_exc()
-        raise click.ClickException("Error in parse_check_server: " + traceback_str + "\n Original message: " + res.text)
+        raise click.ClickException(f"{click.style('ERROR', fg='red')} in while parsing server response (parse_check_server_response).\
+\nReceived message: {res.text}")
 
     results.status_code = res.status_code
     return results

@@ -87,8 +87,8 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
             ]
         }
     # job_id must start with a letter and cannot contain '-'
-    job_id = "u"+state.uuid.replace('-', '')
-    job_parent = "projects/"+PROJECT_ID+"/locations/"+LOCATION
+    job_id = f"u{state.uuid.replace('-', '')}"
+    job_parent = f"projects/{PROJECT_ID}/locations/{LOCATION}"
 
     job = run_v2.Job()
     job.template.template.max_retries = 0
@@ -104,7 +104,7 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
         operation = client.create_job(request=request)
     except Exception:
         traceback_str = traceback.format_exc()
-        raise HTTPException(status_code=400, detail="Cloud Run job creation failed" + traceback_str)
+        raise HTTPException(status_code=400, detail=f"Cloud Run job creation failed {traceback_str}")
 
     log = "Waiting for job creation to complete..."
     DBT_LOGGER.log("INFO", log)
@@ -129,7 +129,7 @@ def launch_job(state: State, response_job: run_v2.types.Job):
         client.run_job(request=request)
     except Exception:
         traceback_str = traceback.format_exc()
-        raise HTTPException(status_code=400, detail="Cloud Run job start failed" + traceback_str)
+        raise HTTPException(status_code=400, detail=f"Cloud Run job start failed {traceback_str}")
     state.run_status = "running"
 
 

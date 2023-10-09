@@ -5,7 +5,7 @@ import click
 
 def build_image(location: str | None, artifact_registry: str | None, args):
     if len(args) < 1:
-        raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"You must provide an `image` command. See `dbt-remote image help`.")
+        raise click.ClickException(f"{click.style('ERROR', fg='red')}\tYou must provide an `image` command. See `dbt-remote image help`.")
 
     match(args[0]):
         case "help":
@@ -32,7 +32,7 @@ def help_image():
 def submit_image(location: str | None, artifact_registry: str | None) -> ():
 
     if location is None or artifact_registry is None:
-        raise click.ClickException(click.style("ERROR", fg="red")+"\t"+"You must provide a location and an artifact-registry.")
+        raise click.ClickException(f"{click.style('ERROR', fg='red')}\tYou must provide a location and an artifact-registry.")
 
     site_packages_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))  # /Users/.../dbt_remote
     dbt_server_dir = site_packages_path + "/dbt_server"
@@ -42,4 +42,4 @@ def submit_image(location: str | None, artifact_registry: str | None) -> ():
 
     check_output(f"gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image", shell=True)
 
-    click.echo("\ndbt-server image submitted to "+click.style(f"{artifact_registry}/server-image", blink=True, bold=True))
+    click.echo(f"\ndbt-server image submitted to {click.style(f'{artifact_registry}/server-image', blink=True, bold=True)}")
