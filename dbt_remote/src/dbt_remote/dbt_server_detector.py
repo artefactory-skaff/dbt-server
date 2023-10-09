@@ -29,14 +29,13 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
         auth_session = get_auth_session()
 
         if check_if_server_is_dbt_server(service, auth_session):
-            click.echo(f"Detected dbt server at: {click.style(service.name, blink=True, bold=True)}")
-            if click.confirm("Do you want to use this server as dbt server?"):
-                if click.confirm('Do you want to save this server as default dbt server in config file?'):
-                    set([f'server_url={service.uri}'])
-                return service.uri
+            click.echo(f"Detected dbt server at: {click.style(service.uri, blink=True, bold=True)}")
+            if click.confirm("Do you want to use this server as your default dbt server for this project?", default=True):
+                set([f'server_url={service.uri}'])
+            return service.uri
 
     click.echo(click.style("ERROR", fg="red"))
-    raise click.ClickException(f'No dbt server found in GCP project "{project_id}". To deploy one, follow the instructions here: https://github.com/artefactory-fr/dbt-server/blob/main/dbt_server/README.md')
+    raise click.ClickException(f'No dbt server found in GCP project "{project_id}"')
 
 
 def get_project_id():

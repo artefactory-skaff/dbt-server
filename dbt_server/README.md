@@ -9,24 +9,30 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
 
 ## Requirements
 
-You must have a GCP project.
-
-You must have the following roles: `roles/datastore.owner`, `roles/logging.logWriter`, `roles/logging.viewer`, `roles/storage.admin`, `roles/run.developer`, `roles/iam.serviceAccountUser`.
-
-You must have [gcloud CLI](https://cloud.google.com/sdk/docs/authorizing) set up with your project. If not, install it and run:
-```sh
-gcloud auth login
-gcloud auth application-default login
-gcloud config set project <your-project-id>
-```
+- A GCP project.
+- The following roles: 
+  - `roles/datastore.owner`
+  - `roles/logging.logWriter`
+  - `roles/logging.viewer`
+  - `roles/storage.admin`
+  - `roles/run.developer`
+  - `roles/iam.serviceAccountUser`
+- The gcloud CLI. [(gcloud install guide)](https://cloud.google.com/sdk/docs/install)
 
 
 ## Deployment
 
-Export your env variables.
+### Export your env variables.
 ```sh
 export PROJECT_ID=<your-project-id> &&
-export LOCATION=europe-west9
+export LOCATION=<dbt-server-region>
+```
+
+### Setup your GCP project, gcloud CLI, and default credentials
+```sh
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project $PROJECT_ID
 ```
 
 Enable GCP APIs
@@ -78,9 +84,9 @@ do
 done
 ```
 
-Create Firestore database (default) if it does not exist (if it does, you will receive an error message but it is OK).
+Create a Firestore database (available locations: https://cloud.google.com/firestore/docs/locations#location-mr)
 ```sh
-gcloud firestore databases create --location=$LOCATION
+gcloud firestore databases create --location=eur3 
 ```
 
 Install `dbt-remote` CLI

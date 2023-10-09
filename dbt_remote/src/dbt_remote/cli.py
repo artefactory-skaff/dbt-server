@@ -71,7 +71,9 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         location=location,
     )
     cli_config = load_config(cli_config)
-    click.echo(click.style('Config: ', blink=True, bold=True)+str(cli_config.__dict__))
+    click.echo(click.style('Config: ', blink=True, bold=True))
+    for key, value in cli_config.__dict__.items():
+        click.echo(f"   {key}: {value}")
 
     if user_command == "config":
         if len(args) < 1:
@@ -86,7 +88,7 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
     check_if_dbt_project(cli_config)
 
     dbt_command = assemble_dbt_command(user_command, args)
-    click.echo(click.style('Command: ', blink=True, bold=True)+f'dbt {dbt_command}')
+    click.echo(f"{click.style('Command:', blink=True, bold=True)} dbt {dbt_command}")
 
     cloud_run_client = run_v2.ServicesClient()
     cli_config.server_url = get_server_uri(cli_config, cloud_run_client)
