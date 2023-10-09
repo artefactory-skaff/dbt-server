@@ -19,9 +19,9 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
     location = cli_config.location  # can be None
 
     if cli_config.location is not None:
-        click.echo(f"\nNo server url given. Looking for dbt server available on Cloud Run on location {location}...")
+        click.echo(f"\nLooking for dbt server on project {project_id} in {location}...")
     else:
-        click.echo("\nNo server url given. Looking for dbt server available on Cloud Run on all locations...")
+        click.echo(f"\nLooking for dbt server on project {project_id}...")
     cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
 
     for service in cloud_run_services:
@@ -29,15 +29,14 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
         auth_session = get_auth_session()
 
         if check_if_server_is_dbt_server(service, auth_session):
-            click.echo('Detected Cloud Run `' + click.style(service.name, blink=True, bold=True) + '` as dbt server')
-            if click.confirm('Do you want to use this server as dbt-server?'):
-                if click.confirm('Do you want to save this server as default dbt-server in config file?'):
+            click.echo(f"Detected dbt server at: {click.style(service.name, blink=True, bold=True)}")
+            if click.confirm("Do you want to use this server as dbt server?"):
+                if click.confirm('Do you want to save this server as default dbt server in config file?'):
                     set([f'server_url={service.uri}'])
                 return service.uri
 
     click.echo(click.style("ERROR", fg="red"))
-    raise click.ClickException(f'No dbt server found in Cloud Run for given project_id ({project_id}) and \
-location ({location})')
+    raise click.ClickException(f'No dbt server found in GCP project "{project_id}"')
 
 
 def get_project_id():
@@ -89,17 +88,9 @@ def get_cloud_run_service_list_from_location(project_id: str, location: str,
         for service in list_service_pager:
             service_list.append(service)
         return service_list
-    except PermissionDenied:
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException(f'Permission denied on location `{location}` for project `{project_id}`. \
-Note that Cloud Run servers can only be hosted on region (ex: us-central1) not multi-region. \
-Please check the server location and specify the correct --location argument.\
-\n Ex: `--location us-central1` instead of `--location US`')
-    except Exception:
+    except:
         traceback_str = traceback.format_exc()
         click.echo(traceback_str)
-        click.echo(click.style("ERROR", fg="red"))
-        raise click.ClickException('An error occured while listing Cloud Run services')
 
 
 def check_if_server_is_dbt_server(service: run_v2.types.service.Service, auth_session: requests.Session) -> bool:
