@@ -36,7 +36,7 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
                 return service.uri
 
     click.echo(click.style("ERROR", fg="red"))
-    raise click.ClickException(f'No dbt server found in GCP project "{project_id}"')
+    raise click.ClickException(f'No dbt server found in GCP project "{project_id}". To deploy one, follow the instructions here: https://github.com/artefactory-fr/dbt-server/blob/main/dbt_server/README.md')
 
 
 def get_project_id():
