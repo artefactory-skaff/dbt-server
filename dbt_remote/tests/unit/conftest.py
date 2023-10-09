@@ -20,7 +20,6 @@ def PatchBuiltInOpen():
 def MockDbtFileSystem(fs):
     fs.create_file('seeds_path/my_seed.csv')
     fs.create_file('.dbt')
-    fs.create_file('/home/runner/.dbt')
     fs.create_dir('/home/runner/work/dbt-server/dbt-server')
 
     dbt_home_dir = str(Path.home()) + '/.dbt'
