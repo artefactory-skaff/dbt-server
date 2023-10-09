@@ -12,8 +12,7 @@ from dbt_remote.src.dbt_remote.authentication import get_auth_session
 from dbt_remote.src.dbt_remote.config_command import CliConfig, set
 
 
-def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
-
+def detect_dbt_server_uri(cli_config: CliConfig) -> str:
     project_id = get_project_id()
     location = cli_config.location  # can be None
 
@@ -21,7 +20,7 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
         click.echo(f"\nLooking for dbt server on project {project_id} in {location}...")
     else:
         click.echo(f"\nLooking for dbt server on project {project_id}...")
-    cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
+    cloud_run_services = get_cloud_run_service_list(project_id, location)
 
     for service in cloud_run_services:
         click.echo(f"Checking Cloud Run service: {service.name}")
@@ -46,16 +45,14 @@ def get_project_id():
 `export PROJECT_ID=<your-project-id>`.')
 
 
-def get_cloud_run_service_list(project_id: str, location: str | None,
-                               client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
-
+def get_cloud_run_service_list(project_id: str, location: str | None) -> List[run_v2.types.service.Service]:
     if location is None:
         service_list = []
         for region in get_gcp_regions():
-            service_list.extend(get_cloud_run_service_list_from_location(project_id, region, client))
+            service_list.extend(get_cloud_run_service_list_from_location(project_id, region))
         return service_list
     else:
-        return get_cloud_run_service_list_from_location(project_id, location, client)
+        return get_cloud_run_service_list_from_location(project_id, location)
 
 
 def get_gcp_regions() -> List[str]:
@@ -72,8 +69,7 @@ def get_gcp_regions() -> List[str]:
     return regions
 
 
-def get_cloud_run_service_list_from_location(project_id: str, location: str,
-                                             client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
+def get_cloud_run_service_list_from_location(project_id: str, location: str) -> List[run_v2.types.service.Service]:
 
     parent_value = f"projects/{project_id}/locations/{location}"
     request = run_v2.ListServicesRequest(
@@ -81,7 +77,7 @@ def get_cloud_run_service_list_from_location(project_id: str, location: str,
     )
 
     try:
-        list_service_pager = client.list_services(request=request)
+        list_service_pager = run_v2.ServicesClient().list_services(request=request)
         service_list = []
         for service in list_service_pager:
             service_list.append(service)
