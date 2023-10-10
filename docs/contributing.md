@@ -103,11 +103,11 @@ Explain the problem as clearly as possible and include additional details to hel
 
 This section describes the procedure for submitting any type of change, be it a bug fix or a new feature.
 
-**Before submitting a change**
+### Before submitting a change
 
 Take a look at the project guidelines in [dbt-remote project page](index.md) to make sure your change is aligned with the project.
 
-**Submitting a change**
+### Submitting a change
 
 - Explain your change: Give a precise description of what you would change in the project behavior and why it would be useful
 
@@ -116,6 +116,38 @@ Take a look at the project guidelines in [dbt-remote project page](index.md) to 
 - Code your change following the [coding convention](#coding-convention)
 
 - Create a PR and wait for validation
+
+### Publishing a change
+
+>**First contribution**
+> Create an account on Pypi (or TestPypi). Get your Pypi token. Ask Emma Gallière to add you as collaborator on the project
+
+- **If not done yet**, add Test Pypi as repository
+```sh
+poetry config repositories.testpypi https://test.pypi.org/legacy/
+```
+
+- Check the tests pass:
+```sh
+poetry run pytest dbt_remote/tests/unit/
+```
+and
+```sh
+cd dbt_server; poetry run pytest tests/unit
+```
+
+- Increment the package version in `pyproject.toml`
+
+- Build the package
+```sh
+poetry build
+```
+
+- Publish the package
+```sh
+token=$(cat <your-pypi-token.txt>)
+poetry publish --repository testpypi -u __token__ -p $token --skip-existing
+```
 
 ### Coding convention
 
