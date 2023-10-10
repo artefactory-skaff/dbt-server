@@ -1,4 +1,3 @@
-import requests
 from typing import List
 import traceback
 import os
@@ -9,7 +8,6 @@ from multiprocessing.pool import ThreadPool
 import click
 from google.cloud import run_v2
 
-from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
 from dbt_remote.src.dbt_remote.authentication import get_auth_session
 from dbt_remote.src.dbt_remote.config_command import CliConfig, set
 
