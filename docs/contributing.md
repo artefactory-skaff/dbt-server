@@ -165,4 +165,3 @@ Contact: emma.galliere@artefact.com
 
 
 ## Contributors
-

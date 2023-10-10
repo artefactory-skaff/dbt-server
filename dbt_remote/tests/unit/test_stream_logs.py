@@ -34,7 +34,7 @@ def test_get_run_status(requests_mock):
     run_status_url = "https://test-server.test/run_status"
     run_status_json = {"run_status": "started"}
     request_mock = requests_mock.get(run_status_url, status_code=200, json=run_status_json)
-    
+
     session = requests.Session()
     auth_headers = {"Authorization": "Bearer 1234"}
     session.headers.update(auth_headers)
@@ -53,7 +53,7 @@ def test_get_last_logs(requests_mock):
     logs_url = "https://test-server.test/last_logs"
     logs = {"run_logs": ["log1", "log2", "log3"]}
     request_mock = requests_mock.get(logs_url, status_code=200, json=logs)
-    
+
     session = requests.Session()
     auth_headers = {"Authorization": "Bearer 1234"}
     session.headers.update(auth_headers)

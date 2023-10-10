@@ -24,7 +24,7 @@ jobs:
 
       - name: Test dbt_remote/ with pytest
         run: poetry run pytest dbt_remote/tests/unit
-  
+
   publish:
     runs-on: ubuntu-latest
     needs: [dbt_remote-test]
@@ -39,4 +39,3 @@ jobs:
         run: poetry build
       - name: Publish to registry
         run: poetry publish --dry-run --repository testpypi
-  

@@ -10,7 +10,7 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
 ## Requirements
 
 - A GCP project.
-- The following roles: 
+- The following roles:
   - `roles/datastore.owner`
   - `roles/logging.logWriter`
   - `roles/logging.viewer`
@@ -86,7 +86,7 @@ done
 
 Create a Firestore database (available locations: https://cloud.google.com/firestore/docs/locations#location-mr)
 ```sh
-gcloud firestore databases create --location=eur3 
+gcloud firestore databases create --location=eur3
 ```
 
 Install `dbt-remote` CLI
@@ -114,7 +114,7 @@ gcloud run deploy dbt-server \
   --no-allow-unauthenticated
 ```
 
-The deployment of your dbt-server is finished! 
+The deployment of your dbt-server is finished!
 
 To test it, you run [the `dbt-remote` CLI](../README.md) **in a dbt project** to execute dbt commands on your server, such as
 ```sh

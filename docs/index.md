@@ -19,4 +19,3 @@ The goal of this project is to simplify the life of analytics engineers.
 [//]: #
 
    [dbt-url]: <https://www.getdbt.com/>
-   

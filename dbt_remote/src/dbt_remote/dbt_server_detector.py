@@ -83,8 +83,3 @@ def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool
         return False
     except Exception:  # request timeout or max retries
         return False
-
-
-if __name__ == "__main__":
-    cloud_run_service = get_cloud_run_service_list(project_id="dbt-server-alexis2-2a22", location="europe-west1")[0]
-    print(check_if_server_is_dbt_server(cloud_run_service))

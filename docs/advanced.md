@@ -148,4 +148,3 @@ my_job_uuid=<UUID>
 
 curl -H "$header" $my_server/job/$my_job_uuid/logs
 ```
-
