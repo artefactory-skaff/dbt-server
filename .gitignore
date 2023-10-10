@@ -141,6 +141,3 @@ terraform*
 # Temp directories and zip folders created when testing Terraform locally
 *.zip
 tmp_*
-
-# service account creds
-elementary-sa.json
