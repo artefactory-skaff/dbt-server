@@ -1,24 +1,28 @@
 import logging
 from logging import Logger
+from typing import List
+import os
 # https://stackoverflow.com/questions/2183233/how-to-add-a-custom-loglevel-to-pythons-logging-facility/35804945#35804945
 from google.cloud.logging import Client
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
-import os
 
 from lib.state import State
 from lib.cloud_storage import CloudStorage
-from google.cloud import firestore
+from lib.firestore import get_collection
 
 
 class DbtLogger:
 
-    def __init__(self, cloud_storage_instance: CloudStorage, dbt_collection: firestore.CollectionReference,
-                 logging_client: Client = None, local: bool = False, server: bool = False):
-        self.logger = init_logger(logging_client, local, server)
-        self.cloud_storage_instance = cloud_storage_instance
-        self.dbt_collection = dbt_collection
+    def __init__(self, local: bool = False, server: bool = False):
+        self.local = local
+        self.server = server
+
+        self.logging_client = Client()
+        self.logger = self.init_logger()
+        self.cloud_storage_instance = CloudStorage()
+        self.dbt_collection = get_collection("dbt-status")
 
     @property
     def uuid(self):
@@ -36,20 +40,20 @@ class DbtLogger:
             self.state.log(severity.upper(), new_log)
 
 
-def init_logger(logging_client: Client | None, local: bool, server: bool) -> Logger:
-    _addGcloudLoggingLevel()
-    logger = logging.getLogger(__name__)
+    def init_logger(self) -> Logger:
+        _addGcloudLoggingLevel()
+        logger = logging.getLogger(__name__)
 
-    if not local:
-        if logging_client is None:
-            raise Exception("No Cloud Logging client given and not running locally")
-        if server:
-            handler = server_cloud_handler(logging_client)
-        else:
-            handler = job_cloud_handler(logging_client)
-        logger.addHandler(handler)
+        if not self.local:
+            if self.logging_client is None:
+                raise Exception("No Cloud Logging client given and not running locally")
+            if self.server:
+                handler = server_cloud_handler(self.logging_client)
+            else:
+                handler = job_cloud_handler(self.logging_client)
+            logger.addHandler(handler)
 
-    return logger
+        return logger
 
 
 def server_cloud_handler(logging_client: Client):
@@ -157,3 +161,15 @@ def _addLoggingLevel(levelName, levelNum, methodName=None):
     setattr(logging, levelName, levelNum)
     setattr(logging.getLoggerClass(), methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
+
+
+def get_dbt_server_logger(argv: List[str]) -> DbtLogger:
+    local = False
+    if len(argv) == 2 and argv[1] == "--local":  # run locally:
+        local = True
+
+    logger = DbtLogger(
+        local=local,
+        server=True
+    )
+    return logger

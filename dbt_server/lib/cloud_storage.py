@@ -9,10 +9,10 @@ from google.api_core.retry import Retry
 
 class CloudStorage:
 
-    def __init__(self, client: storage.Client):
-        self.client = client
+    def __init__(self, client: storage.Client=None):
+        self.client = client if client is not None else connect_client()
 
-    def write_to_bucket(self, bucket_name: str, blob_name: str, data: str) -> ():
+    def write_to_bucket(self, bucket_name: str, blob_name: str, data: str) -> None:
         storage_client = self.client
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
@@ -42,8 +42,7 @@ class CloudStorage:
 
 @cache
 def connect_client() -> storage.Client:
-    storage_client = storage.Client()
-    return storage_client
+    return storage.Client()
 
 
 def get_blob_size(bucket: storage.Bucket, blob_name: str) -> int:
