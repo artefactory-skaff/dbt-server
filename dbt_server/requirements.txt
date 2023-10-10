@@ -1,0 +1,9 @@
+# For python>= 3.10, < 3.12
+google-cloud-run>=0.9 # so far: 0.9.1
+dbt-bigquery==1.6.5
+
+# dbt-server dependencies
+google-cloud-logging>=3
+uvicorn>=0
+fastapi>=0
+google-cloud-firestore>=2

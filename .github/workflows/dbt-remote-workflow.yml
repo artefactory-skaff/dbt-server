@@ -1,0 +1,42 @@
+name: dbt-remote Python package
+
+on:
+  push:
+    paths:
+      - dbt_remote/**
+      - .github/workflows/dbt-remote-workflow.yml
+
+jobs:
+
+  dbt_remote-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get repo
+        uses: actions/checkout@v3.0.2
+      - name: Install Python and Poetry
+        uses: ./.github/actions/poetry
+
+      - name: Init .dbt for click execution
+        run: |
+          mkdir ../../../.dbt
+          cp dbt_server/profiles.yml /home/runner/.dbt
+          ls -la /home/runner/.dbt
+
+      - name: Test dbt_remote/ with pytest
+        run: poetry run pytest dbt_remote/tests/unit
+  
+  publish:
+    runs-on: ubuntu-latest
+    needs: [dbt_remote-test]
+    steps:
+      - name: Get repo
+        uses: actions/checkout@v3.0.2
+      - name: Install Python and Poetry
+        uses: ./.github/actions/poetry
+      - name: Add repository
+        run: poetry config repositories.testpypi https://test.pypi.org/legacy/
+      - name: Build package
+        run: poetry build
+      - name: Publish to registry
+        run: poetry publish --dry-run --repository testpypi
+  
