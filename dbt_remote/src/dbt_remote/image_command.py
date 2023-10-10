@@ -38,8 +38,9 @@ def submit_image(location: str | None, artifact_registry: str | None) -> None:
     dbt_server_dir = site_packages_path + "/dbt_server"
 
     click.echo("Submitting dbt-server image...")
-    click.echo(f"`gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image`\n")
 
-    check_output(f"gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image", shell=True)
+    command = f"`gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image`\n"
+    click.echo(command)
+    check_output(command, shell=True)
 
     click.echo(f"\ndbt-server image submitted to {click.style(f'{artifact_registry}/server-image', blink=True, bold=True)}")

@@ -8,7 +8,7 @@ from typing import List
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus, FollowUpLink
 
 
-def stream_logs(links: List[FollowUpLink], auth_session: requests.Session) -> ():
+def stream_logs(links: List[FollowUpLink], auth_session: requests.Session) -> None:
     run_status_link = get_link_from_action_name(links, "run_status")
     last_logs_link = get_link_from_action_name(links, "last_logs")
     run_status = get_run_status(run_status_link, auth_session).run_status
@@ -74,7 +74,7 @@ def get_last_logs(last_logs_link: str, auth_session: requests.Session) -> DbtRes
 \nReceived message: {res.text}")
 
 
-def show_log(log: str) -> ():
+def show_log(log: str) -> None:
 
     parsed_log = parse_log(log)
     if parsed_log is None:
