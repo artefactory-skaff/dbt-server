@@ -68,6 +68,9 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
     if user_command == "image":  # expected: dbt-remote image submit
         return build_image(location, artifact_registry, args)
 
+    dbt_command = assemble_dbt_command(user_command, args)
+    click.echo(f"{click.style('Command:', blink=True, bold=True)} dbt {dbt_command}")
+
     cli_config = CliConfig(
         manifest=manifest,
         project_dir=project_dir,
@@ -79,15 +82,12 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         location=location,
     )
     cli_config = load_config_file(cli_config)
-    cli_config.profiles = search_profiles_file(assemble_dbt_command(user_command, args), cli_config)
+    cli_config.profiles = search_profiles_file(dbt_command, cli_config)
 
     if cli_config.server_url is not None:
         click.echo(f"{click.style('dbt-server url:', blink=True, bold=True)} {cli_config.server_url}")
     else:
         click.echo(f"{click.style('dbt-server url:', blink=True, bold=True)} unknown.")
-
-    dbt_command = assemble_dbt_command(user_command, args)
-    click.echo(f"{click.style('Command:', blink=True, bold=True)} dbt {dbt_command}")
 
     click.echo(click.style('Config:', blink=True, bold=True))
     for key, value in cli_config.__dict__.items():
@@ -95,8 +95,7 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
 
     check_if_dbt_project(cli_config)
 
-    cloud_run_client = run_v2.ServicesClient()
-    cli_config.server_url = get_server_uri(cli_config, cloud_run_client)
+    cli_config.server_url = get_server_uri(cli_config)
     auth_session = get_auth_session()
 
     if cli_config.manifest is None:
@@ -189,11 +188,11 @@ def assemble_dbt_command(user_command: str, args: Any) -> str:
     return dbt_command
 
 
-def get_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
+def get_server_uri(cli_config: CliConfig) -> str:
     if cli_config.server_url is not None:
         server_url = cli_config.server_url + "/"
     else:
-        server_url = detect_dbt_server_uri(cli_config, cloud_run_client) + "/"
+        server_url = detect_dbt_server_uri(cli_config) + "/"
     return server_url
 
 

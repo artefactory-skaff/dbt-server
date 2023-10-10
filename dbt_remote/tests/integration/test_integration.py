@@ -1,5 +1,4 @@
 import sys
-from google.cloud import run_v2
 sys.path.insert(1, './dbt_remote/')
 from src.dbt_remote.dbt_server_detector import get_cloud_run_service_list
 
@@ -15,8 +14,7 @@ class TestService:
 
 def test_get_cloud_run_service_list():
     project_id, location = "stc-dbt-test-9e19", "europe-west9"
-    cloud_run_client = run_v2.ServicesClient()
-    services = get_cloud_run_service_list(project_id, location, cloud_run_client)
+    services = get_cloud_run_service_list(project_id, location)
 
     test_dbt_server_is_present = False
     for service in services:

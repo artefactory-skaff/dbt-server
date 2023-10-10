@@ -18,4 +18,3 @@ USER newuser
 RUN mkdir seeds
 # we run relevant script
 CMD ["/bin/bash", "-c", "python3 $SCRIPT"]
-

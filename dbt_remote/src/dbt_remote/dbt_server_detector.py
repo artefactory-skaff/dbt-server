@@ -1,19 +1,18 @@
-import requests
 from typing import List
 import traceback
 import os
 from subprocess import check_output
+import json
+from multiprocessing.pool import ThreadPool
 
 import click
 from google.cloud import run_v2
 
-from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseCheck
 from dbt_remote.src.dbt_remote.authentication import get_auth_session
 from dbt_remote.src.dbt_remote.config_command import CliConfig, set
 
 
-def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.ServicesClient) -> str:
-
+def detect_dbt_server_uri(cli_config: CliConfig) -> str:
     project_id = get_project_id()
     location = cli_config.location  # can be None
 
@@ -21,13 +20,11 @@ def detect_dbt_server_uri(cli_config: CliConfig, cloud_run_client: run_v2.Servic
         click.echo(f"\nLooking for dbt server on project {project_id} in {location}...")
     else:
         click.echo(f"\nLooking for dbt server on project {project_id}...")
-    cloud_run_services = get_cloud_run_service_list(project_id, location, cloud_run_client)
+
+    cloud_run_services = get_cloud_run_service_list(project_id, location)
 
     for service in cloud_run_services:
-        click.echo(f"Checking Cloud Run service: {service.name}")
-        auth_session = get_auth_session()
-
-        if check_if_server_is_dbt_server(service, auth_session):
+        if check_if_server_is_dbt_server(service):
             click.echo(f"Detected dbt server at: {click.style(service.uri, blink=True, bold=True)}")
             if click.confirm("Do you want to use this server as your default dbt server for this project?", default=True):
                 set([f'server_url={service.uri}'])
@@ -46,34 +43,20 @@ def get_project_id():
 `export PROJECT_ID=<your-project-id>`.')
 
 
-def get_cloud_run_service_list(project_id: str, location: str | None,
-                               client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
-
-    if location is None:
-        service_list = []
-        for region in get_gcp_regions():
-            service_list.extend(get_cloud_run_service_list_from_location(project_id, region, client))
-        return service_list
-    else:
-        return get_cloud_run_service_list_from_location(project_id, location, client)
+def get_cloud_run_service_list(project_id: str, location: str | None) -> List[run_v2.types.service.Service]:
+    regions = get_gcp_regions() if location is None else [location]
+    services_matrix = ThreadPool(50).starmap(get_cloud_run_service_list_from_location, [(project_id, region) for region in regions])
+    services = [service for services in services_matrix for service in services]
+    return services
 
 
 def get_gcp_regions() -> List[str]:
-    regions = []
-
-    us_regions_str = check_output("echo $(gcloud compute regions list --filter='name ~ ^us*') | sed 's/UP/\\n/g' \
-                                  | awk '{print $1}' | awk NR\\>1", shell=True)
-    regions += us_regions_str.decode("utf8").strip().split('\n')
-
-    eu_regions_str = check_output("echo $(gcloud compute regions list --filter='name ~ ^europe*') | sed 's/UP/\\n/g' \
-                                  | awk '{print $1}' | awk NR\\>1", shell=True)
-    regions += eu_regions_str.decode("utf8").strip().split('\n')
-
+    regions_raw = check_output("gcloud run regions list --format json", shell=True)
+    regions = [region["locationId"] for region in json.loads(regions_raw)]
     return regions
 
 
-def get_cloud_run_service_list_from_location(project_id: str, location: str,
-                                             client: run_v2.ServicesClient) -> List[run_v2.types.service.Service]:
+def get_cloud_run_service_list_from_location(project_id: str, location: str) -> List[run_v2.types.service.Service]:
 
     parent_value = f"projects/{project_id}/locations/{location}"
     request = run_v2.ListServicesRequest(
@@ -81,41 +64,20 @@ def get_cloud_run_service_list_from_location(project_id: str, location: str,
     )
 
     try:
-        list_service_pager = client.list_services(request=request)
-        service_list = []
-        for service in list_service_pager:
-            service_list.append(service)
-        return service_list
+        return list(run_v2.ServicesClient().list_services(request=request))
     except:
         traceback_str = traceback.format_exc()
         click.echo(traceback_str)
 
 
-def check_if_server_is_dbt_server(service: run_v2.types.service.Service, auth_session: requests.Session) -> bool:
+def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool:
     url = service.uri + '/check'
+    auth_session = get_auth_session()
+
     try:
         res = auth_session.get(url)
+        if "dbt-server" in res.json()["response"]:
+            return True
+        return False
     except Exception:  # request timeout or max retries
         return False
-    if res.status_code == 200:
-        try:
-            parsed_response = parse_check_server_response(res)
-            if 'Running dbt-server on port' in parsed_response.response:
-                return True
-            else:
-                return False
-        except Exception:
-            return False
-    else:
-        return False
-
-
-def parse_check_server_response(res: requests.Response) -> DbtResponseCheck:
-    try:
-        results = DbtResponseCheck.parse_raw(res.text)
-    except Exception:
-        raise click.ClickException(f"{click.style('ERROR', fg='red')} in while parsing server response (parse_check_server_response).\
-\nReceived message: {res.text}")
-
-    results.status_code = res.status_code
-    return results

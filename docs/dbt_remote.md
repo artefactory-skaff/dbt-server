@@ -1,6 +1,6 @@
 # dbt-remote
 
-This cli aims to be a drop-in replacement for the [dbt][dbt-url] CLI, but running on GCP. 
+This cli aims to be a drop-in replacement for the [dbt][dbt-url] CLI, but running on GCP.
 
 ## Requirements and installation
 
@@ -20,7 +20,7 @@ We detail some subtleties of 2 options:
 
 By default, the cli automatically looks for a `dbt-server` on your GCP project's Cloud Run. To this end, the cli uses the `location` given in the user command or set in the configuration. If none is given, it looks at all EU and US locations.
 
-Ex: 
+Ex:
 ```sh
 dbt-remote run --select my_model --location europe-west9
 ```
@@ -48,19 +48,19 @@ To save your default manifest and dbt_project files, you can use `dbt-remote con
 
 ## dbt-remote command examples
 
-- run my_model model: 
+- run my_model model:
 
 ```sh
 dbt-remote --log-level info run --manifest project/manifest.json --select my_model --dbt_project project/dbt_project.yml
 ```
 
-- list with specific profile and target: 
+- list with specific profile and target:
 
 ```sh
 dbt-remote --log-level debug list --project-dir test/ --profile my_profile --target dev
 ```
 
-- build with local server url: 
+- build with local server url:
 
 ```sh
 dbt-remote build --server-url http://0.0.0.0:8001

@@ -17,11 +17,6 @@ class DbtResponse(BaseModel):
     links: Optional[List[FollowUpLink]] = None
 
 
-class DbtResponseCheck(BaseModel):
-    status_code: Optional[str] = None
-    response: Optional[str] = None
-
-
 class DbtResponseRunStatus(BaseModel):
     status_code: Optional[str] = None
     run_status: Optional[str] = None
