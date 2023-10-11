@@ -1,6 +1,6 @@
-import os
 from subprocess import check_output
 import click
+from pathlib import Path
 
 
 def build_image(location: str | None, artifact_registry: str | None, args):
@@ -29,17 +29,18 @@ def help_image():
 """)
 
 
-def submit_image(location: str | None, artifact_registry: str | None) -> ():
+def submit_image(location: str | None, artifact_registry: str | None) -> None:
 
     if location is None or artifact_registry is None:
         raise click.ClickException(f"{click.style('ERROR', fg='red')}\tYou must provide a location and an artifact-registry.")
 
-    site_packages_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))  # /Users/.../dbt_remote
-    dbt_server_dir = site_packages_path + "/dbt_server"
+    site_packages_path = Path(__file__).parents[3]  # /Users/.../dbt_remote
+    dbt_server_dir = site_packages_path / "dbt_server"
 
     click.echo("Submitting dbt-server image...")
-    click.echo(f"`gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image`\n")
 
-    check_output(f"gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image", shell=True)
+    command = f"`gcloud builds submit {dbt_server_dir} --region={location} --tag {artifact_registry}/server-image`\n"
+    click.echo(command)
+    check_output(command, shell=True)
 
     click.echo(f"\ndbt-server image submitted to {click.style(f'{artifact_registry}/server-image', blink=True, bold=True)}")

@@ -14,17 +14,16 @@ from dbt.contracts.graph.nodes import SeedNode
 from fastapi import HTTPException
 
 from lib.state import State
-from lib.cloud_storage import CloudStorage, connect_client
+from lib.cloud_storage import CloudStorage
 from lib.set_environment import set_env_vars_job
-from lib.firestore import connect_firestore_collection
+from lib.firestore import get_collection
 
 callback_lock = threading.Lock()
 
-BUCKET_NAME, DBT_COMMAND, UUID, DBT_LOGGER, STATE = set_env_vars_job(CloudStorage(connect_client()),
-                                                                     connect_firestore_collection(), logging.Client())
+BUCKET_NAME, DBT_COMMAND, UUID, logger, STATE = set_env_vars_job(CloudStorage(), get_collection("dbt-status"), logging.Client())
 
 
-def prepare_and_execute_job(state: State) -> ():
+def prepare_and_execute_job(state: State) -> None:
 
     state.get_context_to_local()
 
@@ -36,13 +35,13 @@ def prepare_and_execute_job(state: State) -> ():
 
     with callback_lock:
         log = "[job]Command successfully executed"
-        DBT_LOGGER.log("INFO", log)
+        logger.log("INFO", log)
 
     log = "[job]END JOB"
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
 
 
-def install_dependencies(state: State, manifest: Manifest) -> ():
+def install_dependencies(state: State, manifest: Manifest) -> None:
     packages_path = './packages.yml'
     check_file = os.path.isfile(packages_path)
     if check_file:
@@ -52,7 +51,7 @@ def install_dependencies(state: State, manifest: Manifest) -> ():
             run_dbt_command(state, manifest, 'deps')
 
 
-def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
+def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> None:
 
     state.run_status = "running"
 
@@ -69,7 +68,7 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> ():
 
         log = "[job]END JOB"
         with callback_lock:
-            DBT_LOGGER.log("INFO", log)
+            logger.log("INFO", log)
         handle_exception(res_dbt.exception)
 
 
@@ -88,27 +87,27 @@ def logger_callback(event: EventMsg):
         case "debug":
             if user_log_level == "debug":
                 with callback_lock:
-                    DBT_LOGGER.log(event.info.level.upper(), msg)
+                    logger.log(event.info.level.upper(), msg)
             else:
-                DBT_LOGGER.logger.debug(msg)
+                logger.logger.debug(msg)
 
         case "info":
             if user_log_level in ["debug", "info"]:
                 with callback_lock:
-                    DBT_LOGGER.log(event.info.level.upper(), msg)
+                    logger.log(event.info.level.upper(), msg)
             else:
-                DBT_LOGGER.logger.info(msg)
+                logger.logger.info(msg)
 
         case "warn":
             if user_log_level in ["debug", "info", "warn"]:
                 with callback_lock:
-                    DBT_LOGGER.log(event.info.level.upper(), msg)
+                    logger.log(event.info.level.upper(), msg)
             else:
-                DBT_LOGGER.logger.warn(msg)
+                logger.logger.warn(msg)
 
         case "error":
             with callback_lock:
-                DBT_LOGGER.log(event.info.level.upper(), msg)
+                logger.log(event.info.level.upper(), msg)
 
 
 LogConfiguration = TypedDict('LogConfiguration', {'log_format': str, 'log_level': str})
@@ -125,7 +124,7 @@ def get_user_request_log_configuration(user_command: str) -> LogConfiguration:
 
 
 def handle_exception(dbt_exception: BaseException | None):
-    DBT_LOGGER.logger.error({"error": dbt_exception})
+    logger.logger.error({"error": dbt_exception})
     if dbt_exception is not None:
         raise HTTPException(status_code=400, detail=dbt_exception)
     else:
@@ -154,6 +153,6 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
 
 if __name__ == '__main__':
 
-    DBT_LOGGER.log("INFO", "[job]Job started")
+    logger.log("INFO", "[job]Job started")
     state = STATE
     prepare_and_execute_job(state)

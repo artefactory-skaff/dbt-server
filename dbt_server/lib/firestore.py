@@ -1,14 +1,10 @@
-import os
+from functools import cache
+
 from google.cloud import firestore
-from google.oauth2.credentials import Credentials
 
+def get_collection(collection_name: str) -> firestore.CollectionReference:
+    return get_client().collection(collection_name)
 
-def connect_firestore_collection() -> firestore.CollectionReference:
-    SERVICE_ACCOUNT_TOKEN = os.getenv('SERVICE_ACCOUNT_KEY', default='')
-    if SERVICE_ACCOUNT_TOKEN != '':
-        cred = Credentials(token=SERVICE_ACCOUNT_TOKEN)
-        client = firestore.Client(credentials=cred)
-    else:
-        client = firestore.Client()
-    dbt_collection = client.collection("dbt-status")
-    return dbt_collection
+@cache
+def get_client() -> firestore.Client:
+    return firestore.Client()

@@ -1,27 +1,27 @@
 import base64
-from google.cloud import run_v2
-from google.cloud import logging
 import os
 import uuid
-import uvicorn
 import sys
 import traceback
 from pathlib import Path
+
+import uvicorn
 from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.templating import Jinja2Templates
+from google.cloud import run_v2
 
+from lib.firestore import get_collection
 from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
 from lib.state import State
 from lib.cloud_storage import CloudStorage, connect_client
-from lib.set_environment import set_env_vars, get_server_dbt_logger
-from lib.firestore import connect_firestore_collection
+from lib.set_environment import set_env_vars
+from lib.logger import get_dbt_server_logger
 
 
 BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
 PORT = os.environ.get("PORT", "8001")
-DBT_LOGGER = get_server_dbt_logger(CloudStorage(connect_client()), connect_firestore_collection(),
-                                   logging.Client(), sys.argv)
+logger = get_dbt_server_logger(sys.argv)
 BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
@@ -30,6 +30,7 @@ app = FastAPI(
     version="0.0.1",
     docs_url="/docs"
 )
+
 templates = Jinja2Templates(directory=str(Path(BASE_DIR, 'templates')))
 
 
@@ -44,18 +45,18 @@ def run_command(dbt_command: DbtCommand):
     dbt_command = base64_decode_dbt_command(dbt_command)
 
     request_uuid = str(uuid.uuid4())
-    state = State(request_uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    state = State(request_uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
     state.init_state()
     state.run_status = "pending"
-    DBT_LOGGER.uuid = request_uuid
+    logger.uuid = request_uuid
 
     log = f"Received command '{dbt_command.user_command}'"
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
     state.user_command = dbt_command.user_command
 
     processed_command = process_command(dbt_command.user_command)
     log = f"Processed command: {processed_command}"
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
     dbt_command.processed_command = processed_command
 
     state.load_context(dbt_command)
@@ -74,7 +75,7 @@ def run_command(dbt_command: DbtCommand):
 
 def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
     log = f"Creating cloud run job {state.uuid} with command '{dbt_command.processed_command}'"
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
 
     client = run_v2.JobsClient()
     task_container = {
@@ -107,11 +108,11 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
         raise HTTPException(status_code=400, detail=f"Cloud Run job creation failed {traceback_str}")
 
     log = "Waiting for job creation to complete..."
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
 
     response = operation.result()
     log = f"Job created: {response.name}"
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
 
     return response
 
@@ -120,7 +121,7 @@ def launch_job(state: State, response_job: run_v2.types.Job):
 
     job_name = response_job.name
     log = f"Launching job: {job_name}'"
-    DBT_LOGGER.log("INFO", log)
+    logger.log("INFO", log)
 
     client = run_v2.JobsClient()
     request = run_v2.RunJobRequest(name=job_name,)
@@ -135,21 +136,21 @@ def launch_job(state: State, response_job: run_v2.types.Job):
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
 def get_job_status(uuid: str):
-    job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    job_state = State(uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
     run_status = job_state.run_status
     return {"run_status": run_status}
 
 
 @app.get("/job/{uuid}/last_logs", status_code=status.HTTP_200_OK)
 def get_last_logs(uuid: str):
-    job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    job_state = State(uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
     logs = job_state.get_last_logs()
     return {"run_logs": logs}
 
 
 @app.get("/job/{uuid}/logs", status_code=status.HTTP_200_OK)
 def get_all_logs(uuid: str):
-    job_state = State(uuid, CloudStorage(connect_client()), connect_firestore_collection())
+    job_state = State(uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
     logs = job_state.get_all_logs()
     return {"run_logs": logs}
 
@@ -198,4 +199,5 @@ if __name__ == "__main__":
         "dbt_server:app",
         port=int(os.environ.get("PORT", 8001)),
         host="0.0.0.0",
-        reload=True)
+        reload=True
+    )
