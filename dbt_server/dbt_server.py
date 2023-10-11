@@ -10,7 +10,7 @@ from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from google.cloud import run_v2
 
-from dbt_server.lib.firestore import get_collection
+from lib.firestore import get_collection
 from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
 from lib.state import State

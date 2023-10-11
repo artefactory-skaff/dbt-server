@@ -35,7 +35,7 @@ def submit_image(location: str | None, artifact_registry: str | None) -> None:
         raise click.ClickException(f"{click.style('ERROR', fg='red')}\tYou must provide a location and an artifact-registry.")
 
     site_packages_path = Path(__file__).parents[3]  # /Users/.../dbt_remote
-    dbt_server_dir = site_packages_path + "/dbt_server"
+    dbt_server_dir = site_packages_path / "dbt_server"
 
     click.echo("Submitting dbt-server image...")
 

@@ -141,3 +141,6 @@ terraform*
 # Temp directories and zip folders created when testing Terraform locally
 *.zip
 tmp_*
+
+dbt_remote.yml
+dbt_remote.yaml

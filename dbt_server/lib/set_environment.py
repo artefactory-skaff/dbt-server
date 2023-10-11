@@ -1,9 +1,7 @@
 import os
-from typing import List
 from google.cloud.logging import Client
 from google.cloud import firestore
 import yaml
-from dbt_server.lib.logger import get_dbt_server_logger
 
 from lib.state import State
 from lib.logger import DbtLogger
