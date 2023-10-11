@@ -10,11 +10,9 @@ from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from google.cloud import run_v2
 
-from lib.firestore import get_collection
 from lib.dbt_classes import DbtCommand, FollowUpLink
 from lib.command_processor import process_command
 from lib.state import State
-from lib.cloud_storage import CloudStorage, connect_client
 from lib.set_environment import set_env_vars
 from lib.logger import get_dbt_server_logger
 
@@ -43,12 +41,9 @@ def get_home(request: Request):
 def run_command(dbt_command: DbtCommand):
 
     dbt_command = base64_decode_dbt_command(dbt_command)
-
-    request_uuid = str(uuid.uuid4())
-    state = State(request_uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
-    state.init_state()
+    state = State()
     state.run_status = "pending"
-    logger.uuid = request_uuid
+    logger.uuid = state.uuid
 
     log = f"Received command '{dbt_command.user_command}'"
     logger.log("INFO", log)
@@ -65,10 +60,10 @@ def run_command(dbt_command: DbtCommand):
     launch_job(state, response_job)
 
     return {
-        "uuid": request_uuid,
+        "uuid": state.uuid,
         "links": [
-            FollowUpLink("run_status", f"{dbt_command.server_url}job/{request_uuid}"),
-            FollowUpLink("last_logs", f"{dbt_command.server_url}job/{request_uuid}/last_logs"),
+            FollowUpLink("run_status", f"{dbt_command.server_url}job/{state.uuid}"),
+            FollowUpLink("last_logs", f"{dbt_command.server_url}job/{state.uuid}/last_logs"),
         ]
     }
 
@@ -136,21 +131,21 @@ def launch_job(state: State, response_job: run_v2.types.Job):
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
 def get_job_status(uuid: str):
-    job_state = State(uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
+    job_state = State.from_uuid(uuid)
     run_status = job_state.run_status
     return {"run_status": run_status}
 
 
 @app.get("/job/{uuid}/last_logs", status_code=status.HTTP_200_OK)
 def get_last_logs(uuid: str):
-    job_state = State(uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
+    job_state = State.from_uuid(uuid)
     logs = job_state.get_last_logs()
     return {"run_logs": logs}
 
 
 @app.get("/job/{uuid}/logs", status_code=status.HTTP_200_OK)
 def get_all_logs(uuid: str):
-    job_state = State(uuid, CloudStorage(connect_client()), get_collection("dbt-status"))
+    job_state = State.from_uuid(uuid)
     logs = job_state.get_all_logs()
     return {"run_logs": logs}
 
