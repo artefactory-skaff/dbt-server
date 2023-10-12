@@ -30,8 +30,7 @@ class DbtLogger:
 
     @uuid.setter
     def uuid(self, new_uuid: str):
-        self._uuid = new_uuid
-        self.state = State(self._uuid, self.cloud_storage_instance, self.dbt_collection)
+        self.state = State.from_uuid(new_uuid)
 
     def log(self, severity: str, new_log: str):
         log_level = get_log_level(severity)

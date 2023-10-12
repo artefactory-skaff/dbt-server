@@ -29,5 +29,5 @@ def set_env_vars_job(cloud_storage_instance: CloudStorage,
     UUID = os.environ.get("UUID", default='0000')
     logger = DbtLogger(local=False, server=False)
     logger.uuid = UUID
-    STATE = State(UUID, cloud_storage_instance, dbt_collection)
+    STATE = State.from_uuid(UUID)
     return BUCKET_NAME, DBT_COMMAND, UUID, logger, STATE
