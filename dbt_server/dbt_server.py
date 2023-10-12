@@ -1,6 +1,5 @@
 import base64
 import os
-import uuid
 import sys
 import traceback
 from pathlib import Path
@@ -153,9 +152,7 @@ def get_all_logs(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     print(int(os.environ.get("PORT", 8001)))
-    return {
-        "response": "Running dbt-server on port "+PORT,
-        }
+    return { "response": f"Running dbt-server on port {PORT}"}
 
 
 def base64_decode_dbt_command(dbt_command: DbtCommand) -> DbtCommand:
