@@ -11,6 +11,7 @@ RUN useradd -ms /bin/bash newuser
 
 WORKDIR /home/newuser/
 COPY . /home/newuser/
+RUN mkdir /home/newuser/.dbt
 
 RUN chown -R newuser /home/newuser/
 USER newuser

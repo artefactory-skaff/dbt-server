@@ -44,13 +44,11 @@ def run_command(dbt_command: DbtCommand):
     state.run_status = "pending"
     logger.uuid = state.uuid
 
-    log = f"Received command '{dbt_command.user_command}'"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Received command '{dbt_command.user_command}'")
     state.user_command = dbt_command.user_command
 
     processed_command = process_command(dbt_command.user_command)
-    log = f"Processed command: {processed_command}"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Processed command: {processed_command}")
     dbt_command.processed_command = processed_command
 
     state.load_context(dbt_command)
@@ -101,12 +99,10 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
         traceback_str = traceback.format_exc()
         raise HTTPException(status_code=400, detail=f"Cloud Run job creation failed {traceback_str}")
 
-    log = "Waiting for job creation to complete..."
-    logger.log("INFO", log)
+    logger.log("INFO", "Waiting for job creation to complete...")
 
     response = operation.result()
-    log = f"Job created: {response.name}"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Job created: {response.name}")
 
     return response
 
@@ -114,8 +110,7 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
 def launch_job(state: State, response_job: run_v2.types.Job):
 
     job_name = response_job.name
-    log = f"Launching job: {job_name}'"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Launching job: {job_name}'")
 
     client = run_v2.JobsClient()
     request = run_v2.RunJobRequest(name=job_name,)
