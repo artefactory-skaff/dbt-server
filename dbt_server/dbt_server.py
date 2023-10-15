@@ -9,7 +9,7 @@ from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from google.cloud import run_v2
 
-from lib.dbt_classes import DbtCommand, FollowUpLink
+from lib.dbt_classes import DbtCommand
 from lib.command_processor import process_command
 from lib.state import State
 from lib.set_environment import set_env_vars
@@ -60,10 +60,10 @@ def run_command(dbt_command: DbtCommand):
 
     return {
         "uuid": state.uuid,
-        "links": [
-            FollowUpLink("run_status", f"{dbt_command.server_url}job/{state.uuid}"),
-            FollowUpLink("last_logs", f"{dbt_command.server_url}job/{state.uuid}/last_logs"),
-        ]
+        "links": {
+            "run_status": f"{dbt_command.server_url}job/{state.uuid}",
+            "last_logs": f"{dbt_command.server_url}job/{state.uuid}/last_logs",
+        }
     }
 
 
