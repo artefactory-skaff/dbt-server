@@ -19,7 +19,7 @@ jobs:
       - name: Init .dbt for click execution
         run: |
           mkdir ../../../.dbt
-          cp dbt_server/profiles.yml /home/runner/.dbt
+          touch /home/runner/.dbt/profiles.yml
           ls -la /home/runner/.dbt
 
       - name: Test dbt_remote/ with pytest
