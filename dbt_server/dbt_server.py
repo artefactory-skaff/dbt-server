@@ -1,13 +1,12 @@
-import base64
 import os
 import traceback
 
 import uvicorn
-from fastapi import FastAPI, status, HTTPException
-from google.cloud import run_v2
+from fastapi import FastAPI, HTTPException, status
 
+from lib.dbt_cloud_run_job import DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
 from lib.dbt_classes import DbtCommand
-from lib.command_processor import process_command
+from lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig
 from lib.state import State
 from lib.logger import DbtLogger
 
@@ -30,24 +29,32 @@ app = FastAPI(
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: DbtCommand):
-    logger.log("INFO", f"Received payload '{dbt_command.user_command}'")
+    logger.log("INFO", f"Received: '{dbt_command.processed_command}'")
 
     state = State()
     state.run_status = "pending"
+    state.user_command = dbt_command.user_command
     logger.uuid = state.uuid
 
-    dbt_command = base64_decode_dbt_command(dbt_command)
-    state.user_command = dbt_command.user_command
-    logger.log("INFO", f"Received command '{dbt_command.user_command}'")
-
-    processed_command = process_command(dbt_command.user_command)
-    dbt_command.processed_command = processed_command
-    logger.log("INFO", f"Processed command: {processed_command}")
+    logger.log("INFO", f"Received command: {dbt_command.user_command}")
+    logger.log("INFO", f"Processed command: {dbt_command.processed_command}")
 
     state.load_context(dbt_command)
 
-    job = create_job(state, dbt_command)
-    launch_job(state, job)
+    try:
+        job_conf = DbtCloudRunJobConfig(
+            uuid=state.uuid,
+            dbt_command=dbt_command.processed_command,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            service_account=SERVICE_ACCOUNT,
+            job_docker_image=DOCKER_IMAGE,
+            artifacts_bucket_name=BUCKET_NAME
+        )
+        DbtCloudRunJobStarter(job_conf, logger).start()
+    except (DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed) as e:
+        traceback_str = traceback.format_exc()
+        raise HTTPException(status_code=400, detail=f"{e.args[0]}\n{traceback_str}")
 
     return {
         "uuid": state.uuid,
@@ -56,56 +63,6 @@ def run_command(dbt_command: DbtCommand):
             "last_logs": f"{dbt_command.server_url}job/{state.uuid}/last_logs",
         }
     }
-
-
-def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
-    logger.log("INFO", f"Creating cloud run job {state.uuid} with command '{dbt_command.processed_command}'")
-
-    job = run_v2.Job()
-    job.template.template.max_retries = 0
-    job.template.template.service_account = SERVICE_ACCOUNT
-    job.template.template.containers = [{
-        "image": DOCKER_IMAGE,
-        "env": [
-            {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
-            {"name": "UUID", "value": state.uuid},
-            {"name": "SCRIPT", "value": "dbt_run_job.py"},
-            {"name": "BUCKET_NAME", "value": BUCKET_NAME},
-        ]
-    }]
-
-    request = run_v2.CreateJobRequest(
-        parent=f"projects/{PROJECT_ID}/locations/{LOCATION}",
-        job_id=f"u{state.uuid.replace('-', '')}", # job_id must start with a letter and cannot contain '-'
-        job=job
-    )
-
-    try:
-        operation = run_v2.JobsClient().create_job(request=request)
-    except Exception:
-        traceback_str = traceback.format_exc()
-        raise HTTPException(status_code=400, detail=f"Cloud Run job creation failed {traceback_str}")
-
-    response = operation.result()
-    logger.log("INFO", f"Job created: {response.name}")
-
-    return response
-
-
-def launch_job(state: State, job: run_v2.types.Job):
-
-    logger.log("INFO", f"Starting job: {job.name}'")
-
-    client = run_v2.JobsClient()
-    request = run_v2.RunJobRequest(name=job.name)
-
-    try:
-        client.run_job(request=request)
-    except Exception:
-        traceback_str = traceback.format_exc()
-        raise HTTPException(status_code=400, detail=f"Cloud Run job start failed {traceback_str}")
-
-    state.run_status = "running"
 
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
@@ -132,37 +89,6 @@ def get_all_logs(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     return { "response": f"Running dbt-server on port {PORT}"}
-
-
-def base64_decode_dbt_command(dbt_command: DbtCommand) -> DbtCommand:
-    dbt_command_dict = dbt_command.__dict__
-    b64_encoded_keys = ['manifest', 'dbt_project', 'profiles', 'seeds', 'packages']
-
-    for key in b64_encoded_keys:
-        value = dbt_command_dict[key]
-
-        if value is None:
-            continue
-
-        elif isBase64(value):
-            dbt_command_dict[key] = base64.b64decode(value)
-
-        elif isinstance(value, dict):  # seeds will be a dict of b64 encoded seeds files
-            for k, v in value.items():
-                if isBase64(v):
-                    dbt_command_dict[key][k] = base64.b64decode(v)
-
-        else:
-            print(f"Warning: {key} is not base64 encoded. It will be passed as is to the cloud run job.")
-
-    return dbt_command
-
-
-def isBase64(s):
-    try:
-        return base64.b64encode(base64.b64decode(s)) == bytes(s, 'ascii')
-    except Exception:
-        return False
 
 
 if __name__ == "__main__":
