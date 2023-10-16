@@ -12,13 +12,13 @@ from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 from dbt.parser.manifest import write_manifest
 
-from dbt_remote.src.dbt_remote import cli_params as p
-from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
-from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
-from dbt_remote.src.dbt_remote.stream_logs import stream_logs
-from dbt_remote.src.dbt_remote.config_command import CliConfig, config, CONFIG_FILE, init
-from dbt_remote.src.dbt_remote.authentication import get_auth_session
-from dbt_remote.src.dbt_remote.image_command import build_image
+from src.dbt_remote import cli_params as p
+from src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
+from src.dbt_remote.server_response_classes import DbtResponse
+from src.dbt_remote.stream_logs import stream_logs
+from src.dbt_remote.config_command import CliConfig, config, CONFIG_FILE, init
+from src.dbt_remote.authentication import get_auth_session
+from src.dbt_remote.image_command import build_image
 
 
 help_msg = """
@@ -69,7 +69,7 @@ def cli(
     if user_command == "image":  # expected: dbt-remote image submit
         return build_image(location, artifact_registry, args)
 
-    dbt_command = assemble_dbt_command(user_command, args)
+    dbt_command = quote_command_args(user_command, args)
     click.echo(f"{click.style('Command:', blink=True, bold=True)} dbt {dbt_command}")
 
     cli_config = CliConfig(
@@ -180,7 +180,7 @@ def display_links(links: Dict[str, str]):
     click.echo("")
 
 
-def assemble_dbt_command(user_command: str, args: Any) -> str:
+def quote_command_args(user_command: str, args: Any) -> str:
     args = ["\'"+arg+"\'" for arg in args]  # needed to handle cases such as --args '{key: value}'
     dbt_command = user_command
     if args != [] and args is not None:
