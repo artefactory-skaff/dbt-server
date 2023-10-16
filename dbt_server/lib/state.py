@@ -4,16 +4,13 @@ from datetime import date, datetime, timezone
 import logging
 import traceback
 from uuid import uuid4
-import yaml
 
 from lib.firestore import get_collection
 from lib.dbt_classes import DbtCommand
 from lib.cloud_storage import CloudStorage
 
-with open("lib/server_default_config.yml", 'r') as f:
-    SERVER_DEFAULT_CONFIG = yaml.safe_load(f)
 
-BUCKET_NAME = os.getenv('BUCKET_NAME', default=SERVER_DEFAULT_CONFIG["bucket_name"])
+BUCKET_NAME = os.getenv('BUCKET_NAME')
 
 
 class State:
@@ -110,12 +107,10 @@ class State:
                 self.cloud_storage_instance.write_to_bucket(BUCKET_NAME, cloud_storage_folder+"/"+seed_name, seed_str)
 
     def get_context_to_local(self) -> None:
-        cloud_storage_folder = self.cloud_storage_folder
-        logging.info(f"load data from folder {cloud_storage_folder}")
-        blob_context_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME, cloud_storage_folder)
+        logging.info(f"load data from folder {self.cloud_storage_folder}")
+        blob_context_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME, self.cloud_storage_folder)
         write_files(blob_context_files)
-        blob_seed_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME,
-                                                                                cloud_storage_folder+'/seeds')
+        blob_seed_files = self.cloud_storage_instance.get_all_blobs_from_folder(BUCKET_NAME, self.cloud_storage_folder+'/seeds')
         write_files(blob_seed_files, 'seeds/')
 
     def get_last_logs(self) -> List[str]:

@@ -1,6 +1,5 @@
 import logging
 from logging import Logger
-from typing import List
 import os
 # https://stackoverflow.com/questions/2183233/how-to-add-a-custom-loglevel-to-pythons-logging-facility/35804945#35804945
 from google.cloud.logging import Client
@@ -15,8 +14,8 @@ from lib.firestore import get_collection
 
 class DbtLogger:
 
-    def __init__(self, local: bool = False, server: bool = False):
-        self.local = local
+    def __init__(self,server: bool = False):
+        self.local = bool(os.getenv("LOCAL", False))
         self.server = server
 
         self.logging_client = Client()
@@ -160,15 +159,3 @@ def _addLoggingLevel(levelName, levelNum, methodName=None):
     setattr(logging, levelName, levelNum)
     setattr(logging.getLoggerClass(), methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
-
-
-def get_dbt_server_logger(argv: List[str]) -> DbtLogger:
-    local = False
-    if len(argv) == 2 and argv[1] == "--local":  # run locally:
-        local = True
-
-    logger = DbtLogger(
-        local=local,
-        server=True
-    )
-    return logger

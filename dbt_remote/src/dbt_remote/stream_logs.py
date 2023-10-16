@@ -13,7 +13,7 @@ def stream_logs(links: Dict[str, str], auth_session: requests.Session) -> None:
     run_status = get_run_status(run_status_link, auth_session).run_status
 
     stop = False
-    while run_status == "running":
+    while run_status in ["pending", "running"]:
         time.sleep(1)
         run_status = get_run_status(run_status_link, auth_session).run_status
         stop = show_last_logs(last_logs_link, auth_session)

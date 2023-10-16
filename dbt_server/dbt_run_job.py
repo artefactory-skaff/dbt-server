@@ -4,7 +4,6 @@ import json
 from typing import TypedDict
 import threading
 
-from google.cloud import logging
 from click.parser import split_arg_string
 from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
 from dbt.events.base_types import EventMsg
@@ -13,45 +12,42 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import SeedNode
 from fastapi import HTTPException
 
+from lib.logger import DbtLogger
 from lib.state import State
-from lib.cloud_storage import CloudStorage
-from lib.set_environment import set_env_vars_job
-from lib.firestore import get_collection
+
+BUCKET_NAME = os.getenv('BUCKET_NAME')
+DBT_COMMAND = os.getenv("DBT_COMMAND")
+UUID = os.getenv("UUID")
+
 
 callback_lock = threading.Lock()
+logger = DbtLogger(server=False)
+logger.uuid = UUID
+state = State.from_uuid(UUID)
 
-BUCKET_NAME, DBT_COMMAND, UUID, logger, STATE = set_env_vars_job(CloudStorage(), get_collection("dbt-status"), logging.Client())
-
-
-def prepare_and_execute_job(state: State) -> None:
-
+def prepare_and_execute_job() -> None:
     state.get_context_to_local()
-
     manifest = get_manifest()
     manifest = override_manifest_with_correct_seed_path(manifest)
-    install_dependencies(state, manifest)
-
-    run_dbt_command(state, manifest, DBT_COMMAND)
+    install_dependencies(manifest)
+    run_dbt_command(manifest, DBT_COMMAND)
 
     with callback_lock:
-        log = "[job]Command successfully executed"
-        logger.log("INFO", log)
-
-    log = "[job]END JOB"
-    logger.log("INFO", log)
+        logger.log("INFO", "[job] Command successfully executed")
+    logger.log("INFO", "[job] Finished")
 
 
-def install_dependencies(state: State, manifest: Manifest) -> None:
+def install_dependencies(manifest: Manifest) -> None:
     packages_path = './packages.yml'
     check_file = os.path.isfile(packages_path)
     if check_file:
         with open('packages.yml', 'r') as f:
             packages_str = f.read()
         if packages_str != '':
-            run_dbt_command(state, manifest, 'deps')
+            run_dbt_command(manifest, 'deps')
 
 
-def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> None:
+def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
 
     state.run_status = "running"
 
@@ -66,21 +62,19 @@ def run_dbt_command(state: State, manifest: Manifest, dbt_command: str) -> None:
     else:
         state.run_status = "failed"
 
-        log = "[job]END JOB"
         with callback_lock:
-            logger.log("INFO", log)
+            logger.log("INFO", "[job]END JOB")
         handle_exception(res_dbt.exception)
 
 
 def logger_callback(event: EventMsg):
-    state = STATE
     log_configuration = get_user_request_log_configuration(state.user_command)
 
     user_log_format = log_configuration['log_format']
     if user_log_format == "json":
         msg = msg_to_json(event).replace('\n', '  ')
     else:
-        msg = "[dbt]"+event.info.msg.replace('\n', '  ')
+        msg = "[dbt]" + event.info.msg.replace('\n', '  ')
 
     user_log_level = log_configuration['log_level']
     match event.info.level:
@@ -152,7 +146,5 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
 
 
 if __name__ == '__main__':
-
-    logger.log("INFO", "[job]Job started")
-    state = STATE
-    prepare_and_execute_job(state)
+    logger.log("INFO", "[job] Job started")
+    prepare_and_execute_job()

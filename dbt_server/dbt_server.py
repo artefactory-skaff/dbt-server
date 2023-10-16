@@ -1,25 +1,25 @@
 import base64
 import os
-import sys
 import traceback
-from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, status, HTTPException, Request
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, status, HTTPException
 from google.cloud import run_v2
 
 from lib.dbt_classes import DbtCommand
 from lib.command_processor import process_command
 from lib.state import State
-from lib.set_environment import set_env_vars
-from lib.logger import get_dbt_server_logger
+from lib.logger import DbtLogger
 
 
-BUCKET_NAME, DOCKER_IMAGE, SERVICE_ACCOUNT, PROJECT_ID, LOCATION = set_env_vars()
+DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
+SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT')
+PROJECT_ID = os.getenv('PROJECT_ID')
+LOCATION = os.getenv('LOCATION')
+BUCKET_NAME = os.getenv('BUCKET_NAME')
 PORT = os.environ.get("PORT", "8001")
-logger = get_dbt_server_logger(sys.argv)
-BASE_DIR = Path(__file__).resolve().parent
+
+logger = DbtLogger(server=True)
 
 app = FastAPI(
     title="dbt-server",
@@ -28,33 +28,26 @@ app = FastAPI(
     docs_url="/docs"
 )
 
-templates = Jinja2Templates(directory=str(Path(BASE_DIR, 'templates')))
-
-
-@app.get("/")
-def get_home(request: Request):
-    return templates.TemplateResponse('home.html', context={'request': request})
-
-
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: DbtCommand):
+    logger.log("INFO", f"Received payload '{dbt_command.user_command}'")
 
-    dbt_command = base64_decode_dbt_command(dbt_command)
     state = State()
     state.run_status = "pending"
     logger.uuid = state.uuid
 
-    logger.log("INFO", f"Received command '{dbt_command.user_command}'")
+    dbt_command = base64_decode_dbt_command(dbt_command)
     state.user_command = dbt_command.user_command
+    logger.log("INFO", f"Received command '{dbt_command.user_command}'")
 
     processed_command = process_command(dbt_command.user_command)
-    logger.log("INFO", f"Processed command: {processed_command}")
     dbt_command.processed_command = processed_command
+    logger.log("INFO", f"Processed command: {processed_command}")
 
     state.load_context(dbt_command)
 
-    response_job = create_job(state, dbt_command)
-    launch_job(state, response_job)
+    job = create_job(state, dbt_command)
+    launch_job(state, job)
 
     return {
         "uuid": state.uuid,
@@ -66,40 +59,32 @@ def run_command(dbt_command: DbtCommand):
 
 
 def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
-    log = f"Creating cloud run job {state.uuid} with command '{dbt_command.processed_command}'"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Creating cloud run job {state.uuid} with command '{dbt_command.processed_command}'")
 
-    client = run_v2.JobsClient()
-    task_container = {
+    job = run_v2.Job()
+    job.template.template.max_retries = 0
+    job.template.template.service_account = SERVICE_ACCOUNT
+    job.template.template.containers = [{
         "image": DOCKER_IMAGE,
         "env": [
             {"name": "DBT_COMMAND", "value": dbt_command.processed_command},
             {"name": "UUID", "value": state.uuid},
             {"name": "SCRIPT", "value": "dbt_run_job.py"},
             {"name": "BUCKET_NAME", "value": BUCKET_NAME},
-            ]
-        }
-    # job_id must start with a letter and cannot contain '-'
-    job_id = f"u{state.uuid.replace('-', '')}"
-    job_parent = f"projects/{PROJECT_ID}/locations/{LOCATION}"
-
-    job = run_v2.Job()
-    job.template.template.max_retries = 0
-    job.template.template.containers = [task_container]
-    job.template.template.service_account = SERVICE_ACCOUNT
+        ]
+    }]
 
     request = run_v2.CreateJobRequest(
-        parent=job_parent,
-        job=job,
-        job_id=job_id,
+        parent=f"projects/{PROJECT_ID}/locations/{LOCATION}",
+        job_id=f"u{state.uuid.replace('-', '')}", # job_id must start with a letter and cannot contain '-'
+        job=job
     )
+
     try:
-        operation = client.create_job(request=request)
+        operation = run_v2.JobsClient().create_job(request=request)
     except Exception:
         traceback_str = traceback.format_exc()
         raise HTTPException(status_code=400, detail=f"Cloud Run job creation failed {traceback_str}")
-
-    logger.log("INFO", "Waiting for job creation to complete...")
 
     response = operation.result()
     logger.log("INFO", f"Job created: {response.name}")
@@ -107,19 +92,19 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
     return response
 
 
-def launch_job(state: State, response_job: run_v2.types.Job):
+def launch_job(state: State, job: run_v2.types.Job):
 
-    job_name = response_job.name
-    logger.log("INFO", f"Launching job: {job_name}'")
+    logger.log("INFO", f"Starting job: {job.name}'")
 
     client = run_v2.JobsClient()
-    request = run_v2.RunJobRequest(name=job_name,)
+    request = run_v2.RunJobRequest(name=job.name)
 
     try:
         client.run_job(request=request)
     except Exception:
         traceback_str = traceback.format_exc()
         raise HTTPException(status_code=400, detail=f"Cloud Run job start failed {traceback_str}")
+
     state.run_status = "running"
 
 
@@ -146,7 +131,6 @@ def get_all_logs(uuid: str):
 
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
-    print(int(os.environ.get("PORT", 8001)))
     return { "response": f"Running dbt-server on port {PORT}"}
 
 
@@ -184,7 +168,7 @@ def isBase64(s):
 if __name__ == "__main__":
     uvicorn.run(
         "dbt_server:app",
-        port=int(os.environ.get("PORT", 8001)),
+        port=int(PORT),
         host="0.0.0.0",
         reload=True
     )
