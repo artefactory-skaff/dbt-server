@@ -1,7 +1,6 @@
 import requests
 from src.dbt_remote.stream_logs import parse_log, get_last_logs, show_last_logs
-from src.dbt_remote.stream_logs import get_run_status, get_link_from_action_name
-from src.dbt_remote.server_response_classes import FollowUpLink
+from src.dbt_remote.stream_logs import get_run_status
 
 
 def test_parse_log():
@@ -16,17 +15,6 @@ def test_parse_log():
         computed_log = parse_log(log)
         expected_log = log_dict[log]
         assert computed_log == expected_log
-
-
-def test_get_link_from_action_name():
-    links = [
-        FollowUpLink(action_name="action", link="link-url"),
-        FollowUpLink(action_name="other-action", link="other-link-url"),
-        ]
-    link_result = get_link_from_action_name(links, "action")
-    assert link_result == links[0].link
-    link_result = get_link_from_action_name(links, "other-action")
-    assert link_result == links[1].link
 
 
 def test_get_run_status(requests_mock):
