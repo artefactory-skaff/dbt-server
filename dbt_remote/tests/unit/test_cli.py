@@ -1,21 +1,21 @@
 import base64
 import requests
-from src.dbt_remote.cli import assemble_dbt_command, parse_server_response, get_selected_nodes
+from src.dbt_remote.cli import quote_command_args, parse_server_response, get_selected_nodes
 from src.dbt_remote.cli import send_command, CliConfig
 
 
-def test_assemble_dbt_command():
+def test_quote_command_args():
     user_command, args = 'list', []
     expected_dbt_command = 'list'
-    assert assemble_dbt_command(user_command, args) == expected_dbt_command
+    assert quote_command_args(user_command, args) == expected_dbt_command
 
     user_command, args = 'list', ['--select', 'mymodel']
     expected_dbt_command = "list '--select' 'mymodel'"
-    assert assemble_dbt_command(user_command, args) == expected_dbt_command
+    assert quote_command_args(user_command, args) == expected_dbt_command
 
     user_command, args = 'list', ['--select', 'mymodel', '--var', "{hey: val}"]
     expected_dbt_command = "list '--select' 'mymodel' '--var' '{hey: val}'"
-    assert assemble_dbt_command(user_command, args) == expected_dbt_command
+    assert quote_command_args(user_command, args) == expected_dbt_command
 
 
 def test_send_command(MockSendCommandRequest, PatchBuiltInOpen, MockDbtFileSystem):

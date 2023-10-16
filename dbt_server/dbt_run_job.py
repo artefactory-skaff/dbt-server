@@ -34,7 +34,7 @@ def prepare_and_execute_job() -> None:
 
     with callback_lock:
         logger.log("INFO", "[job] Command successfully executed")
-    logger.log("INFO", "[job] Finished")
+    logger.log("INFO", "[job] dbt-remote job finished")
 
 
 def install_dependencies(manifest: Manifest) -> None:
@@ -63,7 +63,7 @@ def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
         state.run_status = "failed"
 
         with callback_lock:
-            logger.log("INFO", "[job]END JOB")
+            logger.log("INFO", "[job] dbt-remote job finished")
         handle_exception(res_dbt.exception)
 
 

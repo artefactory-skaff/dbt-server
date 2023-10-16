@@ -72,6 +72,6 @@ def test_show_last_logs(requests_mock):
     assert not show_last_logs(logs_url, session)
 
     logs_url = "https://test-server.test/end_job"
-    logs = {"run_logs": ["log1", "log2", "log3", "END JOB"]}
+    logs = {"run_logs": ["log1", "log2", "log3", "dbt-remote job finished"]}
     requests_mock.get(logs_url, status_code=200, json=logs)
     assert show_last_logs(logs_url, session)

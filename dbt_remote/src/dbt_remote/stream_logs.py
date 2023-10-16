@@ -49,7 +49,7 @@ def show_last_logs(last_logs_link: str, auth_session: requests.Session) -> bool:
 
     for log in logs:
         show_log(log)
-        if "END JOB" in log:
+        if "dbt-remote job finished" in log:
             return True
     return False
 
