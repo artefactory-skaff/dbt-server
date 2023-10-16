@@ -120,12 +120,12 @@ def test_parse_server_response():
     response_list = [
         {
             "status_code": 200,
-            "str": '{"uuid": "0000", "links": [{"action_name": "action", "link": "link"}]}',
+            "str": '{"uuid": "0000", "links": {"action_name": "action", "link": "link"}}',
             "expected_parsed_response": {
                 "status_code": 200,
                 "uuid": "0000",
                 "detail": None,
-                "links": [{"action_name": "action", "link": "link"}]
+                "links": {"action_name": "action", "link": "link"}
             }
         },
         {
@@ -150,11 +150,9 @@ def test_parse_server_response():
 
         assert (server_response.links is None and expected_response["links"] is None) or (len(server_response.links) == len(expected_response["links"]))
         if server_response.links is not None:
-            for i in range(len(server_response.links)):
-                expected_link = expected_response["links"][i]
-                actual_link = server_response.links[i]
-                assert actual_link.action_name == expected_link["action_name"]
-                assert actual_link.link == expected_link["link"]
+            assert server_response.links.keys() == expected_response["links"].keys()
+            for key in expected_response["links"].keys():
+                assert server_response.links[key] == expected_response["links"][key]
 
 
 def test_get_selected_nodes():
