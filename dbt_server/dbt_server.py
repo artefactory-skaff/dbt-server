@@ -1,6 +1,5 @@
 import base64
 import os
-import uuid
 import sys
 import traceback
 from pathlib import Path
@@ -10,7 +9,7 @@ from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from google.cloud import run_v2
 
-from lib.dbt_classes import DbtCommand, FollowUpLink
+from lib.dbt_classes import DbtCommand
 from lib.command_processor import process_command
 from lib.state import State
 from lib.set_environment import set_env_vars
@@ -45,13 +44,11 @@ def run_command(dbt_command: DbtCommand):
     state.run_status = "pending"
     logger.uuid = state.uuid
 
-    log = f"Received command '{dbt_command.user_command}'"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Received command '{dbt_command.user_command}'")
     state.user_command = dbt_command.user_command
 
     processed_command = process_command(dbt_command.user_command)
-    log = f"Processed command: {processed_command}"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Processed command: {processed_command}")
     dbt_command.processed_command = processed_command
 
     state.load_context(dbt_command)
@@ -61,10 +58,10 @@ def run_command(dbt_command: DbtCommand):
 
     return {
         "uuid": state.uuid,
-        "links": [
-            FollowUpLink("run_status", f"{dbt_command.server_url}job/{state.uuid}"),
-            FollowUpLink("last_logs", f"{dbt_command.server_url}job/{state.uuid}/last_logs"),
-        ]
+        "links": {
+            "run_status": f"{dbt_command.server_url}job/{state.uuid}",
+            "last_logs": f"{dbt_command.server_url}job/{state.uuid}/last_logs",
+        }
     }
 
 
@@ -102,12 +99,10 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
         traceback_str = traceback.format_exc()
         raise HTTPException(status_code=400, detail=f"Cloud Run job creation failed {traceback_str}")
 
-    log = "Waiting for job creation to complete..."
-    logger.log("INFO", log)
+    logger.log("INFO", "Waiting for job creation to complete...")
 
     response = operation.result()
-    log = f"Job created: {response.name}"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Job created: {response.name}")
 
     return response
 
@@ -115,8 +110,7 @@ def create_job(state: State, dbt_command: DbtCommand) -> run_v2.types.Job:
 def launch_job(state: State, response_job: run_v2.types.Job):
 
     job_name = response_job.name
-    log = f"Launching job: {job_name}'"
-    logger.log("INFO", log)
+    logger.log("INFO", f"Launching job: {job_name}'")
 
     client = run_v2.JobsClient()
     request = run_v2.RunJobRequest(name=job_name,)
@@ -153,9 +147,7 @@ def get_all_logs(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     print(int(os.environ.get("PORT", 8001)))
-    return {
-        "response": "Running dbt-server on port "+PORT,
-        }
+    return { "response": f"Running dbt-server on port {PORT}"}
 
 
 def base64_decode_dbt_command(dbt_command: DbtCommand) -> DbtCommand:

@@ -12,10 +12,3 @@ class DbtCommand(BaseModel):
     profiles: str                   # can be base64 encoded
     seeds: Dict[str, str] = None    # can be base64 encoded
     packages: str = None            # can be base64 encoded
-
-
-@dataclass
-class FollowUpLink:
-    """Links sent back by the dbt-server."""
-    action_name: str
-    link: str

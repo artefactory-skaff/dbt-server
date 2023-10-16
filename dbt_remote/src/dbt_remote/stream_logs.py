@@ -2,15 +2,14 @@ import requests
 import time
 from datetime import datetime, timezone
 import click
-import traceback
-from typing import List
+from typing import Dict
 
-from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus, FollowUpLink
+from dbt_remote.src.dbt_remote.server_response_classes import DbtResponseLogs, DbtResponseRunStatus
 
 
-def stream_logs(links: List[FollowUpLink], auth_session: requests.Session) -> None:
-    run_status_link = get_link_from_action_name(links, "run_status")
-    last_logs_link = get_link_from_action_name(links, "last_logs")
+def stream_logs(links: Dict[str, str], auth_session: requests.Session) -> None:
+    run_status_link = links["run_status"]
+    last_logs_link = links["last_logs"]
     run_status = get_run_status(run_status_link, auth_session).run_status
 
     stop = False
@@ -30,13 +29,6 @@ def stream_logs(links: List[FollowUpLink], auth_session: requests.Session) -> No
         click.echo(click.style("ERROR", fg="red"))
         raise click.ClickException("Job failed")
     return
-
-
-def get_link_from_action_name(links: List[FollowUpLink], action_name: str) -> str:
-    for follow_up_link in links:
-        if follow_up_link.action_name == action_name:
-            return follow_up_link.link
-    raise click.ClickException(f'Error in parsing server response: no link for action name {action_name}')
 
 
 def get_run_status(run_status_link: str, auth_session: requests.Session) -> DbtResponseRunStatus:

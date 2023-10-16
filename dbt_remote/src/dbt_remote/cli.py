@@ -1,8 +1,7 @@
 import base64
 import requests
 import os
-import traceback
-from typing import Dict, List, Any
+from typing import Tuple, Dict, List, Any
 import yaml
 from pathlib import Path
 
@@ -12,8 +11,8 @@ from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 from dbt.parser.manifest import write_manifest
-from google.cloud import run_v2
 
+from dbt_remote.src.dbt_remote import cli_params as p
 from dbt_remote.src.dbt_remote.dbt_server_detector import detect_dbt_server_uri
 from dbt_remote.src.dbt_remote.server_response_classes import DbtResponse
 from dbt_remote.src.dbt_remote.stream_logs import stream_logs
@@ -34,31 +33,33 @@ config: configure dbt-remote. See `dbt-remote config help` for more information.
 image: build and submit dbt-server image to your Artifact Registry. See `dbt-remote image help` for more information.
 """
 
-
 @click.command(context_settings=dict(ignore_unknown_options=True,), help=help_msg)
 @click.argument('user_command')
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-@click.option('--manifest', '-m', help='Manifest file path (ex: ./target/manifest.json), by default: none and the cli \
-compiles one from current dbt project')
-@click.option('--project-dir', help='Which directory to look in for the dbt_project.yml file. Default \
-is the current directory.')
-@click.option('--dbt-project', help='dbt_project file, by default: dbt_project.yml')
-@click.option('--profiles', help='profiles.yml file, by default: ./profiles.yml')
-@click.option('--extra-packages', help='packages.yml file, by default none. Add this option is necessary to use\
-external packages such as elementary.')
-@click.option('--seeds-path', help='Path to seeds directory, this option is needed if you run `dbt-remote seed`. By \
-default: seeds/')
-@click.option('--server-url', help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look \
-for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location\
-.')
-@click.option('--location', help='Location where the dbt server runs, ex: us-central1. Useful for server auto \
-detection. If none is given, dbt-remote will look at all EU and US locations. \
-/!\\ Location should be a Cloud region, not multi region.')
-@click.option('--artifact-registry', help='Your artifact registry. Ex: europe-west9-docker.pkg.dev/my-project/test-repository')
+@p.manifest
+@p.project_dir
+@p.dbt_project
+@p.profiles_dir
+@p.extra_packages
+@p.seeds_path
+@p.server_url
+@p.location
+@p.artifact_registry
 @click.pass_context
-def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, dbt_project: str | None, profiles:
-        str | None, extra_packages: str | None, seeds_path: str | None, server_url: str | None, location: str | None,
-        artifact_registry: str | None, args):
+def cli(
+    ctx,
+    user_command: str,
+    project_dir: str | None,
+    manifest: str | None,
+    dbt_project: str | None,
+    profiles_dir: str | None,
+    extra_packages: str | None,
+    seeds_path: str | None,
+    server_url: str | None,
+    location: str | None,
+    artifact_registry: str | None,
+    args
+):
 
     if user_command == "config":
         if len(args) < 1:
@@ -75,7 +76,7 @@ def cli(ctx, user_command: str, project_dir: str | None, manifest: str | None, d
         manifest=manifest,
         project_dir=project_dir,
         dbt_project=dbt_project,
-        profiles=profiles,
+        profiles=profiles_dir,
         extra_packages=extra_packages,
         seeds_path=seeds_path,
         server_url=server_url,
@@ -162,7 +163,7 @@ def check_if_dbt_project(cli_config: CliConfig):
 
     for filename in files_to_check.keys():
         path_to_file = files_to_check[filename]
-        if not check_if_file_exist(path_to_file):
+        if not os.path.isfile(path_to_file):
             if filename == 'manifest':  # not mandatory because it can be generated
                 click.echo(f"{click.style('WARNING', fg='red')} {filename} not found.")
             else:
@@ -174,8 +175,7 @@ expected place. {click.style('Please make sure that you are in a dbt project dir
 def display_links(links: Dict[str, str]):
     click.echo("")
     click.echo("Following the job creation, you can access the following information using the links below:")
-    for link in links:
-        action, link_url = link.action_name, link.link
+    for action, link_url in links.items():
         click.echo(f"  - {action}: {link_url}")
     click.echo("")
 
@@ -218,12 +218,12 @@ def send_command(command: str, cli_config: CliConfig, auth_session: requests.Ses
     profiles_str = read_file_as_b64(cli_config.profiles)
 
     data = {
-            "server_url": cli_config.server_url,
-            "user_command": command,
-            "manifest": manifest_str,
-            "dbt_project": dbt_project_str,
-            "profiles": profiles_str,
-        }
+        "server_url": cli_config.server_url,
+        "user_command": command,
+        "manifest": manifest_str,
+        "dbt_project": dbt_project_str,
+        "profiles": profiles_str,
+    }
 
     if 'seed' in command.split(' ') or 'build' in command.split(' '):
         seeds_dict = get_selected_seeds_dict(cli_config.seeds_path, command)
@@ -264,7 +264,7 @@ def get_all_seeds(seed_files: List[str]) -> List[str]:
     return [seed_file.replace('.csv', '') for seed_file in seed_files]
 
 
-def get_job_uuid_and_links(server_response: requests.Response) -> (str, Dict[str, str]):
+def get_job_uuid_and_links(server_response: requests.Response) -> Tuple[str, Dict[str, str]]:
     results = parse_server_response(server_response)
 
     if results.status_code != 202 or results.detail is not None:
@@ -318,14 +318,6 @@ def dbt_files_to_check(cli_config: CliConfig) -> Dict[str, str]:
         files_to_check['profiles'] = cli_config.profiles
 
     return files_to_check
-
-
-def check_if_file_exist(path_to_file: str) -> bool:
-    if os.path.isfile(path_to_file):
-        return True
-    else:
-        return False
-
 
 def read_file_as_b64(filename) -> str:
     with open(filename, 'r') as f:
