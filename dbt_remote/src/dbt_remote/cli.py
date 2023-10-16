@@ -196,7 +196,7 @@ def get_server_uri(cli_config: CliConfig) -> str:
     return server_url
 
 
-def compile_and_store_manifest(cli_config: CliConfig) -> ():
+def compile_and_store_manifest(cli_config: CliConfig) -> None:
     if not os.path.isdir(cli_config.project_dir+'/target'):
         Path(cli_config.project_dir+'/target').mkdir(parents=True, exist_ok=True)
     manifest = compile_manifest(cli_config.project_dir)
