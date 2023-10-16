@@ -147,4 +147,3 @@ dbt_remote.yml
 dbt_remote.yaml
 .user.yml
 manifest.json
-profiles.yml
