@@ -1,10 +1,8 @@
 import os
-import time
 import traceback
-from typing import List, Optional
 
 import uvicorn
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, HTTPException, status
 
 from lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig, DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
 from lib.dbt_command import DbtCommand

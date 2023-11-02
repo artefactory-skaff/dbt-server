@@ -8,6 +8,7 @@ manifest = click.option(
 
 project_dir = click.option(
     '--project-dir',
+    envvar='PROJECT_DIR',
     help='Which directory to look in for the dbt_project.yml file. Default is the current directory.'
 )
 

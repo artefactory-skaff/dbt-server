@@ -1,4 +1,3 @@
-import json
 import subprocess
 from pathlib import Path
 
@@ -9,8 +8,7 @@ class DbtServerImage:
         self.artifact_registry = artifact_registry
 
     def submit(self):
-        site_packages_path = Path(__file__).parents[3]  # /Users/.../dbt_remote
-        dbt_server_dir = site_packages_path / "dbt_server"
+        dbt_server_dir = Path(__file__).parents[2] / "dbt_server"
 
         command = f"gcloud builds submit {dbt_server_dir} --region={self.location} --tag {self.artifact_registry}/server-image"
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

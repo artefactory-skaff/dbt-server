@@ -3,14 +3,13 @@ from click_aliases import ClickAliasedGroup
 
 from dbt.cli import main as dbt_cli
 from dbt.cli.main import global_flags
-from  dbt.cli import params as dbt_p
+from dbt.cli import params as dbt_p
 
-from src.dbt_remote.cli_local_config import LocalCliConfig
-from src.dbt_remote.dbt_server_image import DbtServerImage
-from src.dbt_remote.dbt_server import DbtServer, DbtServerCommand
-from src.dbt_remote import cli_params as p
-from src.dbt_remote.cli_input import CliInput
-
+from src.cli_local_config import LocalCliConfig
+from src.dbt_server_image import DbtServerImage
+from src.dbt_server import DbtServer, DbtServerCommand
+from src import cli_params as p
+from src.cli_input import CliInput
 
 
 help_msg = """

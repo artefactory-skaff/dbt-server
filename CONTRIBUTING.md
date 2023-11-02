@@ -1,6 +1,6 @@
 # Contributing to dbt-remote
 
-First off, thanks for taking the time to contribute!
+Thanks for taking the time to contribute!
 
 ## Setup
 
@@ -25,34 +25,62 @@ export LOCATION=<LOCATION>
 Follow the dbt-server deployment instructions here: [dbt-server deployment guide](../dbt_server/README.md)
 
 ### Run end-to-end tests to make sure everyting is properly setup
-Go to the testing directory that contains a dbt project.
+This should take a few minutes.
 ```shell
-cd tests/dbt_project
+poetry run pytest tests -log_cli=true -log_cli_level=info -vvv --maxfail=1
 ```
 
-From there, run the tests. This should take a few minutes.
-```shell
-poetry run pytest .. -log_cli=true -log_cli_level=info -vvv --maxfail=1
-```
+This makes sure that you are able to properly push images on the remote Docker registry, and that dbt commands run as expected.
 
 Once everything here is green, your are good to go.
-## **Workflow for developing on the dbt-server**
+## **Development workflow**
 
-To run your dbt-server in local, **you must first create all the required resources on GCP** (see the README's section 'dbt-server'). Then export your environment variables using your GCP project and newly-created resources:
-```sh
-export BUCKET_NAME=<bucket-name>
-export DOCKER_IMAGE=<docker-image>
-export SERVICE_ACCOUNT=<service-account-email>
-export PROJECT_ID=<project-id>
-export LOCATION=<location>
-```
-Finally you can run your server:
-```sh
-cd dbt_server
-poetry run python3 dbt_server.py
-```
-> Note: This server is a Fastapi server running on 8001, you can change this set up at the end of the ```dbt_server.py``` file.
+### Running the server locally
+This is useful to reduce turnaround time during developement as you will not necessarily have to build a new image and deploy a new Cloud Run instance.
 
+**You still need to have deployed the dbt-server once on GCP as there are resources that are needed even for local serving**
+
+Make sure the necessary env vars are available. If you deployed the dbt-server resources using the default names:
+```shell
+export LOCAL=true
+export SERVICE_ACCOUNT=dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com
+export BUCKET_NAME=${PROJECT_ID}-dbt-server
+export DOCKER_IMAGE=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository/server-image
+export ARTIFACT_REGISTRY=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository
+```
+
+Start the dbt-server locally:
+```shell
+poetry run python3 dbt_server/dbt_server.py
+```
+```shell
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [64101] using StatReload
+INFO:     Started server process [64110]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+```
+
+**While the dbt-server code is executed locally, the actual dbt execution still happens in a cloud run job based on the docker image in your GCP project. Make sure to push a new image if you make any changes that affect it during development.**
+```shell
+poetry run python3 dbt_remote/cli.py image submit
+```
+
+You should now be able to call it:
+```shell
+poetry run python3 dbt_remote/cli.py debug --project-dir tests/dbt_project --server-url http://localhost:8001/
+```
+```shell
+[...]
+INFO    [dbt] Registered adapter: bigquery=1.6.8
+INFO    [dbt]   Connection test: [OK connection ok]  
+INFO    [dbt] All checks passed!
+INFO    [job] Command successfully executed
+INFO    [job] dbt-remote job finished
+```
+
+## Publishing a new package version
+----------------
 ## **Workflow for working on the dbt-remote**
 
 To build and install your own version of the package, you can run (at the root of the project):

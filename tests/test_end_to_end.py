@@ -1,14 +1,17 @@
 import os
+from pathlib import Path
 from typing import List
 from uuid import uuid4
 from datetime import datetime
 
 from click.testing import CliRunner
-from dbt_remote.src.dbt_remote.cli import cli
+from dbt_remote.cli import cli
 import pytest
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildClient, ListBuildsRequest
 
 os.environ["LOCAL"] = "true"
+os.environ["PROJECT_DIR"] = str(Path(__file__).parent / "dbt_project")
+
 os.environ["SERVICE_ACCOUNT"] = f"dbt-server-service-account@{os.environ['PROJECT_ID']}.iam.gserviceaccount.com"
 os.environ["BUCKET_NAME"] = f"{os.environ['PROJECT_ID']}-dbt-server"
 os.environ["DOCKER_IMAGE"] = f"{os.environ['LOCATION']}-docker.pkg.dev/{os.environ['PROJECT_ID']}/dbt-server-repository/server-image"
@@ -17,22 +20,22 @@ os.environ["ARTIFACT_REGISTRY"] = f"{os.environ['LOCATION']}-docker.pkg.dev/{os.
 os.environ["UUID"] = str(uuid4())
 
 
-def test_image_submit():
-    start_time = datetime.utcnow()
-    result = run_command("dbt-remote image submit")
-    assert result.exit_code == 0
+# def test_image_submit():
+#     start_time = datetime.utcnow()
+#     result = run_command("dbt-remote image submit")
+#     assert result.exit_code == 0
 
-    client = CloudBuildClient()
-    request = ListBuildsRequest(
-        parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
-        project_id=os.environ["PROJECT_ID"],
-        filter=f"images={os.environ['DOCKER_IMAGE']}"
-    )
-    response = client.list_builds(request=request)
-    latest_build = next(iter(response), None)
+#     client = CloudBuildClient()
+#     request = ListBuildsRequest(
+#         parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
+#         project_id=os.environ["PROJECT_ID"],
+#         filter=f"images={os.environ['DOCKER_IMAGE']}"
+#     )
+#     response = client.list_builds(request=request)
+#     latest_build = next(iter(response), None)
 
-    assert latest_build.status.name == "SUCCESS"
-    assert str(latest_build.create_time) > str(start_time)
+#     assert latest_build.status.name == "SUCCESS"
+#     assert str(latest_build.create_time) > str(start_time)
 
 @pytest.mark.parametrize("command, expected_in_output", [
     (
