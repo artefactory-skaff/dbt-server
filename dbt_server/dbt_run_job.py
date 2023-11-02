@@ -56,7 +56,7 @@ def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
 
     args_list = split_arg_string(dbt_command)
     res_dbt: dbtRunnerResult = dbt.invoke(
-        args_list, 
+        args_list,
         **dict(
             state.dbt_native_params_overrides,
              **{

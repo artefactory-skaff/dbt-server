@@ -30,7 +30,7 @@ app = FastAPI(
 def run_command(dbt_command: DbtCommand = Depends()):
     logger = DbtLogger(server=True)
     logger.log("INFO", f"Received command: {dbt_command.user_command}")
-    
+
     state = State(dbt_command)
     logger.log("INFO", f"Assigned job id: '{state.uuid}'")
     logger.state = state

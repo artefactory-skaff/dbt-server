@@ -33,7 +33,7 @@ class CliInput:
         default_params = dbt_cli.make_context(info_name="", args=[ctx.info_name] + list(ctx.params["args"])).params
         dbt_native_params = dict(ctx.parent.params, **ctx.params)
         dbt_native_params_overrides = {k: v for k, v in dbt_native_params.items() if k in default_params and v != default_params[k]}
-            
+
         return cls(
             user_command=ctx.info_name,
             args=ctx.params.get('args'),
@@ -52,7 +52,7 @@ class CliInput:
         self.command = self.build_command()
         if self.command in ["image", "submit", "config"]:
             return
-            
+
         self.load_local_config()
         self.profiles_dir = self.find_profiles_dir()
         self.server_url = self.get_server_url()
@@ -60,7 +60,7 @@ class CliInput:
 
     def build_command(self) -> str:
         return " ".join([self.user_command] + list(self.args))
-    
+
     def load_local_config(self) -> None:
         local_cli_config = LocalCliConfig().config
 
@@ -75,7 +75,7 @@ class CliInput:
                 setattr(self, key, str(Path(self.project_dir) / getattr(self, key)))
 
     def resolve_project_dir(self) -> str:
-        
+
         project_yaml_path = (Path(self.project_dir) / "dbt_project.yml").absolute()
         if not project_yaml_path.exists():
             raise click.ClickException(f"{click.style('ERROR', fg='red')}\tNo dbt_project.yml found at expected path '{project_yaml_path}'")
@@ -89,10 +89,10 @@ class CliInput:
                 return str(profiles_dir)
             else:
                 raise click.ClickException(f"{click.style('ERROR', fg='red')}\tNo profiles.yml file found at '{profiles_dir}'")
-        
+
         if (Path.cwd() / "profiles.yml").exists():
             return str(Path.cwd().absolute())
-        elif (Path.home() / ".dbt" / "profiles.yml").exists(): 
+        elif (Path.home() / ".dbt" / "profiles.yml").exists():
             return str(Path.home().absolute() / ".dbt")
         else:
             raise click.ClickException(f"{click.style('ERROR', fg='red')}\tNo profiles.yml file found.")
@@ -106,11 +106,11 @@ class CliInput:
         else:
             server_url = self.server_url
         return server_url
-    
+
     def resolve_manifest(self) -> str:
         if self.manifest is not None:
             return str(Path(self.manifest).absolute())
-        
+
         click.echo("\nGenerating manifest.json")
         target_dir = Path(self.project_dir) / 'target'
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,7 @@ class CliInput:
         manifest: Manifest = res.result
         write_manifest(manifest, str(target_dir))
         return str(target_dir.absolute())
-            
+
     def get_profiles_dir_from_command(self) -> str:
         dbt_command = self.sanitize_command()
         args_list = split_arg_string(dbt_command)

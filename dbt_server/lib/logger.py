@@ -33,7 +33,7 @@ class DbtLogger:
     def log(self, severity: str, new_log: str):
         log_level = get_log_level(severity)
         self.logger.log(msg=new_log, level=log_level)
-        
+
         if self._state is not None:
             self.state.log(severity.upper(), new_log)
 

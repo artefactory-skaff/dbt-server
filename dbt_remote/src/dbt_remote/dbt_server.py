@@ -37,13 +37,13 @@ class DbtServerCommand:
             packages=Path(cli_config.extra_packages) / "packages.yml" if cli_config.extra_packages is not None else None,
             seeds=Path(cli_config.seeds_path) if cli_config.seeds_path is not None else {}
         )
-    
+
     def __post_init__(self):
         self.dbt_project = self.read_file(self.dbt_project)
         self.profiles = self.read_file(self.profiles)
         self.packages = self.read_file(self.packages) if self.packages is not None else {}
         self.zipped_artifacts = self.zip_artifacts()
-    
+
     def zip_artifacts(self) -> Path:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w') as zipf:
@@ -55,12 +55,12 @@ class DbtServerCommand:
                     zipf.writestr('seeds/' + seed_name, seed_content)
         zip_buffer.seek(0)
         return zip_buffer
-    
+
     def read_file(self, file_path: Path) -> str:
         with open(file_path, 'r') as f:
             file_str = f.read()
         return file_str
-    
+
 
 class DbtServerResponse(BaseModel):
     status_code: Optional[str] = None
@@ -129,7 +129,7 @@ class DbtServer:
             raise Exception(f"Error {response.status_code} sending command to server: {response.detail}")
 
         return response
-    
+
     def stream_logs(self, logs_link: str):
         run_status = "pending"
         while run_status in ["pending", "running"]:
@@ -142,7 +142,7 @@ class DbtServer:
 
             for log in response.run_logs:
                 yield DbtLogEntry.from_raw_entry(log)
-        
+
 
     def get_auth_session(self) -> requests.Session:
         id_token_raw = check_output("gcloud auth print-identity-token", shell=True)  # FIXME

@@ -19,4 +19,3 @@ class DbtCommand:
         self.dbt_project = yaml.safe_load(self.dbt_project)
         self.profiles = yaml.safe_load(self.profiles)
         self.packages = yaml.safe_load(self.packages)
-

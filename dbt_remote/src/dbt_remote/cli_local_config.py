@@ -44,7 +44,7 @@ class LocalCliConfig:
     def get(self, key: str) -> str:
         config = self.load()
         return config[key]
-    
+
     def delete(self, key: str) -> None:
         config = self.load()
         del config[key]

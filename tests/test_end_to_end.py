@@ -39,13 +39,13 @@ def test_image_submit():
 
 @pytest.mark.parametrize("command, expected_in_output", [
     (
-        "dbt-remote debug", 
+        "dbt-remote debug",
         [
             "INFO    [dbt] All checks passed!",
         ]
     ),
     (
-        "dbt-remote build", 
+        "dbt-remote build",
         [
             """INFO    [dbt] 2 of 8 OK loaded seed file test.test_seed ...................................... [INSERT 1""",
             """ERROR    [dbt] 3 of 8 FAIL 1 not_null_my_first_dbt_model_id ................................... [FAIL 1""",
@@ -55,7 +55,7 @@ def test_image_submit():
         ]
     ),
     (
-        "dbt-remote --log-format=json run --select model_that_does_not_exist", 
+        "dbt-remote --log-format=json run --select model_that_does_not_exist",
         [
             """"level": "warn", "msg": "Nothing to do. Try checking your model configs and model specification args",""",
         ]

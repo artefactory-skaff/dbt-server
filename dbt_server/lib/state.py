@@ -116,7 +116,7 @@ class State:
     def extract_artifacts(self, zipped_artifacts: SpooledTemporaryFile) -> None:
         logging.info("cloud_storage_folder :" + self.cloud_storage_folder)
         with tempfile.TemporaryDirectory() as temp_dir:
-            
+
             temp_dir_path = Path(temp_dir)
             artifacts_zip_path = temp_dir_path / 'artifacts.zip'
             with artifacts_zip_path.open('wb') as f:
@@ -132,7 +132,7 @@ class State:
                     with open(file_path, 'r') as file:
                         data = file.read()
                     self.gcs.save(str(Path(self.cloud_storage_folder) / relative_path), data)
-    
+
     def save_context_to_gcs(self) -> None:
         logging.info("cloud_storage_folder :" + self.cloud_storage_folder)
         self.gcs.save(self.cloud_storage_folder + "/dbt_project.yml", str(yaml.dump(self.dbt_command.dbt_project)))
