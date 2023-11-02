@@ -7,16 +7,14 @@ from multiprocessing.pool import ThreadPool
 
 import click
 from google.cloud import run_v2
-
-from dbt_remote.src.dbt_remote.authentication import get_auth_session
-from dbt_remote.src.dbt_remote.config_command import CliConfig, set
+import requests
 
 
-def detect_dbt_server_uri(cli_config: CliConfig) -> str:
+def detect_dbt_server_uri(location: str) -> str:
     project_id = get_project_id()
-    location = cli_config.location  # can be None
+    location = location  # can be None
 
-    if cli_config.location is not None:
+    if location is not None:
         click.echo(f"\nLooking for dbt server on project {project_id} in {location}...")
     else:
         click.echo(f"\nLooking for dbt server on project {project_id}...")
@@ -25,10 +23,8 @@ def detect_dbt_server_uri(cli_config: CliConfig) -> str:
 
     for service in cloud_run_services:
         if check_if_server_is_dbt_server(service):
-            click.echo(f"Detected dbt server at: {click.style(service.uri, blink=True, bold=True)}")
-            if click.confirm("Do you want to use this server as your default dbt server for this project?", default=True):
-                set([f'server_url={service.uri}'])
-            return service.uri
+            server_url = service.uri if service.uri.endswith('/') else service.uri + "/"
+            return server_url
 
     click.echo(click.style("ERROR", fg="red"))
     raise click.ClickException(f'No dbt server found in GCP project "{project_id}"')
@@ -81,3 +77,11 @@ def check_if_server_is_dbt_server(service: run_v2.types.service.Service) -> bool
         return False
     except Exception:  # request timeout or max retries
         return False
+
+def get_auth_session() -> requests.Session:
+    id_token_raw = check_output("gcloud auth print-identity-token", shell=True)
+    id_token = id_token_raw.decode("utf8").strip()
+
+    session = requests.Session()
+    session.headers.update({"Authorization": f"Bearer {id_token}"})
+    return session

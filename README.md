@@ -48,8 +48,8 @@ dbt debug
 dbt-remote debug
 ```
 ```sh
-> INFO    [dbt]All checks passed!
-> INFO    [job]Command successfully executed
+> INFO    [dbt] All checks passed!
+> INFO    [job] Command successfully executed
 ```
 
 ### Use `dbt-remote` just like you would do with the regular dbt CLI

@@ -8,33 +8,33 @@ from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
 
 from lib.state import State
-from lib.cloud_storage import CloudStorage
-from lib.firestore import get_collection
 
 
 class DbtLogger:
 
-    def __init__(self,server: bool = False):
+    def __init__(self, server: bool = False):
         self.local = bool(os.getenv("LOCAL", False))
         self.server = server
 
+        self._state: State = None
+
         self.logging_client = Client()
         self.logger = self.init_logger()
-        self.cloud_storage_instance = CloudStorage()
-        self.dbt_collection = get_collection("dbt-status")
+        self.logger.info(f"Initialized logger")
 
     @property
-    def uuid(self):
-        return self._uuid
+    def state(self):
+        return self._state
 
-    @uuid.setter
-    def uuid(self, new_uuid: str):
-        self.state = State.from_uuid(new_uuid)
+    @state.setter
+    def state(self, new_state: State):
+        self._state = new_state
 
     def log(self, severity: str, new_log: str):
         log_level = get_log_level(severity)
         self.logger.log(msg=new_log, level=log_level)
-        if hasattr(self, "state"):
+        
+        if self._state is not None:
             self.state.log(severity.upper(), new_log)
 
 

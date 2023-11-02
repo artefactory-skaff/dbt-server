@@ -2,37 +2,34 @@
 
 First off, thanks for taking the time to contribute!
 
-**Table of contents**
+## Setup
 
-- [Getting started](#getting-started)
-- [Test the project](#test-the-project)
-- [Report a bug](#report-a-bug)
-- [Submit a change](#submit-changes)
-- [I need help](#i-have-a-questionneed-help-with-the-project)
-- [Contributors](#contributors)
-
-
-## Getting started
-
-The project is made of two sub-projects:
-
-- the ```dbt-remote``` cli (in the ```dbt_remote``` folder)
-- the ```dbt-server``` (in the ```dbt_server``` folder)
-
-Both projects function with [Poetry](https://python-poetry.org/).
-
-
+### Environment
 To set up the project, we recommend using Poetry since it will be required for changes submission and publication. The steps are the following:
 
 1. **Clone the repository**
 2. **Install poetry** ([installation guide](https://python-poetry.org/docs/))
 3. At the root of the project, **run**:
-```sh
+```shell
 poetry lock -n; poetry install;
 ```
 Poetry should install the right packages (listed in ```pyproject.toml```).
 
-### **For the dbt-server**
+### Deploy the dbt-server
+Follow the dbt-server deployment instructions here: [dbt-server deployment guide](../dbt_server/README.md)
+
+### Run end-to-end tests to make sure everyting is properly setup
+Go to the testing directory that contains a dbt project.
+```shell
+cd tests/dbt_project
+```
+
+From there, run the tests. This should take a few minutes.
+```shell
+pytest .. -log_cli=true -log_cli_level=info -vvv --maxfail=1
+```
+
+## **Workflow for working on the dbt-server**
 
 To run your dbt-server in local, **you must first create all the required resources on GCP** (see the README's section 'dbt-server'). Then export your environment variables using your GCP project and newly-created resources:
 ```sh
@@ -45,11 +42,11 @@ export LOCATION=<location>
 Finally you can run your server:
 ```sh
 cd dbt_server
-poetry run python3 dbt_server.py --local
+poetry run python3 dbt_server.py
 ```
 > Note: This server is a Fastapi server running on 8001, you can change this set up at the end of the ```dbt_server.py``` file.
 
-### **For dbt-remote**
+## **Workflow for working on the dbt-remote**
 
 To build and install your own version of the package, you can run (at the root of the project):
 

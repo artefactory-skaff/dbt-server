@@ -38,10 +38,14 @@ server_url = click.option(
 
 location = click.option(
     '--location',
+    envvar='LOCATION',
     help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations. /!\\ Location should be a Cloud region, not multi region.'
 )
 
 artifact_registry = click.option(
     '--artifact-registry',
+    envvar='ARTIFACT_REGISTRY',
+    required=True,
+    prompt=True,
     help='Your artifact registry. Ex: europe-west9-docker.pkg.dev/my-project/test-repository'
 )

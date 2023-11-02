@@ -1,11 +1,11 @@
+import logging
 import os
 import msgpack
 import json
-from typing import TypedDict
 import threading
 
 from click.parser import split_arg_string
-from dbt.cli.main import dbtRunner, dbtRunnerResult, cli
+from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.events.base_types import EventMsg
 from dbt.events.functions import msg_to_json
 from dbt.contracts.graph.manifest import Manifest
@@ -15,18 +15,18 @@ from fastapi import HTTPException
 from lib.logger import DbtLogger
 from lib.state import State
 
-BUCKET_NAME = os.getenv('BUCKET_NAME')
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 DBT_COMMAND = os.getenv("DBT_COMMAND")
 UUID = os.getenv("UUID")
 
 
 callback_lock = threading.Lock()
 logger = DbtLogger(server=False)
-logger.uuid = UUID
 state = State.from_uuid(UUID)
+logger.state = state
 
 def prepare_and_execute_job() -> None:
-    state.get_context_to_local()
+    state.save_context_to_local()
     manifest = get_manifest()
     manifest = override_manifest_with_correct_seed_path(manifest)
     install_dependencies(manifest)
@@ -55,7 +55,17 @@ def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
     dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback])
 
     args_list = split_arg_string(dbt_command)
-    res_dbt: dbtRunnerResult = dbt.invoke(args_list)
+    res_dbt: dbtRunnerResult = dbt.invoke(
+        args_list, 
+        **dict(
+            state.dbt_native_params_overrides,
+             **{
+                "log_format": "json",
+                "log_level": "debug",
+                "debug": True,
+            }
+        )
+    )
 
     if res_dbt.success:
         state.run_status = "success"
@@ -68,53 +78,22 @@ def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
 
 
 def logger_callback(event: EventMsg):
-    log_configuration = get_user_request_log_configuration(state.user_command)
+    user_log_format = state.dbt_native_params_overrides['log_format'] if 'log_format' in state.dbt_native_params_overrides else "default"
+    user_log_level_str = state.dbt_native_params_overrides['log_level'] if 'log_level' in state.dbt_native_params_overrides else "info"
 
-    user_log_format = log_configuration['log_format']
     if user_log_format == "json":
         msg = msg_to_json(event).replace('\n', '  ')
     else:
-        msg = "[dbt]" + event.info.msg.replace('\n', '  ')
+        msg = "[dbt] " + event.info.msg.replace('\n', '  ')
 
-    user_log_level = log_configuration['log_level']
-    match event.info.level:
-        case "debug":
-            if user_log_level == "debug":
-                with callback_lock:
-                    logger.log(event.info.level.upper(), msg)
-            else:
-                logger.logger.debug(msg)
+    user_log_level = logging.getLevelName(user_log_level_str.upper())
+    event_log_level = logging.getLevelName(event.info.level.upper())
 
-        case "info":
-            if user_log_level in ["debug", "info"]:
-                with callback_lock:
-                    logger.log(event.info.level.upper(), msg)
-            else:
-                logger.logger.info(msg)
-
-        case "warn":
-            if user_log_level in ["debug", "info", "warn"]:
-                with callback_lock:
-                    logger.log(event.info.level.upper(), msg)
-            else:
-                logger.logger.warn(msg)
-
-        case "error":
-            with callback_lock:
-                logger.log(event.info.level.upper(), msg)
-
-
-LogConfiguration = TypedDict('LogConfiguration', {'log_format': str, 'log_level': str})
-
-
-def get_user_request_log_configuration(user_command: str) -> LogConfiguration:
-    command_args_list = split_arg_string(user_command)
-    command_context = cli.make_context(info_name='', args=command_args_list)
-    command_params = command_context.params
-    log_format, log_level = command_params['log_format'], command_params['log_level']
-    if command_params["quiet"]:
-        log_level = 'error'
-    return {"log_format": log_format, "log_level": log_level}
+    if event_log_level >= user_log_level:
+        with callback_lock:
+            logger.log(event.info.level.upper(), msg)
+    else:
+        logger.logger.log(event_log_level, msg)
 
 
 def handle_exception(dbt_exception: BaseException | None):

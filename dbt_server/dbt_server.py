@@ -1,24 +1,23 @@
 import os
+import time
 import traceback
+from typing import List, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 
-from lib.dbt_cloud_run_job import DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
-from lib.dbt_classes import DbtCommand
-from lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig
+from lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig, DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
+from lib.dbt_command import DbtCommand
 from lib.state import State
 from lib.logger import DbtLogger
 
 
-DOCKER_IMAGE = os.getenv('DOCKER_IMAGE')
-SERVICE_ACCOUNT = os.getenv('SERVICE_ACCOUNT')
-PROJECT_ID = os.getenv('PROJECT_ID')
-LOCATION = os.getenv('LOCATION')
-BUCKET_NAME = os.getenv('BUCKET_NAME')
+DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
+SERVICE_ACCOUNT = os.getenv("SERVICE_ACCOUNT")
+PROJECT_ID = os.getenv("PROJECT_ID")
+LOCATION = os.getenv("LOCATION")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 PORT = os.environ.get("PORT", "8001")
-
-logger = DbtLogger(server=True)
 
 app = FastAPI(
     title="dbt-server",
@@ -28,23 +27,19 @@ app = FastAPI(
 )
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
-def run_command(dbt_command: DbtCommand):
-    logger.log("INFO", f"Received: '{dbt_command.processed_command}'")
-
-    state = State()
-    state.run_status = "pending"
-    state.user_command = dbt_command.user_command
-    logger.uuid = state.uuid
-
+def run_command(dbt_command: DbtCommand = Depends()):
+    logger = DbtLogger(server=True)
     logger.log("INFO", f"Received command: {dbt_command.user_command}")
-    logger.log("INFO", f"Processed command: {dbt_command.processed_command}")
-
-    state.load_context(dbt_command)
+    
+    state = State(dbt_command)
+    logger.log("INFO", f"Assigned job id: '{state.uuid}'")
+    logger.state = state
+    state.extract_artifacts(dbt_command.zipped_artifacts)
 
     try:
         job_conf = DbtCloudRunJobConfig(
             uuid=state.uuid,
-            dbt_command=dbt_command.processed_command,
+            dbt_command=dbt_command.user_command,
             project_id=PROJECT_ID,
             location=LOCATION,
             service_account=SERVICE_ACCOUNT,
@@ -76,14 +71,16 @@ def get_job_status(uuid: str):
 def get_last_logs(uuid: str):
     job_state = State.from_uuid(uuid)
     logs = job_state.get_last_logs()
-    return {"run_logs": logs}
+    run_status = job_state.run_status
+    return {"run_logs": logs, "run_status": run_status, "uuid": uuid}
 
 
 @app.get("/job/{uuid}/logs", status_code=status.HTTP_200_OK)
 def get_all_logs(uuid: str):
     job_state = State.from_uuid(uuid)
     logs = job_state.get_all_logs()
-    return {"run_logs": logs}
+    run_status = job_state.run_status
+    return {"run_logs": logs, "run_status": run_status, "uuid": uuid}
 
 
 @app.get("/check", status_code=status.HTTP_200_OK)
