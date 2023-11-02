@@ -33,7 +33,7 @@ poetry run pytest tests -log_cli=true -log_cli_level=info -vvv --maxfail=1
 This makes sure that you are able to properly push images on the remote Docker registry, and that dbt commands run as expected.
 
 Once everything here is green, your are good to go.
-## **Development workflow**
+## Development workflow
 
 ### Running the server locally
 This is useful to reduce turnaround time during developement as you will not necessarily have to build a new image and deploy a new Cloud Run instance.
@@ -80,47 +80,32 @@ INFO    [job] dbt-remote job finished
 ```
 
 ## Publishing a new package version
-----------------
-## **Workflow for working on the dbt-remote**
 
-To build and install your own version of the package, you can run (at the root of the project):
+Create an account on TestPypi. Get your Pypi token. Ask an owner to add you as collaborator on the project.
 
+Add Test Pypi as repository:
+```sh
+poetry config repositories.testpypi https://test.pypi.org/legacy/
+```
+Check the tests pass:
+```sh
+poetry run pytest tests -log_cli=true -log_cli_level=info -vvv --maxfail=1
+```
+Increment the package version in `pyproject.toml` according to the [semver](https://semver.org/) convention.
+
+Build the package:
 ```sh
 poetry build
-poetry run pip install dist/gcp_dbt_remote-X.Y.Z.tar.gz # <-- change X.Y.Z by your version
-dbt-remote --help
 ```
-
-## Test the project
-
-### **Test the dbt-server**
-
+Publish the package:
 ```sh
-cd dbt_server
-poetry run pytest tests/unit
+token=$(cat <your-pypi-token.txt>)
+poetry publish --repository testpypi -u __token__ -p $token --skip-existing
 ```
 
-All tests should pass by your will get a TypeError due to ```google.cloud.logging.Worker```. Bug to fix.
+## Submit a bug report or feature request
 
-> Note: Since some Google libraries raise many DeprecationWarning errors regarding namespace packages, you may want to add ```-W ignore::DeprecationWarning``` to your command
-
-### **Test dbt-remote**
-
-```sh
-poetry run pytest dbt_remote/tests/unit
-```
-
-The ```dbt_remote/tests/integration``` contains one file with integration tests but it is not finished and it needs to be reviewed.
-
-## Report a bug
-
-**Before submitting a bug report**
-
-Check the troubleshooting section in the README.
-
-**Submit a bug report**
-
-Explain the problem as clearly as possible and include additional details to help maintainers reproduce the problem. Ex:
+Open a GitHub issue and explain the problem as clearly as possible and include additional details to help maintainers reproduce the problem.
 
 - Use a clear and descriptive title for the issue to identify the problem.
 - Describe the exact steps which reproduce the problem in as many details as possible.
@@ -130,70 +115,6 @@ Explain the problem as clearly as possible and include additional details to hel
 - Specify your environment (which version of the tool you are using, which OS, packages versions)
 - If the problem wasn't triggered by a specific action, describe what you were doing before the problem happened.
 
-
-## Submit changes
-
-This section describes the procedure for submitting any type of change, be it a bug fix or a new feature.
-
-### Before submitting a change
-
-Take a look at the project guidelines in [dbt-remote project page](index.md) to make sure your change is aligned with the project.
-
-### Submitting a change
-
-- Explain your change: Give a precise description of what you would change in the project behavior and why it would be useful
-
-- Validate the change with the owners
-
-- Code your change following the [coding convention](#coding-convention)
-
-- Create a PR and wait for validation
-
-### Publishing a change
-
->**First contribution**
-> Create an account on Pypi (or TestPypi). Get your Pypi token. Ask Emma Gallière to add you as collaborator on the project
-
-- **If not done yet**, add Test Pypi as repository
-```sh
-poetry config repositories.testpypi https://test.pypi.org/legacy/
-```
-
-- Check the tests pass:
-```sh
-poetry run pytest dbt_remote/tests/unit/
-```
-and
-```sh
-cd dbt_server; poetry run pytest tests/unit
-```
-
-- Increment the package version in `pyproject.toml`
-
-- Build the package
-```sh
-poetry build
-```
-
-- Publish the package
-```sh
-token=$(cat <your-pypi-token.txt>)
-poetry publish --repository testpypi -u __token__ -p $token --skip-existing
-```
-
-### Coding convention
-
-- Follow Clean Code good practices as much as possible
-- Be vigilant with your naming convention (variable, functions, etc.) so that it is as clear as possible
-- Add type hinting for every function
-- ...
-
-**Dependencies:** you can't change dbt-bigquery version without discussing it with the team for retro compatibility reasons. For other dependencies, make sure all the tests pass before submitting your change.
-
-
 ## I have a question/need help with the project
 
-Contact: emma.galliere@artefact.com
-
-
-## Contributors
+Contacts: alexis.vialaret@artefact.com, emma.galliere@artefact.com
