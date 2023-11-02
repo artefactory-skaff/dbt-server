@@ -4,7 +4,7 @@ This package provides
 - `dbt-remote`, a drop-in replacement for the dbt CLI for analytics engineers.
 - `dbt-server`, a Cloud Run API that will need to be deployed to perform the remote dbt runs (for data platform engineers: [How to deploy?](./dbt_server/README.md)).
 
-<center><img src="./intro-README.png" width="100%"></center>
+<center><img src="./docs/images/intro-README.png" width="100%"></center>
 
 
 # dbt-remote
