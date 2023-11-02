@@ -8,9 +8,6 @@ from dbt_remote.src.dbt_remote.cli import cli
 import pytest
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildClient, ListBuildsRequest
 
-os.environ["PROJECT_ID"] = "dbt-server-alexis3-36fe"
-os.environ["LOCATION"] = "europe-west1"
-
 os.environ["LOCAL"] = "true"
 os.environ["SERVICE_ACCOUNT"] = f"dbt-server-service-account@{os.environ['PROJECT_ID']}.iam.gserviceaccount.com"
 os.environ["BUCKET_NAME"] = f"{os.environ['PROJECT_ID']}-dbt-server"
