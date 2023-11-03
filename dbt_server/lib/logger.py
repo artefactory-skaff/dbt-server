@@ -1,6 +1,5 @@
 import logging
 from logging import Logger
-from typing import List
 import os
 # https://stackoverflow.com/questions/2183233/how-to-add-a-custom-loglevel-to-pythons-logging-facility/35804945#35804945
 from google.cloud.logging import Client
@@ -8,34 +7,34 @@ from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.handlers._monitored_resources import retrieve_metadata_server, _REGION_ID, _PROJECT_NAME
 
-from lib.state import State
-from lib.cloud_storage import CloudStorage
-from lib.firestore import get_collection
+from dbt_server.lib.state import State
 
 
 class DbtLogger:
 
-    def __init__(self, local: bool = False, server: bool = False):
-        self.local = local
+    def __init__(self, server: bool = False):
+        self.local = bool(os.getenv("LOCAL", False))
         self.server = server
+
+        self._state: State = None
 
         self.logging_client = Client()
         self.logger = self.init_logger()
-        self.cloud_storage_instance = CloudStorage()
-        self.dbt_collection = get_collection("dbt-status")
+        self.logger.info(f"Initialized logger")
 
     @property
-    def uuid(self):
-        return self._uuid
+    def state(self):
+        return self._state
 
-    @uuid.setter
-    def uuid(self, new_uuid: str):
-        self.state = State.from_uuid(new_uuid)
+    @state.setter
+    def state(self, new_state: State):
+        self._state = new_state
 
     def log(self, severity: str, new_log: str):
         log_level = get_log_level(severity)
         self.logger.log(msg=new_log, level=log_level)
-        if hasattr(self, "state"):
+
+        if self._state is not None:
             self.state.log(severity.upper(), new_log)
 
 
@@ -160,15 +159,3 @@ def _addLoggingLevel(levelName, levelNum, methodName=None):
     setattr(logging, levelName, levelNum)
     setattr(logging.getLoggerClass(), methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
-
-
-def get_dbt_server_logger(argv: List[str]) -> DbtLogger:
-    local = False
-    if len(argv) == 2 and argv[1] == "--local":  # run locally:
-        local = True
-
-    logger = DbtLogger(
-        local=local,
-        server=True
-    )
-    return logger

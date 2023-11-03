@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "gcp_dbt_remote"
-version = "0.0.7"
+version = "0.1.0"
 description = "cli to run dbt commands on GCP Cloud Run Jobs using dbt-server."
 authors = ["emma.galliere <emma.galliere@artefact.com>"]
 readme = ["README.md"]
@@ -16,8 +16,12 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">= 3.10, < 3.12"
-google-cloud-run = "^0" # so far: "0.9.1"
-dbt-bigquery = "1.6.5"
+google-cloud-run = "^0"
+dbt-bigquery = ">=1.6.0 <1.7.0"
+click-aliases = "^1"
+termcolor = "^2"
+google-cloud-build = "^3"
+python-multipart = "^0"
 
 # dbt-server dependencies
 google-cloud-logging = "^3"
@@ -32,9 +36,7 @@ requests-mock = "^1"
 pyfakefs = "^5"
 
 [tool.poetry.scripts]
-dbt-remote = 'dbt_remote.src.dbt_remote.cli:cli'
+dbt-remote = "dbt_remote.cli:cli"
 
 [tool.pytest.ini_options]
-pythonpath = [
-  ".", "dbt_remote", "dbt_remote/src", "dbt_remote/src/dbt_remote", "dbt_server"
-]
+pythonpath = [".", "dbt_remote", "dbt_server"]

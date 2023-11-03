@@ -1,9 +1,8 @@
-# For python>= 3.10, < 3.12
-google-cloud-run>=0.9 # so far: 0.9.1
-dbt-bigquery==1.6.5
-
-# dbt-server dependencies
+# TODO: Only include the dbt-remote package once it's live
+google-cloud-run>=0.9
+dbt-bigquery~=1.6.0
 google-cloud-logging>=3
 uvicorn>=0
 fastapi>=0
 google-cloud-firestore>=2
+python-multipart==0.0.6

@@ -2,9 +2,9 @@
 
 This section is dedicated to ```dbt-server``` deployment and maintenance by system administrators.
 
-```dbt-server``` is a Fastapi server allowing users to run ```dbt``` commands on Cloud Run jobs and to follow their execution in real-time. When the server receives a dbt command request, it creates and launches a job to execute it. The complete workflow is described in the [Architecture schema](../dbt-remote-schema.png).
+```dbt-server``` is a Fastapi server allowing users to run ```dbt``` commands on Cloud Run jobs and to follow their execution in real-time. When the server receives a dbt command request, it creates and launches a job to execute it. The complete workflow is described in the [Architecture schema](../docs/images/dbt-remote-schema.png).
 
-<center><img src="../dbt-remote-schema-simplified.png" width="100%"></center>
+<center><img src="../docs/images/dbt-remote-schema-simplified.png" width="100%"></center>
 
 
 ## Requirements
@@ -96,7 +96,7 @@ python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-r
 
 Build the server image
 ```sh
-dbt-remote image submit --location $LOCATION --artifact-registry $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server-repository
+dbt-remote image submit --artifact-registry $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server-repository
 ```
 
 Deploy the server on Cloud Run

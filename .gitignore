@@ -142,5 +142,9 @@ terraform*
 *.zip
 tmp_*
 
+# dbt
 dbt_remote.yml
 dbt_remote.yaml
+.user.yml
+manifest.json
+**/tests/integration/dbt_project/profiles.yml

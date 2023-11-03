@@ -1,5 +1,0 @@
-project_id: stc-dbt-test-9e19
-location: europe-west9
-bucket_name: dbt-server-test
-service_account: terraform-job-sa-test@stc-dbt-test-9e19.iam.gserviceaccount.com
-docker_image: europe-west9-docker.pkg.dev/stc-dbt-test-9e19/test-repository/server-image:prod
