@@ -99,8 +99,8 @@ poetry build
 ```
 Publish the package:
 ```sh
-token=$(cat <your-pypi-token.txt>)
-poetry publish --repository testpypi -u __token__ -p $token --skip-existing
+export TOKEN=pypi-XXXXXXXXXXX
+poetry publish --repository testpypi -u __token__ -p $TOKEN --skip-existing
 ```
 
 ## Submit a bug report or feature request
