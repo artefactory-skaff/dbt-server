@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from google.cloud import run_v2
 
-from lib.state import State
-from lib.logger import DbtLogger
+from dbt_server.lib.state import State
+from dbt_server.lib.logger import DbtLogger
 
 
 @dataclass
@@ -37,7 +37,7 @@ class DbtCloudRunJobStarter:
             "env": [
                 {"name": "DBT_COMMAND", "value": self.dbt_job_config.dbt_command},
                 {"name": "UUID", "value": self.state.uuid},
-                {"name": "SCRIPT", "value": "dbt_run_job.py"},
+                {"name": "SCRIPT", "value": "dbt_server/dbt_run_job.py"},
                 {"name": "BUCKET_NAME", "value": self.dbt_job_config.artifacts_bucket_name},
             ]
         }]

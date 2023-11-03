@@ -12,8 +12,8 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import SeedNode
 from fastapi import HTTPException
 
-from lib.logger import DbtLogger
-from lib.state import State
+from dbt_server.lib.logger import DbtLogger
+from dbt_server.lib.state import State
 
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 DBT_COMMAND = os.getenv("DBT_COMMAND")

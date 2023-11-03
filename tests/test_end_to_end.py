@@ -20,22 +20,22 @@ os.environ["ARTIFACT_REGISTRY"] = f"{os.environ['LOCATION']}-docker.pkg.dev/{os.
 os.environ["UUID"] = str(uuid4())
 
 
-# def test_image_submit():
-#     start_time = datetime.utcnow()
-#     result = run_command("dbt-remote image submit")
-#     assert result.exit_code == 0
+def test_image_submit():
+    start_time = datetime.utcnow()
+    result = run_command("dbt-remote image submit")
+    assert result.exit_code == 0
 
-#     client = CloudBuildClient()
-#     request = ListBuildsRequest(
-#         parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
-#         project_id=os.environ["PROJECT_ID"],
-#         filter=f"images={os.environ['DOCKER_IMAGE']}"
-#     )
-#     response = client.list_builds(request=request)
-#     latest_build = next(iter(response), None)
+    client = CloudBuildClient()
+    request = ListBuildsRequest(
+        parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
+        project_id=os.environ["PROJECT_ID"],
+        filter=f"images={os.environ['DOCKER_IMAGE']}"
+    )
+    response = client.list_builds(request=request)
+    latest_build = next(iter(response), None)
 
-#     assert latest_build.status.name == "SUCCESS"
-#     assert str(latest_build.create_time) > str(start_time)
+    assert latest_build.status.name == "SUCCESS"
+    assert str(latest_build.create_time) > str(start_time)
 
 @pytest.mark.parametrize("command, expected_in_output", [
     (

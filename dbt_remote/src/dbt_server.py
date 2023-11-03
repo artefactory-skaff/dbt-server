@@ -12,7 +12,7 @@ import requests
 from pydantic import BaseModel
 from termcolor import colored
 
-from src.cli_input import CliInput
+from dbt_remote.src.cli_input import CliInput
 
 
 @dataclass

@@ -5,11 +5,11 @@ from dbt.cli import main as dbt_cli
 from dbt.cli.main import global_flags
 from dbt.cli import params as dbt_p
 
-from src.cli_local_config import LocalCliConfig
-from src.dbt_server_image import DbtServerImage
-from src.dbt_server import DbtServer, DbtServerCommand
-from src import cli_params as p
-from src.cli_input import CliInput
+from dbt_remote.src.cli_local_config import LocalCliConfig
+from dbt_remote.src.dbt_server_image import DbtServerImage
+from dbt_remote.src.dbt_server import DbtServer, DbtServerCommand
+from dbt_remote.src import cli_params as p
+from dbt_remote.src.cli_input import CliInput
 
 
 help_msg = """

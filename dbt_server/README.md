@@ -96,7 +96,7 @@ python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-r
 
 Build the server image
 ```sh
-dbt-remote image submit --location $LOCATION --artifact-registry $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server-repository
+dbt-remote image submit --artifact-registry $LOCATION-docker.pkg.dev/$PROJECT_ID/dbt-server-repository
 ```
 
 Deploy the server on Cloud Run

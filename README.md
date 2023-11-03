@@ -9,7 +9,7 @@ This package provides
 
 # dbt-remote
 
-This CLI runs dbt commands remotely on a GCP.
+This CLI runs dbt commands remotely on GCP-hosted server.
 
 ## Requirements
 

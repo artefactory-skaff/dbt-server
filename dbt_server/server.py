@@ -4,10 +4,10 @@ import traceback
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 
-from lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig, DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
-from lib.dbt_command import DbtCommand
-from lib.state import State
-from lib.logger import DbtLogger
+from dbt_server.lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig, DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
+from dbt_server.lib.dbt_command import DbtCommand
+from dbt_server.lib.state import State
+from dbt_server.lib.logger import DbtLogger
 
 
 DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
@@ -88,7 +88,7 @@ def check():
 
 if __name__ == "__main__":
     uvicorn.run(
-        "dbt_server:app",
+        "server:app",
         port=int(PORT),
         host="0.0.0.0",
         reload=True

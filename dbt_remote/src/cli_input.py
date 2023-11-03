@@ -9,8 +9,8 @@ from dbt.cli.main import dbtRunner, dbtRunnerResult, cli as dbt_cli
 from dbt.contracts.graph.manifest import Manifest
 from dbt.parser.manifest import write_manifest
 
-from src.cli_local_config import LocalCliConfig
-from src.dbt_server_detector import detect_dbt_server_uri
+from dbt_remote.src.cli_local_config import LocalCliConfig
+from dbt_remote.src.dbt_server_detector import detect_dbt_server_uri
 
 
 @dataclass

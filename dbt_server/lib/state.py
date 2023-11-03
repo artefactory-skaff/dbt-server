@@ -11,9 +11,9 @@ from pathlib import Path
 
 import yaml
 
-from lib.firestore import get_collection
-from lib.dbt_command import DbtCommand
-from lib.gcs import CloudStorage
+from dbt_server.lib.firestore import get_collection
+from dbt_server.lib.dbt_command import DbtCommand
+from dbt_server.lib.gcs import CloudStorage
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 

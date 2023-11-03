@@ -51,7 +51,7 @@ export ARTIFACT_REGISTRY=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-rep
 
 Start the dbt-server locally:
 ```shell
-poetry run python3 dbt_server/dbt_server.py
+poetry run python3 dbt_server/server.py
 ```
 ```shell
 INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
