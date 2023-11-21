@@ -143,3 +143,13 @@ Now, go to the [dashboard template](https://lookerstudio.google.com/reporting/03
 In the data source, modify the custom query to point to the right billing project and table:
 
 ![](../docs/images/update_dash_data_source.gif)
+
+Once this setup is done, your dashboard will display the last 30 days of dbt logs from your server. No other setup is required, the dash directly queries the logs, so the data will always be fresh.
+
+Next steps:
+- Brand the dashboard for your client
+- Modify the SQL query and dashboard to display charts that make sense in your context
+
+References:
+- [Configure log buckets](https://cloud.google.com/logging/docs/buckets)
+- [Loggging - Build queries using SQL](https://cloud.google.com/logging/docs/analyze/query-and-view)
