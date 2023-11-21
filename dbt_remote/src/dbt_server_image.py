@@ -21,8 +21,3 @@ class DbtServerImage:
                 print(log.strip())
             if process.poll() is not None:
                 break
-
-
-if __name__ == "__main__":
-    dbt_server_image = DbtServerImage("europe-west1", "europe-west1-docker.pkg.dev/dbt-server-alexis2-2a22/dbt-server-repository")
-    print(dbt_server_image.submit())

@@ -13,9 +13,9 @@ This CLI runs dbt commands remotely on GCP-hosted server.
 
 ## Requirements
 
-- A deployed dbt-server. [(dbt-server deployment guide)](./dbt_server/README.md)
 - An initialized dbt core project. [(dbt core quickstart)](https://docs.getdbt.com/quickstarts/manual-install?step=1)
 - The gcloud CLI. [(gcloud install guide)](https://cloud.google.com/sdk/docs/install)
+- A deployed dbt-server. [(dbt-server deployment guide)](./dbt_server/README.md)
 
 ## Installation
 

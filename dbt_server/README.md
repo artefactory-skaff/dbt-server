@@ -120,3 +120,26 @@ To test it, you run [the `dbt-remote` CLI](../README.md) **in a dbt project** to
 ```sh
 dbt-remote debug
 ```
+
+## Server Monitoring Dashboard
+
+If you want to, you can deploy a monitoring dashboard with a few extra steps.
+![](../docs/images/monitoring_dashboard.png)
+
+Upgrade the `_Default` logs buckets to support log analytics:
+```shell
+gcloud logging buckets update _Default --location=global --enable-analytics --async --project=$PROJECT_ID
+```
+
+Create a dataset that will allow you to query logs through BigQuery:
+```shell
+gcloud logging links create log_analytics --bucket=_Default --location=global --project=$PROJECT_ID
+```
+
+Now, go to the [dashboard template](https://lookerstudio.google.com/reporting/033e6946-145f-4c6d-b38c-cd7854557ec4) (accessible to all @artefact.com) and create a copy:
+
+![](../docs/images/copy_dash_template.gif)
+
+In the data source, modify the custom query to point to the right billing project and table:
+
+![](../docs/images/update_dash_data_source.gif)
