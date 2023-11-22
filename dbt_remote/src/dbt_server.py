@@ -25,6 +25,7 @@ class DbtServerCommand:
     manifest: Path
     seeds: Optional[Path]
     zipped_artifacts: bytes = None
+    schedule: Optional[str] = None
 
     @classmethod
     def from_cli_config(cls, cli_config: CliInput):
@@ -35,7 +36,8 @@ class DbtServerCommand:
             profiles=Path(cli_config.profiles_dir) / "profiles.yml",
             manifest=Path(cli_config.manifest) / "manifest.json",
             packages=Path(cli_config.extra_packages) / "packages.yml" if cli_config.extra_packages is not None else None,
-            seeds=Path(cli_config.seeds_path) if cli_config.seeds_path is not None else {}
+            seeds=Path(cli_config.seeds_path) if cli_config.seeds_path is not None else {},
+            schedule=cli_config.schedule
         )
 
     def __post_init__(self):
@@ -65,6 +67,7 @@ class DbtServerCommand:
 class DbtServerResponse(BaseModel):
     status_code: Optional[str] = None
     uuid: Optional[str] = None
+    message: Optional[str] = None
     detail: Optional[str] = None
     links: Optional[Dict[str, str]] = None
 
@@ -113,14 +116,15 @@ class DbtServer:
         self.auth_session = self.get_auth_session()
 
     def send_command(self, command: DbtServerCommand) -> DbtServerResponse:
-        endpoint = self.server_url + "dbt"
+        endpoint = "dbt" if command.schedule is None else "schedule"
+        url = self.server_url + endpoint
 
         data = {
             "server_url": self.server_url,
             **{k: v for k, v in command.__dict__.items() if k not in ["manifest", "seeds", "zipped_artifacts"]}
         }
 
-        raw_response = self.auth_session.post(url=endpoint, data=data, files={"zipped_artifacts": command.zipped_artifacts})
+        raw_response = self.auth_session.post(url=url, data=data, files={"zipped_artifacts": command.zipped_artifacts})
 
         response = DbtServerResponse.parse_raw(raw_response.text)
         response.status_code = raw_response.status_code
@@ -136,13 +140,25 @@ class DbtServer:
             sleep(1)
             raw_response = self.auth_session.get(url=logs_link)
             response = DbtServerLogResponse.parse_raw(raw_response.text)
-            response.status_code = raw_response.status_code
-
             run_status = response.run_status
 
             for log in response.run_logs:
                 yield DbtLogEntry.from_raw_entry(log)
 
+    def get_logs(self, uuid: str):
+        raw_response = self.auth_session.get(url=f"{self.server_url}job/{uuid}/logs")
+        response = DbtServerLogResponse.parse_raw(raw_response.text)
+        return response.run_logs
+
+    def list_schedules(self):
+        raw_response = self.auth_session.get(url=f"{self.server_url}schedule")
+        response = raw_response.json()
+        return response["schedules"]
+
+    def delete_schedule(self, uuid: str):
+        raw_response = self.auth_session.delete(url=f"{self.server_url}schedule/{uuid}")
+        response = raw_response.json()
+        return response["message"]
 
     def get_auth_session(self) -> requests.Session:
         id_token_raw = check_output("gcloud auth print-identity-token", shell=True)  # FIXME

@@ -42,11 +42,25 @@ class State:
         state = cls(uuid=uuid)
         return state
 
+    @classmethod
+    def from_schedule_uuid(cls, uuid: str):
+        base_state = cls(uuid=uuid)
+        original_state_document_contents = base_state.dbt_collection.document(uuid).get().to_dict()
+
+        new_uuid = str(uuid4())
+        new_state_document_contents = original_state_document_contents
+        new_state_document_contents["uuid"] = new_uuid
+
+        new_state_document = base_state.dbt_collection.document(new_uuid)
+        new_state_document.set(new_state_document_contents)
+        state = cls(uuid=new_uuid)
+        return state
+
     def init_state(self):
         document = self.dbt_collection.document(self.uuid)
         initial_state = {
             "uuid": self.uuid,
-            "run_status": "created",
+            "run_status": "scheduled",
             "user_command": self.dbt_command.user_command,
             "dbt_native_params_overrides": self.dbt_command.dbt_native_params_overrides,
             "cloud_storage_folder": "",
@@ -155,10 +169,6 @@ class State:
             self.log_starting_byte += byte_length + 1
         return logs
 
-    def get_all_logs(self) -> List[str]:
-        logs, _ = self.run_logs.get(0)
-        return logs
-
     def log(self, severity: str, new_log: str) -> None:
         if self.run_logs_buffer == []:
             all_previous_logs = self.get_all_logs()
@@ -169,6 +179,10 @@ class State:
 
         self.run_logs_buffer.append(new_log)
         self.run_logs.log(self.run_logs_buffer)
+
+    def get_all_logs(self) -> List[str]:
+        logs, _ = self.run_logs.get(0)
+        return logs
 
 
 class DbtRunLogs:

@@ -3,9 +3,11 @@ import traceback
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
+from cron_descriptor import get_description
 
 from dbt_server.lib.dbt_cloud_run_job import DbtCloudRunJobStarter, DbtCloudRunJobConfig, DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed
-from dbt_server.lib.dbt_command import DbtCommand
+from dbt_server.lib.dbt_command import DbtCommand, ScheduledDbtCommand
+from dbt_server.lib.cloud_scheduler import CloudScheduler, SchedulerHTTPJobSpec
 from dbt_server.lib.state import State
 from dbt_server.lib.logger import DbtLogger
 
@@ -51,6 +53,7 @@ def run_command(dbt_command: DbtCommand = Depends()):
 
     return {
         "uuid": state.uuid,
+        "message": f"Job created with uuid: {state.uuid}",
         "links": {
             "run_status": f"{dbt_command.server_url}job/{state.uuid}",
             "last_logs": f"{dbt_command.server_url}job/{state.uuid}/last_logs",
@@ -79,6 +82,91 @@ def get_all_logs(uuid: str):
     logs = job_state.get_all_logs()
     run_status = job_state.run_status
     return {"run_logs": logs, "run_status": run_status, "uuid": uuid}
+
+
+@app.post("/schedule", status_code=status.HTTP_201_CREATED)
+def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
+    logger = DbtLogger(server=True)
+    logger.log("INFO", f"Received scheduled command: {scheduled_dbt_command.user_command}")
+
+    state = State(scheduled_dbt_command)
+    logger.log("INFO", f"Assigned job id: '{state.uuid}'")
+    logger.state = state
+    state.extract_artifacts(scheduled_dbt_command.zipped_artifacts)
+
+    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
+    job_to_schedule = SchedulerHTTPJobSpec(
+        job_name=f"dbt-server-{state.uuid}",
+        schedule=scheduled_dbt_command.schedule,
+        target_uri=f"{scheduled_dbt_command.server_url}schedule/{state.uuid}/start",
+        description=scheduled_dbt_command.user_command
+    )
+    scheduler.create_http_scheduled_job(job_to_schedule)
+
+
+    return {
+        "uuid": state.uuid,
+        "message": f"Job {scheduled_dbt_command.user_command} scheduled at {scheduled_dbt_command.schedule} ({get_description(scheduled_dbt_command.schedule)}) with uuid: {state.uuid}",
+        "links": {
+            "start": f"{scheduled_dbt_command.server_url}schedule/{state.uuid}/start",
+        }
+    }
+
+@app.get("/schedule", status_code=status.HTTP_200_OK)
+def list_schedules():
+    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
+    schedules = scheduler.list()
+
+    return {
+        "schedules": [
+            {
+                "name": schedule.name.split("/")[-1],
+                "command": schedule.description,
+                "schedule": schedule.schedule,
+                "timezone": schedule.time_zone,
+                "target": schedule.http_target.uri,
+            }
+            for schedule in schedules if schedule.name.split("/")[-1].startswith("dbt-server-") and schedule.state.name == "ENABLED"
+        ]
+    }
+
+@app.delete("/schedule/{uuid}", status_code=status.HTTP_200_OK)
+def list_schedules(uuid):
+    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
+    job_name = f"dbt-server-{uuid}" if not uuid.startswith("dbt-server-") else uuid
+    deleted = scheduler.delete(job_name)
+
+    return {
+        "message": f"Schedule {job_name} deleted" if deleted else f"Nothing to delete, schedule {job_name} does not exist or is disabled in {PROJECT_ID}/{LOCATION}",
+    }
+
+@app.post("/schedule/{uuid}/start", status_code=status.HTTP_200_OK)
+def start_scheduled_run(uuid: str):
+    state = State.from_schedule_uuid(uuid)
+    logger = DbtLogger(server=True)
+    logger.state = state
+    logger.log("INFO", f"Assigned job id: '{state.uuid}'")
+    logger.log("INFO", f"Starting scheduled job with command: {state.user_command}")
+
+    try:
+        job_conf = DbtCloudRunJobConfig(
+            uuid=state.uuid,
+            dbt_command=state.user_command,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            service_account=SERVICE_ACCOUNT,
+            job_docker_image=DOCKER_IMAGE,
+            artifacts_bucket_name=BUCKET_NAME
+        )
+        DbtCloudRunJobStarter(job_conf, logger).start()
+    except (DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed) as e:
+        traceback_str = traceback.format_exc()
+        raise HTTPException(status_code=400, detail=f"{e.args[0]}\n{traceback_str}")
+
+    return {
+        "uuid": state.uuid,
+        "message": f"Job created with uuid: {state.uuid}",
+    }
 
 
 @app.get("/check", status_code=status.HTTP_200_OK)

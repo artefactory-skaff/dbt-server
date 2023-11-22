@@ -9,10 +9,12 @@ import click
 from google.cloud import run_v2
 import requests
 
+from dbt_remote.src.cli_local_config import LocalCliConfig
+
 
 def detect_dbt_server_uri(location: str) -> str:
     project_id = get_project_id()
-    location = location  # can be None
+    location = location  # may be None
 
     if location is not None:
         click.echo(f"\nLooking for dbt server on project {project_id} in {location}...")
@@ -24,6 +26,11 @@ def detect_dbt_server_uri(location: str) -> str:
     for service in cloud_run_services:
         if check_if_server_is_dbt_server(service):
             server_url = service.uri if service.uri.endswith('/') else service.uri + "/"
+
+            click.echo(f"Detected dbt server at: {click.style(server_url, blink=True, bold=True)}")
+            if click.confirm("Do you want to use this server as your default dbt server for this project?", default=True):
+                LocalCliConfig().set("server_url", server_url)
+
             return server_url
 
     click.echo(click.style("ERROR", fg="red"))

@@ -34,6 +34,7 @@ seeds_path = click.option(
 
 server_url = click.option(
     '--server-url',
+    envvar='DBT_SERVER_URL',
     help='Give dbt server url (ex: https://server.com). If not given, dbt-remote will look for a dbt server in GCP project\'s Cloud Run. In this case, you can give the location of the dbt server with --location.'
 )
 
@@ -43,6 +44,11 @@ location = click.option(
     help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations. /!\\ Location should be a Cloud region, not multi region.'
 )
 
+schedule = click.option(
+    '--schedule',
+    help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information.'
+)
+
 artifact_registry = click.option(
     '--artifact-registry',
     envvar='ARTIFACT_REGISTRY',
@@ -50,3 +56,5 @@ artifact_registry = click.option(
     prompt=True,
     help='Your artifact registry. Ex: europe-west9-docker.pkg.dev/my-project/test-repository'
 )
+
+run_id = click.argument('run-id')

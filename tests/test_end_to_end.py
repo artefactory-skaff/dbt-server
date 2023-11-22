@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import shlex
 from typing import List
 from uuid import uuid4
 from datetime import datetime
@@ -75,6 +76,52 @@ def test_dbt_remote(command, expected_in_output: List[str]):
     for expected in expected_in_output:
         assert expected in result.output
 
+
+def test_schedules():
+    result = run_command("""dbt-remote run --select model_that_does_not_exist --schedule '1 2 3 4 5'""")
+    expected = "Job run --select model_that_does_not_exist scheduled at 1 2 3 4 5 (At 02:01 AM, on day 3 of the month, only on Friday, only in April) with uuid"
+    print("CLI output")
+    print("-----------")
+    print(result.output)
+    print("-----------")
+    print("Expected to find in output")
+    print("-----------")
+    print(expected)
+    print("-----------")
+    assert expected in result.output
+
+    scheduled_uuid = result.output.split()[-1].strip()
+
+    result = run_command("dbt-remote schedules list")
+    expected_in_output = [
+        f"dbt-server-{scheduled_uuid}",
+        "command: run --select model_that_does_not_exist",
+        "schedule: 1 2 3 4 5 (At 02:01 AM, on day 3 of the month, only on Friday, only in April) UTC"
+    ]
+    print("CLI output")
+    print("-----------")
+    print(result.output)
+    print("-----------")
+    print("Expected to find in output")
+    print("-----------")
+    print(expected_in_output)
+    print("-----------")
+    for expected in expected_in_output:
+        assert expected in result.output
+
+    result = run_command(f"dbt-remote schedules delete dbt-server-{scheduled_uuid}")
+    expected = f"Schedule dbt-server-{scheduled_uuid} deleted"
+    print("CLI output")
+    print("-----------")
+    print(result.output)
+    print("-----------")
+    print("Expected to find in output")
+    print("-----------")
+    print(expected)
+    print("-----------")
+    assert expected in result.output
+
+
 def run_command(command: str):
-    command_as_args = command.replace("dbt-remote", "").replace("=", " ").strip().split(" ")
+    command_as_args = shlex.split(command.replace("dbt-remote", "").replace("=", " ").strip())
     return CliRunner().invoke(cli, command_as_args)

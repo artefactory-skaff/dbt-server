@@ -27,6 +27,7 @@ class CliInput:
     server_url: Optional[str] = None
     location: Optional[str] = None
     artifact_registry: Optional[str] = None
+    schedule: Optional[str] = None
 
     @classmethod
     def from_click_context(cls, ctx):
@@ -45,7 +46,8 @@ class CliInput:
             seeds_path=ctx.params.get('seeds_path'),
             server_url=ctx.params.get('server_url'),
             location=ctx.params.get('location'),
-            artifact_registry=ctx.params.get('artifact_registry')
+            artifact_registry=ctx.params.get('artifact_registry'),
+            schedule=ctx.params.get('schedule'),
         )
 
     def __post_init__(self):
@@ -98,14 +100,7 @@ class CliInput:
             raise click.ClickException(f"{click.style('ERROR', fg='red')}\tNo profiles.yml file found.")
 
     def get_server_url(self) -> str:
-        if self.server_url is None:
-            server_url  = detect_dbt_server_uri(self.location)
-            click.echo(f"Detected dbt server at: {click.style(server_url, blink=True, bold=True)}")
-            if click.confirm("Do you want to use this server as your default dbt server for this project?", default=True):
-                set([f'server_url={server_url}'])
-        else:
-            server_url = self.server_url
-        return server_url
+        return detect_dbt_server_uri(self.location) if self.server_url is None else self.server_url
 
     def resolve_manifest(self) -> str:
         if self.manifest is not None:

@@ -47,7 +47,7 @@ def connect_client() -> storage.Client:
 
 def get_blob_size(bucket: storage.Bucket, blob_name: str) -> int:
     blob = bucket.get_blob(blob_name)
-    return blob.size
+    return blob.size if blob is not None else None
 
 
 def define_retry_policy():

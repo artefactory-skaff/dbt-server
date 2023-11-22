@@ -23,6 +23,15 @@ This CLI runs dbt commands remotely on GCP-hosted server.
 python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-remote --no-cache-dir
 ```
 
+Refresh your shell/venv to enable the cli:
+```sh
+source venv/bin/activate
+```
+OR
+```sh
+conda activate
+```
+
 ### Setup your GCP project, gcloud CLI, and default credentials
 ```sh
 export PROJECT_ID=<your-gcp-project-id>
@@ -66,7 +75,41 @@ View all `dbt-remote` options
 dbt-remote --help
 ```
 
-### (optional) Set persistant configurations for `dbt-remote` using `config` command
+### Schedule dbt runs
+
+Use the --schedule option and a cron expression to schedule a run. [Help with cron expressions.](https://crontab.guru/#0_*_*_*_*)
+```sh
+dbt-remote run --schedule '0 8 * * *'
+```
+```sh
+[...]
+Sending request to server...
+Job run scheduled at 0 8 * * * (At 08:00 AM) with uuid: e11f1085-8ad9-4dcd-b09f-d8a8369075b9
+```
+This will create a [cloud scheduler](https://console.cloud.google.com/cloudscheduler) that will call the dbt-server at the configured time.
+
+To check your scheduled run, either go to the [cloud scheduler UI of your project](https://console.cloud.google.com/cloudscheduler), or list them uting the cli:
+```sh
+dbt-remote schedules list
+```
+```sh
+[...]
+dbt-server-e11f1085-8ad9-4dcd-b09f-d8a8369075b9
+   command: run
+   schedule: 0 8 * * * (At 08:00 AM) UTC
+   target: https://dbt-server-vo6sb27zvq-ew.a.run.app/schedule/e11f1085-8ad9-4dcd-b09f-d8a8369075b9/start
+```
+
+You can also delete them in the UI, or using the CLI:
+```sh
+dbt-remote schedules delete e11f1085-8ad9-4dcd-b09f-d8a8369075b9
+```
+```sh
+[...]
+Schedule dbt-server-e11f1085-8ad9-4dcd-b09f-d8a8369075b9 deleted
+```
+
+### (optional) Set persistent configurations for `dbt-remote` using `config` command
 ```sh
 dbt-remote config set server_url=http://myserver.com location=europe-west9
 ```

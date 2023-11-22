@@ -1,8 +1,10 @@
 # TODO: Only include the dbt-remote package once it's live
 google-cloud-run>=0.9
-dbt-bigquery~=1.6.0
+google-cloud-scheduler>=2
 google-cloud-logging>=3
+google-cloud-firestore>=2
+dbt-bigquery~=1.6.0
 uvicorn>=0
 fastapi>=0
-google-cloud-firestore>=2
 python-multipart==0.0.6
+cron-descriptor>=1

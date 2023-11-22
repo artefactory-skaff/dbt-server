@@ -17,6 +17,7 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
   - `roles/storage.admin`
   - `roles/run.developer`
   - `roles/iam.serviceAccountUser`
+  - `roles/cloudscheduler.admin`
 - The gcloud CLI. [(gcloud install guide)](https://cloud.google.com/sdk/docs/install)
 
 
@@ -74,6 +75,7 @@ ROLES=(
   "iam.serviceAccountUser"
   "logging.logWriter"
   "logging.viewer"
+  "cloudscheduler.admin"
 );
 
 for ROLE in ${ROLES[@]}
@@ -92,6 +94,15 @@ gcloud firestore databases create --location=eur3
 Install `dbt-remote` CLI
 ```sh
 python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-remote --no-cache-dir
+```
+
+Refresh your shell/venv:
+```sh
+source venv/bin/activate
+```
+OR
+```sh
+conda activate
 ```
 
 Build the server image
@@ -128,7 +139,7 @@ If you want to, you can deploy a monitoring dashboard with a few extra steps.
 
 Upgrade the `_Default` logs buckets to support log analytics:
 ```shell
-gcloud logging buckets update _Default --location=global --enable-analytics --async --project=$PROJECT_ID
+gcloud logging buckets update _Default --location=global --enable-analytics --project=$PROJECT_ID
 ```
 
 Create a dataset that will allow you to query logs through BigQuery:
@@ -136,7 +147,7 @@ Create a dataset that will allow you to query logs through BigQuery:
 gcloud logging links create log_analytics --bucket=_Default --location=global --project=$PROJECT_ID
 ```
 
-Now, go to the [dashboard template](https://lookerstudio.google.com/reporting/033e6946-145f-4c6d-b38c-cd7854557ec4) (accessible to all @artefact.com) and create a copy:
+Now, go to the [dashboard template](https://lookerstudio.google.com/reporting/033e6946-145f-4c6d-b38c-cd7854557ec4) and create a copy:
 
 ![](../docs/images/copy_dash_template.gif)
 

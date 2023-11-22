@@ -47,6 +47,7 @@ export SERVICE_ACCOUNT=dbt-server-service-account@${PROJECT_ID}.iam.gserviceacco
 export BUCKET_NAME=${PROJECT_ID}-dbt-server
 export DOCKER_IMAGE=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository/server-image
 export ARTIFACT_REGISTRY=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository
+export PYTHONPATH=.
 ```
 
 Start the dbt-server locally:
@@ -73,7 +74,7 @@ poetry run python3 dbt_remote/cli.py debug --project-dir tests/dbt_project --ser
 ```shell
 [...]
 INFO    [dbt] Registered adapter: bigquery=1.6.8
-INFO    [dbt]   Connection test: [OK connection ok]  
+INFO    [dbt]   Connection test: [OK connection ok]
 INFO    [dbt] All checks passed!
 INFO    [job] Command successfully executed
 INFO    [job] dbt-remote job finished

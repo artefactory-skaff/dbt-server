@@ -25,6 +25,7 @@ logger = DbtLogger(server=False)
 state = State.from_uuid(UUID)
 logger.state = state
 
+
 def prepare_and_execute_job() -> None:
     state.save_context_to_local()
     manifest = get_manifest()
@@ -125,5 +126,5 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
 
 
 if __name__ == '__main__':
-    logger.log("INFO", "[job] Job started")
+    logger.log("INFO", f"[job] Job {UUID} started")
     prepare_and_execute_job()
