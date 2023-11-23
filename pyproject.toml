@@ -17,7 +17,7 @@ packages = [
 [tool.poetry.dependencies]
 python = ">= 3.10, < 3.12"
 google-cloud-run = "^0"
-dbt-bigquery = ">=1.6.0 <1.7.0"
+dbt-bigquery = ">=1.7.0 <1.8.0"
 click-aliases = "^1"
 termcolor = "^2"
 google-cloud-build = "^3"

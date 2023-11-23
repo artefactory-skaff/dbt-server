@@ -3,7 +3,7 @@ google-cloud-run>=0.9
 google-cloud-scheduler>=2
 google-cloud-logging>=3
 google-cloud-firestore>=2
-dbt-bigquery~=1.6.0
+dbt-bigquery~=1.7.0
 uvicorn>=0
 fastapi>=0
 python-multipart==0.0.6

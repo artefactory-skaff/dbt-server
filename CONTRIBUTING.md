@@ -22,7 +22,7 @@ export LOCATION=<LOCATION>
 ```
 
 ### Deploy the dbt-server
-Follow the dbt-server deployment instructions here: [dbt-server deployment guide](../dbt_server/README.md)
+Follow the dbt-server deployment instructions here: [dbt-server deployment guide](./dbt_server/README.md)
 
 ### Run end-to-end tests to make sure everyting is properly setup
 This should take a few minutes.
