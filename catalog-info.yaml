@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: gcp-dbt-server
+  title: Dbt Server on GCP.
+  description: >
+    A dbt-remote CLI meant to be a drop-in replacement for dbt CLI to run and schedule dbt jobs on GCP. Also contains the API server to be deploye on Cloud Run.
+  labels:
+    template: "1"
+  annotations:
+    github.com/project-slug: artefactory/dbt-server
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: service
+  owner: user:alexisVLRT
+  lifecycle: experimental
