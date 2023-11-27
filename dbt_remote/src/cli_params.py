@@ -1,5 +1,25 @@
 import click
 
+from version import __version__
+
+def _version_callback(ctx, _param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(__version__)
+    ctx.exit()
+
+version = click.option(
+    "--version",
+    "-V",
+    "-v",
+    callback=_version_callback,
+    envvar=None,
+    expose_value=False,
+    help="Show version information and exit",
+    is_eager=True,
+    is_flag=True,
+)
+
 manifest = click.option(
     '--manifest',
     '-m',

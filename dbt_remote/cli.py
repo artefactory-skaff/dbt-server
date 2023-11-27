@@ -36,6 +36,7 @@ image: build and submit dbt-server image to your Artifact Registry. See `dbt-rem
 )
 @click.pass_context
 @global_flags
+@p.version
 @dbt_p.log_format
 @p.server_url
 @p.location
