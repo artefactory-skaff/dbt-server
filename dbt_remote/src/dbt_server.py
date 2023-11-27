@@ -103,9 +103,8 @@ class DbtLogEntry:
         }.get(self.log_level, "white")
 
         message_color = {
-            "dbt": "white",
             "job": "blue"
-        }.get(self.emitter, "grey")
+        }.get(self.emitter, "white")
 
         return f"{colored(self.log_level, level_color)}    {colored(self.message, message_color)}"
 

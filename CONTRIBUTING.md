@@ -82,6 +82,7 @@ INFO    [job] dbt-remote job finished
 
 ## Publishing a new package version
 
+
 Create an account on TestPypi. Get your Pypi token. Ask an owner to add you as collaborator on the project.
 
 Add Test Pypi as repository:
@@ -92,7 +93,10 @@ Check the tests pass:
 ```sh
 poetry run pytest tests -log_cli=true -log_cli_level=info -vvv --maxfail=1
 ```
-Increment the package version in `pyproject.toml` according to the [semver](https://semver.org/) convention.
+
+- Increment the package version in `pyproject.toml` according to the [semver](https://semver.org/) convention.
+- Increment the package version in `dbt_remote/version.py`
+- (Optional) Find a better way to handle this.
 
 Build the package:
 ```sh

@@ -26,8 +26,9 @@ This section is dedicated to ```dbt-server``` deployment and maintenance by syst
 ### Export your env variables.
 ```sh
 export PROJECT_ID=<your-project-id> &&
-export LOCATION=<dbt-server-region>
+export LOCATION=<dbt-server-region>  # example: europe-west1
 ```
+> For the complete list of regions, run `gcloud compute regions list`
 
 ### Setup your GCP project, gcloud CLI, and default credentials
 ```sh
@@ -82,6 +83,7 @@ for ROLE in ${ROLES[@]}
 do
   gcloud projects add-iam-policy-binding ${PROJECT_ID} \
   --member=serviceAccount:dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com \
+  --condition=None \
   --role=roles/${ROLE};
 done
 ```
