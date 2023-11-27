@@ -84,15 +84,9 @@ class CliInput:
         return str(Path(self.project_dir).absolute())
 
     def find_profiles_dir(self) -> str:
-        if "--profiles-dir" in self.command:
-            profiles_dir = Path(self.get_profiles_dir_from_command()).absolute()
-
-            if (profiles_dir / "profiles.yml").exists():
-                return str(profiles_dir)
-            else:
-                raise click.ClickException(f"{click.style('ERROR', fg='red')}\tNo profiles.yml file found at '{profiles_dir}'")
-
-        if (Path.cwd() / "profiles.yml").exists():
+        if (Path(self.profiles_dir) / "profiles.yml").exists():
+            return str(Path(self.profiles_dir).absolute())
+        elif (Path.cwd() / "profiles.yml").exists():
             return str(Path.cwd().absolute())
         elif (Path.home() / ".dbt" / "profiles.yml").exists():
             return str(Path.home().absolute() / ".dbt")
@@ -114,10 +108,3 @@ class CliInput:
         manifest: Manifest = res.result
         write_manifest(manifest, str(target_dir))
         return str(target_dir.absolute())
-
-    def get_profiles_dir_from_command(self) -> str:
-        dbt_command = self.sanitize_command()
-        args_list = split_arg_string(dbt_command)
-        sub_command_context = args_to_context(args_list)
-        sub_command_params_dict = sub_command_context.params
-        return sub_command_params_dict["profiles_dir"]
