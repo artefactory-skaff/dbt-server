@@ -10,6 +10,10 @@ metadata:
   annotations:
     github.com/project-slug: artefactory/dbt-server
     backstage.io/techdocs-ref: dir:.
+  tags:
+    - gcp
+    - python
+    - dbt
 spec:
   type: service
   owner: user:alexisVLRT
