@@ -1,6 +1,6 @@
 import click
 
-from version import __version__
+from dbt_remote.version import __version__
 
 def _version_callback(ctx, _param, value):
     if not value or ctx.resilient_parsing:

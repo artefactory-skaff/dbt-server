@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import List
 import msgpack
 import json
 import threading
@@ -56,6 +57,8 @@ def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
     dbt = dbtRunner(manifest=manifest, callbacks=[logger_callback])
 
     args_list = split_arg_string(dbt_command)
+    log_selected_nodes(args_list)
+
     res_dbt: dbtRunnerResult = dbt.invoke(
         args_list,
         **dict(
@@ -124,6 +127,14 @@ def override_manifest_with_correct_seed_path(manifest: Manifest) -> Manifest:
             node.root_path = '.'
     return manifest
 
+def log_selected_nodes(args_list: List[str]):
+    models_selection = "*"
+    if "--select" in args_list:
+        models_selection = args_list[args_list.index("--select") + 1]
+    elif "--select=" in args_list:
+        models_selection = args_list[args_list.index("--select=")].split("=")[1]
+    with callback_lock:
+        logger.log("DEBUG", f"models_selection: {models_selection}")
 
 if __name__ == '__main__':
     logger.log("INFO", f"[job] Job {UUID} started")
