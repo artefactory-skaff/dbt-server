@@ -52,6 +52,7 @@ def cli(ctx, **kwargs):
 @global_flags
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @p.manifest
+@dbt_p.target
 @p.project_dir
 @p.dbt_project
 @p.profiles_dir

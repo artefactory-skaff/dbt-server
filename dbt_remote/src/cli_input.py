@@ -20,6 +20,7 @@ class CliInput:
     dbt_native_params_overrides: Optional[dict] = None
     command: Optional[str] = None
     manifest: Optional[str] = None
+    target: Optional[str] = None
     project_dir: Optional[str] = None
     profiles_dir: Optional[str] = None
     extra_packages: Optional[str] = None
@@ -40,6 +41,7 @@ class CliInput:
             args=ctx.params.get('args'),
             dbt_native_params_overrides=dbt_native_params_overrides,
             manifest=ctx.params.get('manifest'),
+            target=ctx.params.get('target'),
             project_dir=ctx.params.get('project_dir'),
             profiles_dir=ctx.params.get('profiles_dir'),
             extra_packages=ctx.params.get('extra_packages'),
@@ -104,7 +106,7 @@ class CliInput:
         target_dir = Path(self.project_dir) / 'target'
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        res: dbtRunnerResult = dbtRunner().invoke(["parse", "--project-dir", self.project_dir, "--profiles-dir", self.profiles_dir])
+        res: dbtRunnerResult = dbtRunner().invoke(["parse", "--project-dir", self.project_dir, "--profiles-dir", self.profiles_dir, "--target", self.target])
         manifest: Manifest = res.result
         write_manifest(manifest, str(target_dir))
         return str(target_dir.absolute())
