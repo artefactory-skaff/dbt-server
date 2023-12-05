@@ -28,15 +28,15 @@ app = FastAPI(
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
 def run_command(dbt_command: DbtCommand = Depends()):
-    logger = DbtLogger(server=True)
-    logger.log("INFO", f"Received command: {dbt_command.user_command}")
-
-    state = State(dbt_command)
-    logger.log("INFO", f"Assigned job id: '{state.uuid}'")
-    logger.state = state
-    state.extract_artifacts(dbt_command.zipped_artifacts)
-
     try:
+        logger = DbtLogger(server=True)
+        logger.log("INFO", f"Received command: {dbt_command.user_command}")
+
+        state = State(dbt_command)
+        logger.log("INFO", f"Assigned job id: '{state.uuid}'")
+        logger.state = state
+        state.extract_artifacts(dbt_command.zipped_artifacts)
+
         job_conf = DbtCloudRunJobConfig(
             uuid=state.uuid,
             dbt_command=dbt_command.user_command,
@@ -47,9 +47,14 @@ def run_command(dbt_command: DbtCommand = Depends()):
             artifacts_bucket_name=BUCKET_NAME
         )
         DbtCloudRunJobStarter(job_conf, logger).start()
+
     except (DbtCloudRunJobCreationFailed, DbtCloudRunJobStartFailed) as e:
         traceback_str = traceback.format_exc()
         raise HTTPException(status_code=400, detail=f"{e.args[0]}\n{traceback_str}")
+
+    except Exception as e:
+        traceback_str = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"{e.args[0]}\n{traceback_str}")
 
     return {
         "uuid": state.uuid,

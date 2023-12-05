@@ -3,8 +3,6 @@ import click
 from typing import List, Optional
 from dataclasses import dataclass
 
-from click.parser import split_arg_string
-from dbt.cli.flags import args_to_context
 from dbt.cli.main import dbtRunner, dbtRunnerResult, cli as dbt_cli
 from dbt.contracts.graph.manifest import Manifest
 from dbt.parser.manifest import write_manifest
