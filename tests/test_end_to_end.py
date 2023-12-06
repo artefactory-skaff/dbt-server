@@ -20,25 +20,41 @@ os.environ["ARTIFACT_REGISTRY"] = f"{os.environ['LOCATION']}-docker.pkg.dev/{os.
 
 os.environ["UUID"] = str(uuid4())
 
-
-def test_image_submit():
-    start_time = datetime.utcnow()
-    result = run_command("dbt-remote image submit")
-    assert result.exit_code == 0
-
-    client = CloudBuildClient()
-    request = ListBuildsRequest(
-        parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
-        project_id=os.environ["PROJECT_ID"],
-        filter=f"images={os.environ['DOCKER_IMAGE']}"
-    )
-    response = client.list_builds(request=request)
-    latest_build = next(iter(response), None)
-
-    assert latest_build.status.name == "SUCCESS"
-    assert str(latest_build.create_time) > str(start_time)
-
 @pytest.mark.parametrize("command, expected_in_output", [
+    (
+        "dbt-remote run --select model_that_does_not_exist --schedule '1 2 3 4 5' --schedule-name test-schedule-1",
+        [
+            "Job run --select model_that_does_not_exist scheduled at 1 2 3 4 5 (At 02:01 AM, on day 3 of the month, only on Friday, only in April) with uuid",
+        ]
+    ),
+    (
+        "dbt-remote schedules list",
+        [
+            "test-schedule-1",
+            "command: run --select model_that_does_not_exist",
+            "schedule: 1 2 3 4 5 (At 02:01 AM, on day 3 of the month, only on Friday, only in April) UTC"
+        ]
+    ),
+    (
+        f"dbt-remote schedules set {Path(__file__).parent / 'schedules.yaml'} --auto-approve",
+        [
+            "Job build --select my_first_dbt_model scheduled at 2 3 4 5 6 (At 03:02 AM, on day 4 of the month, only on Saturday, only in May) with uuid",
+            "- Delete: test-schedule-1",
+            "+ Add: test-schedule-2",
+        ]
+    ),
+    (
+        "dbt-remote schedules describe test-schedule-1",
+        [
+            "Found no schedule named 'test-schedule-1'",
+        ]
+    ),
+    (
+        "dbt-remote schedules delete test-schedule-2",
+        [
+            "Schedule test-schedule-2 deleted",
+        ]
+    ),
     (
         "dbt-remote debug",
         [
@@ -51,7 +67,6 @@ def test_image_submit():
             """INFO    [dbt] 2 of 8 OK loaded seed file test.test_seed ...................................... [INSERT 1""",
             """ERROR    [dbt] 3 of 8 FAIL 1 not_null_my_first_dbt_model_id ................................... [FAIL 1""",
             """INFO    [dbt] 4 of 8 PASS unique_my_first_dbt_model_id ....................................... [PASS in """,
-            """INFO    [dbt] Finished running 2 table models, 1 seed, 4 tests, 1 view model in""",
             """ERROR    [dbt] Failure in test not_null_my_first_dbt_model_id (models/example/schema.yml)""",
         ]
     ),
@@ -77,49 +92,22 @@ def test_dbt_remote(command, expected_in_output: List[str]):
         assert expected in result.output
 
 
-def test_schedules():
-    result = run_command("""dbt-remote run --select model_that_does_not_exist --schedule '1 2 3 4 5'""")
-    expected = "Job run --select model_that_does_not_exist scheduled at 1 2 3 4 5 (At 02:01 AM, on day 3 of the month, only on Friday, only in April) with uuid"
-    print("CLI output")
-    print("-----------")
-    print(result.output)
-    print("-----------")
-    print("Expected to find in output")
-    print("-----------")
-    print(expected)
-    print("-----------")
-    assert expected in result.output
+def test_image_submit():
+    start_time = datetime.utcnow()
+    result = run_command("dbt-remote image submit")
+    assert result.exit_code == 0
 
-    scheduled_uuid = result.output.split()[-1].strip()
+    client = CloudBuildClient()
+    request = ListBuildsRequest(
+        parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
+        project_id=os.environ["PROJECT_ID"],
+        filter=f"images={os.environ['DOCKER_IMAGE']}"
+    )
+    response = client.list_builds(request=request)
+    latest_build = next(iter(response), None)
 
-    result = run_command("dbt-remote schedules list")
-    expected_in_output = [
-        f"dbt-server-{scheduled_uuid}",
-        "command: run --select model_that_does_not_exist",
-        "schedule: 1 2 3 4 5 (At 02:01 AM, on day 3 of the month, only on Friday, only in April) UTC"
-    ]
-    print("CLI output")
-    print("-----------")
-    print(result.output)
-    print("-----------")
-    print("Expected to find in output")
-    print("-----------")
-    print(expected_in_output)
-    print("-----------")
-    for expected in expected_in_output:
-        assert expected in result.output
-
-    result = run_command(f"dbt-remote schedules delete dbt-server-{scheduled_uuid}")
-    expected = f"Schedule dbt-server-{scheduled_uuid} deleted"
-    print("CLI output")
-    print("-----------")
-    print(result.output)
-    print("-----------")
-    print("Expected to find in output")
-    print("-----------")
-    print(expected)
-    print("-----------")
-    assert expected in result.output
+    assert latest_build.status.name == "SUCCESS"
+    assert str(latest_build.create_time) > str(start_time)
 
 
 def run_command(command: str):

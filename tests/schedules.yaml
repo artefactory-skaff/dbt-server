@@ -1,0 +1,3 @@
+test-schedule-2:
+   command: build --select my_first_dbt_model --project-dir=tests/dbt_project
+   schedule: "2 3 4 5 6"

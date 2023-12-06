@@ -18,6 +18,7 @@ PROJECT_ID = os.getenv("PROJECT_ID")
 LOCATION = os.getenv("LOCATION")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 PORT = os.environ.get("PORT", "8001")
+SCHEDULED_JOB_DESC_PREFIX = "[dbt-server job] "
 
 app = FastAPI(
     title="dbt-server",
@@ -101,10 +102,10 @@ def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
 
     scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
     job_to_schedule = SchedulerHTTPJobSpec(
-        job_name=f"dbt-server-{state.uuid}",
+        job_name=f"dbt-server-{state.uuid}" if scheduled_dbt_command.schedule_name is None else scheduled_dbt_command.schedule_name,
         schedule=scheduled_dbt_command.schedule,
         target_uri=f"{scheduled_dbt_command.server_url}schedule/{state.uuid}/start",
-        description=scheduled_dbt_command.user_command
+        description=f"{SCHEDULED_JOB_DESC_PREFIX}{scheduled_dbt_command.user_command}"
     )
     scheduler.create_http_scheduled_job(job_to_schedule)
 
@@ -123,26 +124,25 @@ def list_schedules():
     schedules = scheduler.list()
 
     return {
-        "schedules": [
-            {
+        "schedules": {
+            schedule.name.split("/")[-1]: {
                 "name": schedule.name.split("/")[-1],
-                "command": schedule.description,
+                "command": schedule.description.replace(SCHEDULED_JOB_DESC_PREFIX, ""),
                 "schedule": schedule.schedule,
                 "timezone": schedule.time_zone,
                 "target": schedule.http_target.uri,
             }
-            for schedule in schedules if schedule.name.split("/")[-1].startswith("dbt-server-") and schedule.state.name == "ENABLED"
-        ]
+            for schedule in schedules if schedule.description.startswith(SCHEDULED_JOB_DESC_PREFIX) and schedule.state.name == "ENABLED"
+        }
     }
 
-@app.delete("/schedule/{uuid}", status_code=status.HTTP_200_OK)
-def list_schedules(uuid):
+@app.delete("/schedule/{name}", status_code=status.HTTP_200_OK)
+def list_schedules(name):
     scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
-    job_name = f"dbt-server-{uuid}" if not uuid.startswith("dbt-server-") else uuid
-    deleted = scheduler.delete(job_name)
+    deleted = scheduler.delete(name)
 
     return {
-        "message": f"Schedule {job_name} deleted" if deleted else f"Nothing to delete, schedule {job_name} does not exist or is disabled in {PROJECT_ID}/{LOCATION}",
+        "message": f"Schedule {name} deleted" if deleted else f"Nothing to delete, schedule {name} does not exist or is disabled in {PROJECT_ID}/{LOCATION}",
     }
 
 @app.post("/schedule/{uuid}/start", status_code=status.HTTP_200_OK)

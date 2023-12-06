@@ -27,6 +27,7 @@ class CliInput:
     location: Optional[str] = None
     artifact_registry: Optional[str] = None
     schedule: Optional[str] = None
+    schedule_name: Optional[str] = None
 
     @classmethod
     def from_click_context(cls, ctx):
@@ -48,6 +49,7 @@ class CliInput:
             location=ctx.params.get('location'),
             artifact_registry=ctx.params.get('artifact_registry'),
             schedule=ctx.params.get('schedule'),
+            schedule_name=ctx.params.get('schedule_name'),
         )
 
     def __post_init__(self):

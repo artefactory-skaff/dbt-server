@@ -10,6 +10,12 @@ from google.cloud import run_v2
 import requests
 
 from dbt_remote.src.cli_local_config import LocalCliConfig
+from dbt_remote.src.dbt_server import DbtServer
+
+
+def get_dbt_server(server_url: str, location: str) -> DbtServer:
+    server_url = detect_dbt_server_uri(location) if server_url is None else server_url
+    return DbtServer(server_url)
 
 
 def detect_dbt_server_uri(location: str) -> str:

@@ -69,6 +69,11 @@ schedule = click.option(
     help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information.'
 )
 
+schedule_name = click.option(
+    '--schedule-name',
+    help='Name of the cloud scheduler job. If none is given, dbt-remote-<uuid> will be used'
+)
+
 artifact_registry = click.option(
     '--artifact-registry',
     envvar='ARTIFACT_REGISTRY',

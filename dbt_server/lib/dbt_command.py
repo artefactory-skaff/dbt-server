@@ -23,3 +23,4 @@ class DbtCommand:
 @dataclass
 class ScheduledDbtCommand(DbtCommand):
     schedule: str = Form(...)
+    schedule_name: str = Form(None)

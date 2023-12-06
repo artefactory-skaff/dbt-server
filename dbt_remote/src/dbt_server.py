@@ -12,9 +12,6 @@ import requests
 from pydantic import BaseModel
 from termcolor import colored
 
-from dbt_remote.src.cli_input import CliInput
-
-
 @dataclass
 class DbtServerCommand:
     user_command: str
@@ -26,9 +23,10 @@ class DbtServerCommand:
     seeds: Optional[Path]
     zipped_artifacts: bytes = None
     schedule: Optional[str] = None
+    schedule_name: Optional[str] = None
 
     @classmethod
-    def from_cli_config(cls, cli_config: CliInput):
+    def from_cli_config(cls, cli_config):
         return cls(
             user_command=cli_config.command,
             dbt_native_params_overrides=str(cli_config.dbt_native_params_overrides),
@@ -37,7 +35,8 @@ class DbtServerCommand:
             manifest=Path(cli_config.manifest) / "manifest.json",
             packages=Path(cli_config.extra_packages) / "packages.yml" if cli_config.extra_packages is not None else None,
             seeds=Path(cli_config.seeds_path) if cli_config.seeds_path is not None else {},
-            schedule=cli_config.schedule
+            schedule=cli_config.schedule,
+            schedule_name=cli_config.schedule_name,
         )
 
     def __post_init__(self):
@@ -149,13 +148,13 @@ class DbtServer:
         response = DbtServerLogResponse.parse_raw(raw_response.text)
         return response.run_logs
 
-    def list_schedules(self):
+    def list_schedules(self) -> Dict[str, str]:
         raw_response = self.auth_session.get(url=f"{self.server_url}schedule")
         response = raw_response.json()
         return response["schedules"]
 
-    def delete_schedule(self, uuid: str):
-        raw_response = self.auth_session.delete(url=f"{self.server_url}schedule/{uuid}")
+    def delete_schedule(self, name: str):
+        raw_response = self.auth_session.delete(url=f"{self.server_url}schedule/{name}")
         response = raw_response.json()
         return response["message"]
 
