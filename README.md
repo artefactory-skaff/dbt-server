@@ -88,7 +88,30 @@ Job run scheduled at 0 8 * * * (At 08:00 AM) with uuid: e11f1085-8ad9-4dcd-b09f-
 ```
 This will create a [cloud scheduler](https://console.cloud.google.com/cloudscheduler) that will call the dbt-server at the configured time.
 
-To check your scheduled run, either go to the [cloud scheduler UI of your project](https://console.cloud.google.com/cloudscheduler), or list them uting the cli:
+You can also declare a run schedule using a config file. Be aware that this is authoritative and will replace any previously scheduled runs not in the file. It will also update the manifest for the scheduled runs.
+```yaml
+# schedules.yaml
+schedule-1:
+   command: build --select my_first_dbt_model --project-dir=tests/dbt_project
+   schedule: "2 3 4 5 6"
+
+schedule-3:
+   command: build --select my_first_dbt_model --project-dir=tests/dbt_project
+   schedule: "2 3 4 5 6"
+```
+```sh
+dbt-remote schedules set schedules.yaml
+```
+```sh
+[...]
+The following actions will be performed:
++ Add: schedule-1
+- Delete: schedule-2
+~ Redeploy: schedule-3
+Do you want to continue? [y/N]: y
+```
+
+To check your scheduled runs, either go to the [cloud scheduler UI of your project](https://console.cloud.google.com/cloudscheduler), or list them uting the cli:
 ```sh
 dbt-remote schedules list
 ```
