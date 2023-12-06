@@ -11,6 +11,10 @@ import requests
 
 from pydantic import BaseModel
 from termcolor import colored
+from google.auth import default
+from google.auth.transport.requests import Request
+from google.cloud import iam_credentials_v1
+import google.oauth2.id_token
 
 @dataclass
 class DbtServerCommand:
@@ -159,9 +163,29 @@ class DbtServer:
         return response["message"]
 
     def get_auth_session(self) -> requests.Session:
-        id_token_raw = check_output("gcloud auth print-identity-token", shell=True)  # FIXME
-        id_token = id_token_raw.decode("utf8").strip()
-
+        id_token = self.get_auth_token()
         session = requests.Session()
         session.headers.update({"Authorization": f"Bearer {id_token}"})
         return session
+
+    def get_auth_token(self):
+        try:
+            # Assumes a GCP service account is available, e.g. in a CI/CD pipeline
+            client = iam_credentials_v1.IAMCredentialsClient()
+            response = client.generate_id_token(
+                name=self.get_service_account_email(),
+                audience=self.server_url,
+            )
+            id_token = response.token
+        except (google.api_core.exceptions.PermissionDenied, AttributeError):
+            # No GCP service account available, assumes a local env where gcloud is installed
+            id_token_raw = check_output("gcloud auth print-identity-token", shell=True)
+            id_token = id_token_raw.decode("utf8").strip()
+
+        return id_token
+
+    @staticmethod
+    def get_service_account_email(scopes=["https://www.googleapis.com/auth/cloud-platform"]):
+        credentials, _ = default(scopes=scopes)
+        credentials.refresh(Request())
+        return credentials.service_account_email
