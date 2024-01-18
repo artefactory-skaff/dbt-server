@@ -32,7 +32,10 @@ class CliInput:
 
     @classmethod
     def from_click_context(cls, ctx):
-        dbt_native_params_overrides = {k: v for k, v in {**ctx.parent.params, **ctx.params}.items() if k not in list(DEPRECATED_PARAMS.keys()) + ["args", "project_dir", "profiles_dir", "seeds_path", "log_path"]}
+        dbt_native_params_overrides = {
+            k: v for k, v in {**ctx.parent.params, **ctx.params}.items()
+            if k not in list(DEPRECATED_PARAMS.keys()) + ["args", "project_dir", "profiles_dir", "seeds_path", "log_path"] and v is not None
+        }
 
         return cls(
             user_command=ctx.info_name,

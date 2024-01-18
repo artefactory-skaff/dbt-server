@@ -20,6 +20,24 @@ os.environ["ARTIFACT_REGISTRY"] = f"{os.environ['LOCATION']}-docker.pkg.dev/{os.
 
 os.environ["UUID"] = str(uuid4())
 
+def test_image_submit():
+    start_time = datetime.utcnow()
+    result = run_command("dbt-remote image submit")
+    assert result.exit_code == 0
+
+    client = CloudBuildClient()
+    request = ListBuildsRequest(
+        parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
+        project_id=os.environ["PROJECT_ID"],
+        filter=f"images={os.environ['DOCKER_IMAGE']}"
+    )
+    response = client.list_builds(request=request)
+    latest_build = next(iter(response), None)
+
+    assert latest_build.status.name == "SUCCESS"
+    assert str(latest_build.create_time) > str(start_time)
+
+
 @pytest.mark.parametrize("command, expected_in_output", [
     (
         "dbt-remote run --select model_that_does_not_exist --schedule '1 2 3 4 5' --schedule-name test-schedule-1",
@@ -90,24 +108,6 @@ def test_dbt_remote(command, expected_in_output: List[str]):
 
     for expected in expected_in_output:
         assert expected in result.output
-
-
-def test_image_submit():
-    start_time = datetime.utcnow()
-    result = run_command("dbt-remote image submit")
-    assert result.exit_code == 0
-
-    client = CloudBuildClient()
-    request = ListBuildsRequest(
-        parent=f"projects/{os.environ['PROJECT_ID']}/locations/{os.environ['LOCATION']}",
-        project_id=os.environ["PROJECT_ID"],
-        filter=f"images={os.environ['DOCKER_IMAGE']}"
-    )
-    response = client.list_builds(request=request)
-    latest_build = next(iter(response), None)
-
-    assert latest_build.status.name == "SUCCESS"
-    assert str(latest_build.create_time) > str(start_time)
 
 
 def run_command(command: str):
