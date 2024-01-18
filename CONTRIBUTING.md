@@ -67,6 +67,21 @@ INFO:     Application startup complete.
 poetry run python3 dbt_remote/cli.py image submit
 ```
 
+Deploy the server on Cloud Run
+```sh
+gcloud run deploy dbt-server \
+	--image ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository/server-image \
+	--platform managed \
+	--region ${LOCATION} \
+	--service-account=dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com \
+	--set-env-vars=BUCKET_NAME=${PROJECT_ID}-dbt-server \
+	--set-env-vars=DOCKER_IMAGE=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/dbt-server-repository/server-image \
+	--set-env-vars=SERVICE_ACCOUNT=dbt-server-service-account@${PROJECT_ID}.iam.gserviceaccount.com \
+	--set-env-vars=PROJECT_ID=${PROJECT_ID} \
+	--set-env-vars=LOCATION=${LOCATION} \
+  --no-allow-unauthenticated
+```
+
 You should now be able to call it:
 ```shell
 poetry run python3 dbt_remote/cli.py debug --project-dir tests/dbt_project --server-url http://localhost:8001/

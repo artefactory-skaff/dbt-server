@@ -59,21 +59,26 @@ def run_dbt_command(manifest: Manifest, dbt_command: str) -> None:
     args_list = split_arg_string(dbt_command)
     log_selected_nodes(args_list)
 
+    dbt_runner_kwargs_override = dict(
+        state.dbt_native_params_overrides,
+            **{
+            "log_format": "json",
+            "log_level": "debug",
+            "debug": True,
+        }
+    )
+
+    logger.log("DEBUG", f"[job] Invoking dbtRunner with args: {str(args_list)} and kwargs: {str(state.dbt_native_params_overrides)}")
     res_dbt: dbtRunnerResult = dbt.invoke(
         args_list,
-        **dict(
-            state.dbt_native_params_overrides,
-             **{
-                "log_format": "json",
-                "log_level": "debug",
-                "debug": True,
-            }
-        )
+        **dbt_runner_kwargs_override
     )
 
     if res_dbt.success:
+        logger.log("INFO", "[job] dbt command finished successfully")
         state.run_status = "success"
     else:
+        logger.log("ERROR", "[job] dbt command failed")
         state.run_status = "failed"
 
         with callback_lock:
@@ -136,6 +141,7 @@ def log_selected_nodes(args_list: List[str]):
     with callback_lock:
         logger.log("DEBUG", f"models_selection: {models_selection}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     logger.log("INFO", f"[job] Job {UUID} started")
     prepare_and_execute_job()
