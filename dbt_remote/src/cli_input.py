@@ -3,7 +3,8 @@ import click
 from typing import List, Optional
 from dataclasses import dataclass
 
-from dbt.cli.main import dbtRunner, dbtRunnerResult, cli as dbt_cli
+from dbt.cli.main import dbtRunner, dbtRunnerResult
+from dbt.cli.flags import DEPRECATED_PARAMS
 from dbt.contracts.graph.manifest import Manifest
 from dbt.parser.manifest import write_manifest
 
@@ -31,9 +32,7 @@ class CliInput:
 
     @classmethod
     def from_click_context(cls, ctx):
-        default_params = dbt_cli.make_context(info_name="", args=[ctx.info_name] + list(ctx.params["args"])).params
-        dbt_native_params = dict(ctx.parent.params, **ctx.params)
-        dbt_native_params_overrides = {k: v for k, v in dbt_native_params.items() if k in default_params and v != default_params[k]}
+        dbt_native_params_overrides = {k: v for k, v in {**ctx.parent.params, **ctx.params}.items() if k not in list(DEPRECATED_PARAMS.keys()) + ["args", "project_dir", "profiles_dir", "seeds_path", "log_path"]}
 
         return cls(
             user_command=ctx.info_name,
