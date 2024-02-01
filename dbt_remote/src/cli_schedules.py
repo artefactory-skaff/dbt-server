@@ -13,6 +13,9 @@ from dbt_remote.src.dbt_server_detector import get_dbt_server
 
 class Schedules:
     def __init__(self, server_url, location):
+        self.server_url = server_url
+        self.location = location
+
         self.server : DbtServer = get_dbt_server(server_url, location)
 
     def set(self, dbt, cli, schedule_file, auto_approve: bool):
@@ -65,6 +68,8 @@ class Schedules:
 
             parent_ctx = cli.make_context(info_name="", args=args)
             ctx = dbt.make_context(info_name=args[0], parent=parent_ctx, args=args[1:] if len(args) > 1 else [])
+            ctx.params["server_url"] = self.server_url
+            ctx.params["location"] = self.location
             cli_input = CliInput.from_click_context(ctx)
 
             run_and_echo(cli_input)

@@ -61,6 +61,9 @@ INFO:     Started server process [64110]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ```
+```shell
+poetry run python3 dbt_remote/cli.py debug --project-dir tests/dbt_project --server-url=http://0.0.0.0:8001/
+```
 
 **While the dbt-server code is executed locally, the actual dbt execution still happens in a cloud run job based on the docker image in your GCP project. Make sure to push a new image if you make any changes that affect it during development.**
 ```shell

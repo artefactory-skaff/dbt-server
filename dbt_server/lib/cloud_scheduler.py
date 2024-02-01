@@ -12,9 +12,10 @@ class SchedulerHTTPJobSpec:
 
 
 class CloudScheduler:
-    def __init__(self, project_id: str, location: str):
+    def __init__(self, project_id: str, location: str, service_account_email: str):
         self.project_id = project_id
         self.location = location
+        self.service_account_email = service_account_email
         self.parent = f"projects/{self.project_id}/locations/{self.location}"
         self.client = CloudSchedulerClient()
 
@@ -22,7 +23,11 @@ class CloudScheduler:
         job = {
             "name": f"{self.parent}/jobs/{scheduler_job_spec.job_name}",
             "schedule": scheduler_job_spec.schedule,
-            "http_target": HttpTarget(uri=scheduler_job_spec.target_uri, http_method=HttpMethod.POST, oidc_token={"service_account_email": f"dbt-server-service-account@{self.project_id}.iam.gserviceaccount.com"}),
+            "http_target": HttpTarget(
+                uri=scheduler_job_spec.target_uri,
+                http_method=HttpMethod.POST,
+                oidc_token={"service_account_email": self.service_account_email}
+            ),
             "description": scheduler_job_spec.description,
         }
 
@@ -41,14 +46,3 @@ class CloudScheduler:
             return True
         except NotFound:
             return False
-
-if __name__ == "__main__":
-    schedules = CloudScheduler(project_id="dbt-server-alexis6-16ab", location="europe-west1")
-    spec = SchedulerHTTPJobSpec(
-        job_name="dbt-server-51ca189b-b935-4391-89a0-ee775a0681bf",
-        schedule="*/10 * * * *",
-        target_uri="https://dbt-server-5a442voexq-ew.a.run.app/schedule/51ca189b-b935-4391-89a0-ee775a0681bf/start",
-        description="run"
-    )
-
-    schedules.create_http_scheduled_job(spec)

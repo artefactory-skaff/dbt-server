@@ -100,7 +100,7 @@ def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
     logger.state = state
     state.extract_artifacts(scheduled_dbt_command.zipped_artifacts)
 
-    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
+    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION, service_account_email=SERVICE_ACCOUNT)
     job_to_schedule = SchedulerHTTPJobSpec(
         job_name=f"dbt-server-{state.uuid}" if scheduled_dbt_command.schedule_name is None else scheduled_dbt_command.schedule_name,
         schedule=scheduled_dbt_command.schedule,
@@ -120,7 +120,7 @@ def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
 
 @app.get("/schedule", status_code=status.HTTP_200_OK)
 def list_schedules():
-    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
+    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION, service_account_email=SERVICE_ACCOUNT)
     schedules = scheduler.list()
 
     return {
@@ -138,7 +138,7 @@ def list_schedules():
 
 @app.delete("/schedule/{name}", status_code=status.HTTP_200_OK)
 def list_schedules(name):
-    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION)
+    scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION, service_account_email=SERVICE_ACCOUNT)
     deleted = scheduler.delete(name)
 
     return {
