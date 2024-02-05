@@ -20,7 +20,7 @@ This CLI runs dbt commands remotely on GCP-hosted server.
 ## Installation
 
 ```sh
-python3 -m pip install --extra-index-url https://test.pypi.org/simple/ gcp-dbt-remote --no-cache-dir
+python3 -m pip install gcp-dbt-remote --no-cache-dir
 ```
 
 Refresh your shell/venv to enable the cli:

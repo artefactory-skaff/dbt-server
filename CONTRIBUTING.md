@@ -100,14 +100,7 @@ INFO    [job] dbt-remote job finished
 
 ## Publishing a new package version
 
-
-Create an account on TestPypi. Get your Pypi token. Ask an owner to add you as collaborator on the project.
-
-Add Test Pypi as repository:
-```sh
-poetry config repositories.testpypi https://test.pypi.org/legacy/
-```
-Check the tests pass:
+Check that the tests pass:
 ```sh
 poetry run pytest tests -log_cli=true -log_cli_level=info -vvv --maxfail=1
 ```
@@ -120,10 +113,13 @@ Build the package:
 ```sh
 poetry build
 ```
+
+Create an account on Pypi. Get your Pypi token. Ask an owner to add you as collaborator on the project.
+
 Publish the package:
 ```sh
 export TOKEN=pypi-XXXXXXXXXXX
-poetry publish --repository testpypi -u __token__ -p $TOKEN --skip-existing
+poetry publish -u __token__ -p $TOKEN --skip-existing
 ```
 
 ## Submit a bug report or feature request
