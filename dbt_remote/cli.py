@@ -8,7 +8,7 @@ from dbt_remote.src.cli_schedules import Schedules
 from dbt_remote.src.cli_utils import run_and_echo
 from dbt_remote.src.dbt_server_detector import detect_dbt_server_uri
 from dbt_remote.src.dbt_server_image import DbtServerImage
-from dbt_remote.src.dbt_server import DbtServer
+from dbt_remote.src.dbt_server import DbtServer, ServerVersionMismatch
 from dbt_remote.src import cli_params as p
 from dbt_remote.src.cli_input import CliInput
 
@@ -201,4 +201,10 @@ def logs(ctx, **kwargs):
 
 
 if __name__ == '__main__':
-    cli()
+    try:
+        cli()
+    except ServerVersionMismatch as e:
+        click.echo(click.style(f"Version mismatch between the CLI and dbt server. CLI version: {e.cli_version}, server version: {e.server_version}.", fg="red"))
+        click.echo(click.style(f"To fix the issue, you can either:", fg="red"))
+        click.echo(click.style(f" - Redeploy the server with the right version: https://github.com/artefactory/dbt-server/tree/main/dbt_server#deployment", fg="red"))
+        click.echo(click.style(f" - Upgrade your CLI: python3 -m pip install gcp-dbt-remote=={e.server_version}", fg="red"))

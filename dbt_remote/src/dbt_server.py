@@ -16,6 +16,8 @@ from google.auth.transport.requests import Request
 from google.cloud import iam_credentials_v1
 import google.oauth2.id_token
 
+from dbt_remote.version import __version__
+
 @dataclass
 class DbtServerCommand:
     user_command: str
@@ -111,11 +113,18 @@ class DbtLogEntry:
 
         return f"{colored(self.log_level, level_color)}    {colored(self.message, message_color)}"
 
-
 class DbtServer:
     def __init__(self, server_url: str):
         self.server_url = server_url
         self.auth_session = self.get_auth_session()
+        self.check_version_match()
+
+    def check_version_match(self):
+        raw_response = self.auth_session.get(url=self.server_url + "version")
+        response = raw_response.json()
+        server_version = response["version"]
+        if server_version != __version__:
+            raise ServerVersionMismatch(server_version, __version__)
 
     def send_command(self, command: DbtServerCommand) -> DbtServerResponse:
         endpoint = "dbt" if command.schedule is None else "schedule"
@@ -189,3 +198,10 @@ class DbtServer:
         credentials, _ = default(scopes=scopes)
         credentials.refresh(Request())
         return credentials.service_account_email
+
+
+class ServerVersionMismatch(Exception):
+    def __init__(self, server_version: str, cli_version: str):
+        super().__init__(f"Server version {server_version} does not match client version {cli_version}")
+        self.server_version = server_version
+        self.cli_version = cli_version

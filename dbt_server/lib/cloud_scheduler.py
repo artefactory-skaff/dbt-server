@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from google.cloud.scheduler_v1 import HttpTarget, HttpMethod, CloudSchedulerClient
 from google.api_core.exceptions import AlreadyExists, NotFound
 
+from dbt_server.lib.logger import DbtLogger
+
 
 @dataclass
 class SchedulerHTTPJobSpec:
@@ -16,6 +18,7 @@ class CloudScheduler:
         self.project_id = project_id
         self.location = location
         self.service_account_email = service_account_email
+
         self.parent = f"projects/{self.project_id}/locations/{self.location}"
         self.client = CloudSchedulerClient()
 

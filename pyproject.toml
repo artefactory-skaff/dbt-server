@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "gcp_dbt_remote"
-version = "0.4.3"
+version = "0.4.4"
 description = "cli to run dbt commands on GCP Cloud Run Jobs using dbt-server."
 authors = ["emma.galliere <emma.galliere@artefact.com>"]
 readme = ["README.md"]

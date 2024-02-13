@@ -87,7 +87,7 @@ gcloud run deploy dbt-server \
 
 You should now be able to call it:
 ```shell
-poetry run python3 dbt_remote/cli.py debug --project-dir tests/dbt_project --server-url http://localhost:8001/
+poetry run python3 dbt_remote/cli.py debug --project-dir tests/dbt_project
 ```
 ```shell
 [...]
@@ -107,6 +107,7 @@ poetry run pytest tests -log_cli=true -log_cli_level=info -vvv --maxfail=1
 
 - Increment the package version in `pyproject.toml` according to the [semver](https://semver.org/) convention.
 - Increment the package version in `dbt_remote/version.py`
+- Increment the package version in `dbt_server/version.py`
 - (Optional) Find a better way to handle this.
 
 Build the package:

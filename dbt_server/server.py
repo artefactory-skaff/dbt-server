@@ -10,6 +10,7 @@ from dbt_server.lib.dbt_command import DbtCommand, ScheduledDbtCommand
 from dbt_server.lib.cloud_scheduler import CloudScheduler, SchedulerHTTPJobSpec
 from dbt_server.lib.state import State
 from dbt_server.lib.logger import DbtLogger
+from dbt_server.version import __version__
 
 
 DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
@@ -177,6 +178,11 @@ def start_scheduled_run(uuid: str):
 @app.get("/check", status_code=status.HTTP_200_OK)
 def check():
     return { "response": f"Running dbt-server on port {PORT}"}
+
+
+@app.get("/version", status_code=status.HTTP_200_OK)
+def version():
+    return { "version": __version__}
 
 
 if __name__ == "__main__":
