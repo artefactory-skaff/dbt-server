@@ -29,7 +29,7 @@ app = FastAPI(
 )
 
 @app.post("/dbt", status_code=status.HTTP_202_ACCEPTED)
-def run_command(dbt_command: DbtCommand = Depends()):
+async def run_command(dbt_command: DbtCommand = Depends()):
     try:
         logger = DbtLogger(server=True)
         logger.log("INFO", f"Received command: {dbt_command.user_command}")
@@ -69,14 +69,14 @@ def run_command(dbt_command: DbtCommand = Depends()):
 
 
 @app.get("/job/{uuid}", status_code=status.HTTP_200_OK)
-def get_job_status(uuid: str):
+async def get_job_status(uuid: str):
     job_state = State.from_uuid(uuid)
     run_status = job_state.run_status
     return {"run_status": run_status}
 
 
 @app.get("/job/{uuid}/last_logs", status_code=status.HTTP_200_OK)
-def get_last_logs(uuid: str):
+async def get_last_logs(uuid: str):
     job_state = State.from_uuid(uuid)
     logs = job_state.get_last_logs()
     run_status = job_state.run_status
@@ -84,7 +84,7 @@ def get_last_logs(uuid: str):
 
 
 @app.get("/job/{uuid}/logs", status_code=status.HTTP_200_OK)
-def get_all_logs(uuid: str):
+async def get_all_logs(uuid: str):
     job_state = State.from_uuid(uuid)
     logs = job_state.get_all_logs()
     run_status = job_state.run_status
@@ -92,7 +92,7 @@ def get_all_logs(uuid: str):
 
 
 @app.post("/schedule", status_code=status.HTTP_201_CREATED)
-def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
+async def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
     logger = DbtLogger(server=True)
     logger.log("INFO", f"Received scheduled command: {scheduled_dbt_command.user_command}")
 
@@ -120,7 +120,7 @@ def schedule_run(scheduled_dbt_command: ScheduledDbtCommand = Depends()):
     }
 
 @app.get("/schedule", status_code=status.HTTP_200_OK)
-def list_schedules():
+async def list_schedules():
     scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION, service_account_email=SERVICE_ACCOUNT)
     schedules = scheduler.list()
 
@@ -138,7 +138,7 @@ def list_schedules():
     }
 
 @app.delete("/schedule/{name}", status_code=status.HTTP_200_OK)
-def list_schedules(name):
+async def list_schedules(name):
     scheduler = CloudScheduler(project_id=PROJECT_ID, location=LOCATION, service_account_email=SERVICE_ACCOUNT)
     deleted = scheduler.delete(name)
 
@@ -147,7 +147,7 @@ def list_schedules(name):
     }
 
 @app.post("/schedule/{uuid}/start", status_code=status.HTTP_200_OK)
-def start_scheduled_run(uuid: str):
+async def start_scheduled_run(uuid: str):
     state = State.from_schedule_uuid(uuid)
     logger = DbtLogger(server=True)
     logger.state = state
@@ -176,12 +176,12 @@ def start_scheduled_run(uuid: str):
 
 
 @app.get("/check", status_code=status.HTTP_200_OK)
-def check():
+async def check():
     return { "response": f"Running dbt-server on port {PORT}"}
 
 
 @app.get("/version", status_code=status.HTTP_200_OK)
-def version():
+async def version():
     return { "version": __version__}
 
 

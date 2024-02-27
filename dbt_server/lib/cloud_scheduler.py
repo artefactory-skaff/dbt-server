@@ -32,12 +32,20 @@ class CloudScheduler:
                 oidc_token={"service_account_email": self.service_account_email}
             ),
             "description": scheduler_job_spec.description,
+            "retry_config": {
+                "retry_count": 2,
+                "max_retry_duration": "120s",
+                "min_backoff_duration": "5s",
+                "max_backoff_duration": "60s",
+                "max_doublings": 5
+            }
         }
 
         try:
             self.client.create_job(parent=self.parent, job=job)
         except AlreadyExists:
-            self.client.update_job(job=job)
+            self.client.delete_job(name=job["name"])
+            self.client.create_job(parent=self.parent, job=job)
 
     def list(self):
         jobs = self.client.list_jobs(parent=self.parent)
