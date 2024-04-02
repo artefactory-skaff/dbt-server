@@ -1,0 +1,28 @@
+spec_version: 1
+
+# Everyting in this file will be used to populate the catalog on skaff.artefact.com
+# It is also vectorized as is for the search, so make sure to provide relevant keywords
+
+name: dbt-server on GCP
+owner: alexis.vialaret@artefact.com
+description: >
+  An API and CLI to self host a dbt server on GCP. Start and schedule dbt runs on Cloud Run. Plug and play run analytics dash.
+documentation_url: https://github.com/artefactory/dbt-server/blob/main/README.md  #FIXME
+
+type: deployable      # deployable, knowledge pack
+lifecycle: production  # prototype, production
+
+users:                # DS, DA, DE
+  - DS
+  - DE
+
+clouds:               # aws, gcp, azure, databricks
+  - gcp
+
+technologies:         # python, dbt, terraform, airbyte, ...
+  - dbt
+
+expertises:           # MMM, forecasting, ELT, release engineering, ...
+  - ELT
+  - data pipeline
+  - data product
