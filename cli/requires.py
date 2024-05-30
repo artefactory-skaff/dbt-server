@@ -132,7 +132,7 @@ def dbt_server(func):
                     project_id = gcp.get_project_id()
                     click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
 
-                server_url = gcp.find_dbt_server(ctx.params["location"], ctx.params["gcp_project"])
+                server_url = gcp.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
 
             else:
                 raise click.ClickException("Only Google Cloud (--cloud-provider google) is supported for now.")

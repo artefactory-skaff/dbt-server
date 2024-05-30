@@ -23,12 +23,6 @@ server_url = click.option(
     help='Give dbt server url (ex: https://server.com). If not provided, dbt-remote will look for a dbt server on the GCP project set in your gcloud config.'
 )
 
-location = click.option(
-    '--location',
-    envvar='DBT_SERVER_LOCATION',
-    help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
-)
-
 cloud_provider = click.option(
     '--cloud-provider',
     envvar='CLOUD_PROVIDER',
@@ -40,6 +34,12 @@ gcp_project = click.option(
     '--gcp-project',
     envvar='GCP_PROJECT',
     help='GCP project where the dbt server runs. Useful for server auto detection. If none is given, the project in your gcloud config will be used.'
+)
+
+gcp_location = click.option(
+    '--gcp-location',
+    envvar='DBT_SERVER_GCP_LOCATION',
+    help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
 )
 
 schedule = click.option(

@@ -13,7 +13,7 @@ def find_dbt_server(location: str = None, gcp_project: str = None) -> str:
     print(f"Looking for dbt server in project {gcp_project}")
 
     if location is None:
-        print("No location provided, looking through all GCP regions. Accelerate the search by specifying a --location")
+        print("No location provided, looking through all GCP regions. Accelerate the search by specifying a --gcp-location")
         regions = list_regions(gcp_project)
     else:
         regions = [location]
