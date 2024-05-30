@@ -477,6 +477,23 @@ pandas = ["db-dtypes (>=0.3.0,<2.0.0dev)", "importlib-metadata (>=1.0.0)", "pand
 tqdm = ["tqdm (>=4.7.4,<5.0.0dev)"]
 
 [[package]]
+name = "google-cloud-compute"
+version = "1.19.0"
+description = "Google Cloud Compute API client library"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "google-cloud-compute-1.19.0.tar.gz", hash = "sha256:a07b3408b3f77786dcb196669ff3767bc51080718a7c2d3fd779defc8d817b4d"},
+    {file = "google_cloud_compute-1.19.0-py2.py3-none-any.whl", hash = "sha256:48d5582dd257fc817113556ab40990ec7a50fb6b2e341bc8a55ef90e2e66501d"},
+]
+
+[package.dependencies]
+google-api-core = {version = ">=1.34.1,<2.0.dev0 || >=2.11.dev0,<3.0.0dev", extras = ["grpc"]}
+google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0dev"
+proto-plus = ">=1.22.3,<2.0.0dev"
+protobuf = ">=3.19.5,<3.20.0 || >3.20.0,<3.20.1 || >3.20.1,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<5.0.0dev"
+
+[[package]]
 name = "google-cloud-core"
 version = "2.4.1"
 description = "Google Cloud API client core library"
@@ -521,6 +538,24 @@ python-versions = ">=3.7"
 files = [
     {file = "google-cloud-iam-2.15.0.tar.gz", hash = "sha256:e9381a1823e5162f68c28048ff1a307ba3a0e538daf607ad7d41cfe3b756a6f0"},
     {file = "google_cloud_iam-2.15.0-py2.py3-none-any.whl", hash = "sha256:694e91ab82ff9011d8b212b9e288363cbe225b0f4795ecc623bdb72ac3e808e3"},
+]
+
+[package.dependencies]
+google-api-core = {version = ">=1.34.1,<2.0.dev0 || >=2.11.dev0,<3.0.0dev", extras = ["grpc"]}
+google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0dev"
+grpc-google-iam-v1 = ">=0.12.4,<1.0.0dev"
+proto-plus = ">=1.22.3,<2.0.0dev"
+protobuf = ">=3.19.5,<3.20.0 || >3.20.0,<3.20.1 || >3.20.1,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<5.0.0dev"
+
+[[package]]
+name = "google-cloud-run"
+version = "0.10.5"
+description = "Google Cloud Run API client library"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "google-cloud-run-0.10.5.tar.gz", hash = "sha256:d6c546693ad1232794b75c617871f2e46283c0cd0c4cc3886b85b8f0a3ba575f"},
+    {file = "google_cloud_run-0.10.5-py2.py3-none-any.whl", hash = "sha256:0f68125f13d1a87f74e1e78c37fa6afb4b094d76dad2b9f951d5526648e8939c"},
 ]
 
 [package.dependencies]
@@ -1858,4 +1893,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0e858a9e15bf67b8c5e0b1e495ece926f2c52dd3f98d9ea47952cf108fc4c270"
+content-hash = "e784db362863b5a49a31e9af00b3ad4a10c35131bb09b301b2229c8f4000ba4f"

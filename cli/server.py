@@ -10,7 +10,6 @@ class Server:
     def __init__(self, server_url):
         self.server_url = server_url if server_url.endswith("/") else server_url + "/"
         self.session = self.get_auth_session()
-        self.check_version_match()
 
     def get_auth_session(self) -> requests.Session:
         id_token = self.get_auth_token()
@@ -34,12 +33,6 @@ class Server:
 
         return id_token
 
-    def check_version_match(self):
-        raw_response = self.session.get(url=self.server_url + "version")
-        response = raw_response.json()
-        print(f"Server version: {response}")
-        # server_version = response["version"]
-
 
 class DbtServer(Server):
     def __init__(self, server_url):
@@ -55,3 +48,18 @@ class DbtServer(Server):
             }
         )
         return response
+
+    def check_version_match(self):
+        raw_response = self.session.get(url=self.server_url + "version")
+        response = raw_response.json()
+        print(f"Server version: {response}")
+        # server_version = response["version"]
+
+    def is_dbt_server(self):
+        try:
+            response = self.session.get(url=self.server_url + "check")
+            if "dbt-server" in response.json()["response"]:
+                return True
+            return False
+        except Exception:  # request timeout or max retries
+            return False

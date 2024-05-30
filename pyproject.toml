@@ -12,6 +12,8 @@ dbt-bigquery = "^1.8.1"
 python-multipart = "^0.0.9"
 humanize = "^4.9.0"
 google-cloud-iam = "^2.15.0"
+google-cloud-compute = "^1.19.0"
+google-cloud-run = "^0.10.5"
 
 
 [build-system]

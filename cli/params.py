@@ -29,6 +29,19 @@ location = click.option(
     help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
 )
 
+cloud_provider = click.option(
+    '--cloud-provider',
+    envvar='CLOUD_PROVIDER',
+    default='google',
+    help='Cloud provider where the dbt server runs.',
+)
+
+gcp_project = click.option(
+    '--gcp-project',
+    envvar='GCP_PROJECT',
+    help='GCP project where the dbt server runs. Useful for server auto detection. If none is given, the project in your gcloud config will be used.'
+)
+
 schedule = click.option(
     '--schedule',
     help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information.'

@@ -7,12 +7,13 @@ from dbt.cli import requires as dbt_requires
 
 from cli import requires
 import cli.params as p
-from cli.server import DbtServer
 
 
 def global_flags(func):
     @p.server_url
     @p.location
+    @p.cloud_provider
+    @p.gcp_project
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -37,8 +38,9 @@ def remote(ctx, **kwargs):
 @dbt_requires.project
 @requires.artifacts_archive
 @requires.runtime_config
+@requires.dbt_server
 def debug(ctx, **kwargs):
-    server = DbtServer(ctx.params["server_url"])
+    server = ctx.obj["server"]
     response = server.send_task(
         ctx.obj["dbt_remote_artifacts"],
         ctx.obj["dbt_runtime_config"],

@@ -6,6 +6,8 @@ from pathlib import Path
 
 import click
 import humanize
+
+from cli.server import DbtServer
 from dbt.cli.main import cli as dbt_cli
 
 
@@ -68,6 +70,7 @@ def artifacts_archive(func):
         return func(*args, **kwargs)
     return wrapper
 
+
 def runtime_config(func):
     """
     Decorator that extracts runtime configuration from the Click context and stores it.
@@ -96,5 +99,48 @@ def runtime_config(func):
 
         ctx.obj["dbt_runtime_config"] = native_params
         ctx.obj["server_runtime_config"] = runtime_config
+        return func(*args, **kwargs)
+    return wrapper
+
+
+def dbt_server(func):
+    """
+    Decorator that manages the dbt server interaction.
+
+    This decorator is responsible for determining the server URL either from the provided command-line arguments or through automatic discovery if not provided. It supports Google Cloud as the cloud provider for now.
+
+    If the server URL is not provided, it will attempt to discover a dbt server in the specified GCP project and location. If the project or location is not specified, it will use the default project from the gcloud configuration or search across all regions.
+
+    Args:
+        func: The dbt command function to be decorated.
+
+    Returns:
+        The wrapped command function after server setup has been handled.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        ctx = args[0]
+        assert isinstance(ctx, click.Context)
+
+        if ctx.params["server_url"] is None:
+            print("No server url provided, performing server discovery...")
+            print("Set the server url with --server-url to skip this step.")
+
+            if ctx.params["cloud_provider"] == "google":
+                from cli import gcp
+                if ctx.params["gcp_project"] is None:
+                    project_id = gcp.get_project_id()
+                    click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
+
+                server_url = gcp.find_dbt_server(ctx.params["location"], ctx.params["gcp_project"])
+
+            else:
+                raise click.ClickException("Only Google Cloud (--cloud-provider google) is supported for now.")
+        else:
+            server_url = ctx.params["server_url"]
+
+        server = DbtServer(server_url)
+        ctx.obj["server"] = server
+
         return func(*args, **kwargs)
     return wrapper
