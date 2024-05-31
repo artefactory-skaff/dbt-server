@@ -1,15 +1,21 @@
 import json
 import logging
+import tempfile
+import tarfile
+import zipfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Union, Any
 
 import uvicorn
-import yaml
+from snowflake import SnowflakeGenerator
 from fastapi import FastAPI, status, UploadFile, Form, File, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator, computed_field
 
 __version__ = "0.0.1"  # TODO: handle this properly
+
+from server.lib.storage.base import StorageBackend
 
 
 class DBTRuntimeConfig(BaseModel):
@@ -36,7 +42,9 @@ class RunCommandParameters:
 
 
 class DBTServer:
-    def __init__(self, logger: logging.Logger, port: int, storage_backend=None, schedule_backend=None):
+    LOCAL_DATA_DIR = Path(__file__).parent.parent / "data"
+
+    def __init__(self, logger: logging.Logger, port: int, storage_backend: StorageBackend, schedule_backend=None):
 
         self.app = FastAPI(
             title="dbt-server",
@@ -48,6 +56,7 @@ class DBTServer:
         self.port = port
         self.storage_backend = storage_backend
         self.schedule_backend = schedule_backend
+        self.id_generator = SnowflakeGenerator(instance=1)
 
     def start(self):
         self.__setup_api_routes()
@@ -74,18 +83,45 @@ class DBTServer:
             dbt_runtime_config = DBTRuntimeConfig(**json.loads(dbt_runtime_config))
             server_runtime_config = ServerRuntimeConfig(**json.loads(server_runtime_config))
             if server_runtime_config.is_static_run:
+                run_id = self.__generate_id()
                 self.logger.info("Creating static run")
                 self.logger.debug("Unzipping artifact files %s", dbt_remote_artifacts.filename)
-                self.logger.debug("Uploading artifacts to storage backend")
+                local_artifact_path = await self.unpack_artifact(
+                    dbt_remote_artifacts,
+                    self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
+                )
+                self.logger.debug("Uploading input artifacts to storage backend")
+                self.storage_backend.persist_directory(
+                    source_directory=local_artifact_path,
+                    destination_prefix=f"runs/{run_id}/artifacts/input"
+                )
                 self.logger.debug("Running dbt command locally")
-                self.logger.debug("Uploading artifacts to storage backend")
-                return JSONResponse(status_code=status.HTTP_200_OK, content={"type": "static"})
+                self.executing_command(
+                    dbt_runtime_config=dbt_runtime_config,
+                    artifact_input=local_artifact_path
+                )
+                self.logger.debug("Uploading output artifacts to storage backend")
+                self.storage_backend.persist_directory(
+                    self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
+                    destination_prefix=f"runs/{run_id}/artifacts/output"
+                )
+                return JSONResponse(status_code=status.HTTP_200_OK, content={"type": "static", "run_id": run_id})
             else:
+                scheduled_run_id = self.__generate_id("schedule-")
                 self.logger.info("Creating scheduled run")
                 self.logger.debug("Unzipping artifacts")
+                local_artifact_path = await self.unpack_artifact(
+                    dbt_remote_artifacts,
+                    self.LOCAL_DATA_DIR / scheduled_run_id / "artifacts" / "input"
+                )
                 self.logger.debug("Uploading artifacts to storage backend")
+                self.storage_backend.persist_directory(
+                    source_directory=local_artifact_path,
+                    destination_prefix=f"schedules/{scheduled_run_id}/artifacts/input"
+                )
                 self.logger.debug("Creating scheduler")
-                return JSONResponse(status_code=status.HTTP_201_CREATED, content={"type": "scheduled"})
+                return JSONResponse(status_code=status.HTTP_201_CREATED,
+                                    content={"type": "scheduled", "schedule_id": scheduled_run_id})
 
         @self.app.get("/api/run/{run_id}")
         def get_run(run_id: str):
@@ -95,8 +131,42 @@ class DBTServer:
         @self.app.post("/api/schedule/{schedule_run_id}/trigger")
         def trigger_scheduled_run(schedule_run_id: str):
             self.logger.info("Starting run from schedule %s", schedule_run_id)
+            self.logger.debug("Creating static run from scheduled run")
+            run_id = self.__generate_id()
+            self.storage_backend.copy_directory(
+                Path("schedules") / schedule_run_id / "artifacts" / "input",
+                Path("runs") / run_id / "artifacts" / "input"
+            )
+            artifact_input = self.storage_backend.download_directory(
+                Path("runs") / run_id / "artifacts" / "input",
+                self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
+            )
+            self.executing_command(dbt_runtime_config=None, artifact_input=artifact_input)
+            self.storage_backend.persist_directory(
+                self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
+                destination_prefix=f"runs/{run_id}/artifacts/output"
+            )
             return JSONResponse(status_code=status.HTTP_200_OK, content={"schedule_run_id": schedule_run_id})
 
         @self.app.get("/api/version")
         def get_version():
             return JSONResponse(status_code=status.HTTP_200_OK, content={"version": __version__})
+
+    async def unpack_artifact(self, artifact_file: tempfile.SpooledTemporaryFile, destination_directory: Path) -> Path:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            artifacts_zip_path = temp_dir_path / artifact_file.filename
+            with artifacts_zip_path.open('wb') as f:
+                contents = await artifact_file.read()
+                f.write(contents)
+            with zipfile.ZipFile(artifacts_zip_path, 'r') as zip_ref:
+                zip_ref.extractall(destination_directory)
+            artifacts_zip_path.unlink()
+        return destination_directory
+
+    def executing_command(self, dbt_runtime_config: DBTRuntimeConfig, artifact_input: Path):
+        self.logger.info("Executing dbt command with artifact input %s", artifact_input.as_posix())
+
+    def __generate_id(self, prefix: str = ""):
+        id = next(self.id_generator)
+        return f"{prefix}{id}"
