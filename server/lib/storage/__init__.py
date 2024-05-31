@@ -1,5 +1,5 @@
 from server.lib.storage.gcp import GCPStorageBackend
 
-persistent_storage = {
+storage_backend = {
     "GCP": GCPStorageBackend
 }

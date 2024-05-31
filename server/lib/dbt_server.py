@@ -1,17 +1,16 @@
 import json
 import logging
 import tempfile
-import tarfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union, Any
 
 import uvicorn
-from snowflake import SnowflakeGenerator
-from fastapi import FastAPI, status, UploadFile, Form, File, Depends
+from fastapi import FastAPI, status, UploadFile, Form, File
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator, computed_field
+from snowflake import SnowflakeGenerator
 
 __version__ = "0.0.1"  # TODO: handle this properly
 
