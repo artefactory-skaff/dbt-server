@@ -95,10 +95,11 @@ def runtime_config(func):
         assert isinstance(ctx, click.Context)
 
         native_params = {param.name for param in dbt_cli.commands[func.__name__].params}
-        runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
+        dbt_runtime_config = {key: value for key, value in ctx.params.items() if key in native_params}
+        server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
 
-        ctx.obj["dbt_runtime_config"] = native_params
-        ctx.obj["server_runtime_config"] = runtime_config
+        ctx.obj["dbt_runtime_config"] = dbt_runtime_config
+        ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
     return wrapper
 
