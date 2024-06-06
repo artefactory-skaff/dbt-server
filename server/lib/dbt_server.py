@@ -145,7 +145,7 @@ class DBTServer:
                 self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
                 destination_prefix=f"runs/{run_id}/artifacts/output"
             )
-            return JSONResponse(status_code=status.HTTP_200_OK, content={"schedule_run_id": schedule_run_id})
+            return JSONResponse(status_code=status.HTTP_201_CREATED, content={"schedule_run_id": schedule_run_id})
 
         @self.app.get("/api/version")
         def get_version():
