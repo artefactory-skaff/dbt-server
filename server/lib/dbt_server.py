@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Optional, Union, Any
 
 import uvicorn
+from dbt.contracts.graph.manifest import Manifest
 from fastapi import FastAPI, status, UploadFile, Form, File
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator, computed_field
+from dbt.cli.main import dbtRunner, dbtRunnerResult
 from snowflake import SnowflakeGenerator
 
 __version__ = "0.0.1"  # TODO: handle this properly
@@ -42,6 +44,7 @@ class RunCommandParameters:
 
 class DBTServer:
     LOCAL_DATA_DIR = Path(__file__).parent.parent / "data"
+    CMD_REQUIRES_DEPS = ["run", "build", "test", "seed"]
 
     def __init__(self, logger: logging.Logger, port: int, storage_backend: StorageBackend, schedule_backend=None):
 
@@ -74,7 +77,7 @@ class DBTServer:
                 - we save output manifest via storage backend
                 - we return state of run (⚠︎ how to handle log)
             """
-            dbt_runtime_config = DBTRuntimeConfig(**json.loads(dbt_runtime_config))
+            dbt_runtime_config = json.loads(dbt_runtime_config)
             server_runtime_config = ServerRuntimeConfig(**json.loads(server_runtime_config))
             if server_runtime_config.is_static_run:
                 run_id = self.__generate_id()
@@ -85,15 +88,17 @@ class DBTServer:
                     self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
                 )
                 self.logger.debug("Uploading input artifacts to storage backend")
-                self.storage_backend.persist_directory(
-                    source_directory=local_artifact_path,
-                    destination_prefix=f"runs/{run_id}/artifacts/input"
-                )
+                # self.storage_backend.persist_directory(
+                #     source_directory=local_artifact_path,
+                #     destination_prefix=f"runs/{run_id}/artifacts/input"
+                # )
                 self.logger.debug("Running dbt command locally")
-                self.executing_command(
+                dbt_result = self.executing_command(
+                    dbt_command="run",
                     dbt_runtime_config=dbt_runtime_config,
                     artifact_input=local_artifact_path
                 )
+                print(dbt_result.success)
                 self.logger.debug("Uploading output artifacts to storage backend")
                 self.storage_backend.persist_directory(
                     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
@@ -135,12 +140,16 @@ class DBTServer:
                 Path("runs") / run_id / "artifacts" / "input",
                 self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
             )
-            self.executing_command(dbt_runtime_config=None, artifact_input=artifact_input)
-            self.storage_backend.persist_directory(
-                self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
-                destination_prefix=f"runs/{run_id}/artifacts/output"
+            self.executing_command(
+                dbt_runtime_config={},
+                artifact_input=artifact_input,
+                dbt_command="debug",
             )
-            return JSONResponse(status_code=status.HTTP_201_CREATED, content={"schedule_run_id": schedule_run_id})
+            # self.storage_backend.persist_directory(
+            #     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
+            #     destination_prefix=f"runs/{run_id}/artifacts/output"
+            # )
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"schedule_run_id": schedule_run_id})
 
         @self.app.get("/api/version")
         async def get_version():
@@ -150,20 +159,48 @@ class DBTServer:
         async def check():
             return {"response": f"Running dbt-server"}
 
+    @staticmethod
     async def unpack_artifact(self, artifact_file: tempfile.SpooledTemporaryFile, destination_directory: Path) -> Path:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir_path = Path(temp_dir)
             artifacts_zip_path = temp_dir_path / artifact_file.filename
-            with artifacts_zip_path.open('wb') as f:
+            with artifacts_zip_path.open("wb") as f:
                 contents = await artifact_file.read()
                 f.write(contents)
-            with zipfile.ZipFile(artifacts_zip_path, 'r') as zip_ref:
+            with zipfile.ZipFile(artifacts_zip_path, "r") as zip_ref:
                 zip_ref.extractall(destination_directory)
             artifacts_zip_path.unlink()
         return destination_directory
 
-    def executing_command(self, dbt_runtime_config: DBTRuntimeConfig, artifact_input: Path):
-        self.logger.info("Executing dbt command with artifact input %s", artifact_input.as_posix())
+    def executing_command(self, dbt_runtime_config: dict, dbt_command: str, artifact_input: Path) -> dbtRunnerResult:
+        # TODO: pass command to execute
+        dbt_runner = dbtRunner()
+        command_args = self.__prepare_command_args(dbt_runtime_config, artifact_input)
+        if dbt_command in self.CMD_REQUIRES_DEPS:
+            self.logger.info("Executing dbt command %s with artifact input %s", "deps", artifact_input.as_posix())
+            dbt_runner.invoke(["deps"], **command_args)
+        res: dbtRunnerResult = dbtRunner().invoke(["parse"], project_dir=command_args["project_dir"],
+                                                  profile_dir=command_args["profiles_dir"])
+        manifest: Manifest = res.result
+        manifest.build_flat_graph()
+        self.logger.info("Executing dbt command %s with artifact input %s", dbt_command, artifact_input.as_posix())
+        dbt_runner = dbtRunner(manifest=manifest)
+        dbt_result = dbt_runner.invoke([dbt_command], **command_args)
+        return dbt_result
+
+    @staticmethod
+    def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
+        args = {key: val for key, val in command_args.items() if not key.startswith("deprecated")}
+        args.pop("warn_error_options")  # TODO: define how to handle this
+        if "project_dir" in command_args:
+            args["project_dir"] = remote_project_dir.as_posix()
+        if "profiles_dir" in command_args:
+            args["profiles_dir"] = remote_project_dir.as_posix()
+        if not command_args["select"]:
+            args["select"] = ()
+        if not command_args["exclude"]:
+            args["exclude"] = ()
+        return args
 
     def __generate_id(self, prefix: str = ""):
         id = next(self.id_generator)
