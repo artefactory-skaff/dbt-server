@@ -1,21 +1,29 @@
+import asyncio
 import json
 import logging
+import queue
 import tempfile
+import threading
+import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from queue import Queue
 from typing import Optional, Union, Any
 
 import uvicorn
 from dbt.contracts.graph.manifest import Manifest
+from dbt_common.events.functions import msg_to_json
 from fastapi import FastAPI, status, UploadFile, Form, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, field_validator, computed_field
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from snowflake import SnowflakeGenerator
+from fastapi.concurrency import run_in_threadpool
 
 __version__ = "0.0.1"  # TODO: handle this properly
 
+from server.lib.dbt_executor import DBTLocalExecutor, ExecutionState
 from server.lib.storage.base import StorageBackend
 
 
@@ -92,19 +100,34 @@ class DBTServer:
                 #     source_directory=local_artifact_path,
                 #     destination_prefix=f"runs/{run_id}/artifacts/input"
                 # )
-                self.logger.debug("Running dbt command locally")
-                dbt_result = self.executing_command(
-                    dbt_command="run",
+                execution_state = ExecutionState()
+                dbt_executor = DBTLocalExecutor(
                     dbt_runtime_config=dbt_runtime_config,
-                    artifact_input=local_artifact_path
+                    artifact_input=local_artifact_path,
+                    state=execution_state
                 )
-                print(dbt_result.success)
+                log_queue = queue.Queue()
+                self.logger.debug("Running dbt command locally")
+
+                thread = threading.Thread(target=dbt_executor.execute_command,
+                                          args=("run", log_queue,))
+                thread.start()
+
+                def iter_queue():
+                    while True:
+                        message = json.loads(log_queue.get())
+                        _message = json.dumps(message) + '\n'
+                        yield _message
+                        if message["info"]["name"] == "CommandCompleted":
+                            return
+
                 self.logger.debug("Uploading output artifacts to storage backend")
-                self.storage_backend.persist_directory(
-                    self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
-                    destination_prefix=f"runs/{run_id}/artifacts/output"
-                )
-                return JSONResponse(status_code=status.HTTP_200_OK, content={"type": "static", "run_id": run_id})
+                # self.storage_backend.persist_directory(
+                #     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
+                #     destination_prefix=f"runs/{run_id}/artifacts/output"
+                # )
+                return StreamingResponse(iter_queue(), status_code=status.HTTP_201_CREATED)
+
             else:
                 scheduled_run_id = self.__generate_id("schedule-")
                 self.logger.info("Creating scheduled run")
@@ -160,7 +183,7 @@ class DBTServer:
             return {"response": f"Running dbt-server"}
 
     @staticmethod
-    async def unpack_artifact(self, artifact_file: tempfile.SpooledTemporaryFile, destination_directory: Path) -> Path:
+    async def unpack_artifact(artifact_file: tempfile.SpooledTemporaryFile, destination_directory: Path) -> Path:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir_path = Path(temp_dir)
             artifacts_zip_path = temp_dir_path / artifact_file.filename
@@ -172,21 +195,24 @@ class DBTServer:
             artifacts_zip_path.unlink()
         return destination_directory
 
-    def executing_command(self, dbt_runtime_config: dict, dbt_command: str, artifact_input: Path) -> dbtRunnerResult:
+    def executing_command(self, dbt_runtime_config: dict, dbt_command: str,
+                          artifact_input: Path, msg_queue: Queue) -> dbtRunnerResult:
         # TODO: pass command to execute
         dbt_runner = dbtRunner()
         command_args = self.__prepare_command_args(dbt_runtime_config, artifact_input)
         if dbt_command in self.CMD_REQUIRES_DEPS:
             self.logger.info("Executing dbt command %s with artifact input %s", "deps", artifact_input.as_posix())
             dbt_runner.invoke(["deps"], **command_args)
-        res: dbtRunnerResult = dbtRunner().invoke(["parse"], project_dir=command_args["project_dir"],
-                                                  profile_dir=command_args["profiles_dir"])
-        manifest: Manifest = res.result
-        manifest.build_flat_graph()
+        manifest = self.__generate_manifest(command_args)
         self.logger.info("Executing dbt command %s with artifact input %s", dbt_command, artifact_input.as_posix())
-        dbt_runner = dbtRunner(manifest=manifest)
+        dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, msg_queue)])
         dbt_result = dbt_runner.invoke([dbt_command], **command_args)
         return dbt_result
+
+    @staticmethod
+    def handle_event_msg(event, msg_queue: Queue):
+        msg_queue.put(msg_to_json(event))
+        print(f"event added to queue")
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
@@ -200,11 +226,20 @@ class DBTServer:
             args["select"] = ()
         if not command_args["exclude"]:
             args["exclude"] = ()
+
         return args
 
     def __generate_id(self, prefix: str = ""):
         id = next(self.id_generator)
         return f"{prefix}{id}"
+
+    @staticmethod
+    def __generate_manifest(command_args: dict) -> Manifest:
+        res: dbtRunnerResult = dbtRunner().invoke(["parse"], project_dir=command_args["project_dir"],
+                                                  profile_dir=command_args["profiles_dir"], quiet=True)
+        manifest: Manifest = res.result
+        manifest.build_flat_graph()
+        return manifest
 
 
 def get_app():
