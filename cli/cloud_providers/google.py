@@ -12,13 +12,17 @@ from googleapiclient import discovery, errors
 from cli.server import DbtServer
 
 
-def deploy(project_id: str = None):
+def deploy(image: str, service_name: str, project_id: str = None):
     if project_id is None:
         project_id = get_project_id()
     enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
     bucket = get_or_create_backend_bucket()
     service_account = create_dbt_server_service_account()
-    deploy_cloud_run(service_account_email=service_account.email)
+    deploy_cloud_run(
+        image=image,
+        service_name=service_name,
+        service_account_email=service_account.email
+    )
 
 
 def get_or_create_backend_bucket(location: str = "eu") -> storage.Bucket:
@@ -88,10 +92,8 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(region: str = "europe-west1", service_account_email: str = None):
+def deploy_cloud_run(image: str, service_name: str, region: str = "europe-west1", service_account_email: str = None):
     project_id = get_project_id()
-    service_name = "dbt-server"
-    image = f"europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/dev:avi" # TODO: use the correct image & parametrize the tag
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
 
@@ -104,7 +106,7 @@ def deploy_cloud_run(region: str = "europe-west1", service_account_email: str = 
     )
 
     template = run_v2.RevisionTemplate(
-        revision=f"dbt-server-{str(uuid4()).split('-')[0]}",
+        revision=f"{service_name}-{str(uuid4()).split('-')[0]}",
         containers=[container],
         service_account=service_account_email
     )

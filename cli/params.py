@@ -52,10 +52,16 @@ schedule_name = click.option(
     help='Name of the cloud scheduler job. If none is given, dbt-remote-<uuid> will be used'
 )
 
-artifact_registry = click.option(
-    '--artifact-registry',
-    envvar='ARTIFACT_REGISTRY',
-    required=True,
-    prompt=True,
-    help='The artifact registry the dbt-server image will be pushed to. Ex: europe-west9-docker.pkg.dev/my-project/my-registry'
+service = click.option(
+    "--service",
+    envvar="SERVICE",
+    default="dbt-server",
+    help="Cloud Run service name for the dbt server."
+)
+
+image = click.option(
+    "--image",
+    envvar="IMAGE",
+    default="europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/prod:latest",
+    help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/dbt-server-sbx-f570/dbt_server/prod:latest"
 )
