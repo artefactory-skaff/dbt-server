@@ -27,6 +27,20 @@ def remote(ctx, **kwargs):
     pass
 
 
+@remote.command("deploy", help="Deploy the dbt server on the selected cloud provider")
+@click.pass_context
+@global_flags
+def deploy(ctx, **kwargs):
+    cloud_provider = ctx.params["cloud_provider"]
+    if cloud_provider == "google":
+        from cli.cloud_providers.google import deploy
+        project_id = ctx.params["gcp_project"]
+        deploy(project_id)
+    else:
+        click.echo(f"Deploying {cloud_provider} server is not supported. The only supported provider at the moment is google")
+
+
+
 def create_command(name, help_message):
     @remote.command(name, help=help_message)
     @click.pass_context

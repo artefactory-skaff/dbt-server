@@ -47,7 +47,7 @@ def artifacts_archive(func):
 
         all_files = [p for p in Path(project_dir).rglob('*') if p.is_file()]
         files_to_keep = [file for file in all_files if not any(file.match(pattern) for pattern in ignore)]
-        print(f"Building the artifacts to send the dbt server with {len(files_to_keep)} files from {project_dir}")
+        print(f"Building artifacts archive to send the dbt server with {len(files_to_keep)} files from {project_dir}")
 
         virtual_file = io.BytesIO()
         with zipfile.ZipFile(virtual_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -124,16 +124,15 @@ def dbt_server(func):
         assert isinstance(ctx, click.Context)
 
         if ctx.params["server_url"] is None:
-            print("No server url provided, performing server discovery...")
-            print("Set the server url with --server-url to skip this step.")
+            print("--server-url not set, performing server discovery...")
 
             if ctx.params["cloud_provider"] == "google":
-                from cli import gcp
+                from cli.cloud_providers import google
                 if ctx.params["gcp_project"] is None:
-                    project_id = gcp.get_project_id()
+                    project_id = google.get_project_id()
                     click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
 
-                server_url = gcp.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
+                server_url = google.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
 
             else:
                 raise click.ClickException("Only Google Cloud (--cloud-provider google) is supported for now.")

@@ -14,6 +14,10 @@ humanize = "^4.9.0"
 google-cloud-iam = "^2.15.0"
 google-cloud-compute = "^1.19.0"
 google-cloud-run = "^0.10.5"
+google-cloud-resource-manager = "^1.12.3"
+google-api-python-client = "^2.132.0"
+uvicorn = "^0.30.1"
+fastapi = "^0.111.0"
 
 
 [build-system]

@@ -51,7 +51,7 @@ class DBTServer:
 
     def start(self):
         self.__setup_api_routes()
-        uvicorn.run(self.app, port=self.port)
+        uvicorn.run(self.app, host="0.0.0.0", port=self.port)
 
     def __setup_api_routes(self):
         @self.app.post("/api/run")
@@ -98,5 +98,9 @@ class DBTServer:
             return JSONResponse(status_code=status.HTTP_200_OK, content={"schedule_run_id": schedule_run_id})
 
         @self.app.get("/api/version")
-        def get_version():
+        async def get_version():
             return JSONResponse(status_code=status.HTTP_200_OK, content={"version": __version__})
+
+        @self.app.get("/api/check")
+        async def check():
+            return { "response": f"Running dbt-server"}

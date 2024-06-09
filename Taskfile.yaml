@@ -1,0 +1,8 @@
+version: '3'
+
+tasks:
+  image:
+    cmds:
+      - gcloud builds submit server --region={{.LOCATION}} --tag europe-docker.pkg.dev/{{.PROJECT_ID}}/dbt-server/{{.ENV}}:{{.TAG}}
+    requires:
+      vars: [LOCATION, PROJECT_ID, ENV, TAG]
