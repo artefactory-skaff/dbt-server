@@ -9,7 +9,6 @@ from dbt_common.events.functions import msg_to_json
 
 
 class DBTExecutor:
-    CMD_REQUIRES_DEPS = ["run", "build", "test", "seed"]
     LOG_CONFIG = {"log_format": "json", "log_level": "none", "log_level_file": "debug"}
 
     def __init__(
@@ -23,9 +22,7 @@ class DBTExecutor:
     def execute_command(self, dbt_command: str, log_queue: queue.Queue):
         dbt_runner = dbtRunner()
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
-        if dbt_command in self.CMD_REQUIRES_DEPS:
-            print("Executing dbt command %s with artifact input %s", "deps", self.artifact_input.as_posix())
-            dbt_runner.invoke(["deps"], **{**command_args, **self.LOG_CONFIG})
+        dbt_runner.invoke(["deps"], **{**command_args, **self.LOG_CONFIG})
         manifest = self.__generate_manifest(command_args)
         print("Executing dbt command %s with artifact input %s", (dbt_command, self.artifact_input.as_posix(),))
         dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, log_queue)])
@@ -48,10 +45,10 @@ class DBTExecutor:
     def __generate_manifest(self, command_args: dict) -> Manifest:
         res: dbtRunnerResult = dbtRunner().invoke(
             ["parse"],
-            project_dir=command_args["project_dir"],
-            profile_dir=command_args["profiles_dir"],
-            **self.LOG_CONFIG
+            **{**command_args, **self.LOG_CONFIG}
         )
+        if not res.success:
+            raise res.exception
         manifest: Manifest = res.result
         manifest.build_flat_graph()
         return manifest

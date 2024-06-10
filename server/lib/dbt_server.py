@@ -54,9 +54,9 @@ class DBTServer:
         self.schedule_backend = schedule_backend
         self.id_generator = SnowflakeGenerator(instance=1)
 
-    def start(self, reload: bool = False):
+    def start(self):
         self.__setup_api_routes()
-        uvicorn.run(self.app, host="0.0.0.0", port=self.port, reload=False)
+        uvicorn.run(self.app, host="0.0.0.0", port=self.port)
 
     def __setup_api_routes(self):
         @self.app.post("/api/run")
