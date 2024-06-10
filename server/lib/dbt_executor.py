@@ -1,5 +1,4 @@
 import queue
-import threading
 from pathlib import Path
 from typing import Any
 
@@ -9,39 +8,19 @@ from dbt_common.events.base_types import EventMsg
 from dbt_common.events.functions import msg_to_json
 
 
-class ExecutionState:
-    def __init__(self):
-        self._lock = threading.Lock()
-        self._status = "queued"
-
-    @property
-    def status(self) -> str:
-        with self._lock:
-            status = self._status
-        return status
-
-    @status.setter
-    def status(self, status: str):
-        with self._lock:
-            self._status = status
-
-
-class DBTLocalExecutor:
+class DBTExecutor:
     CMD_REQUIRES_DEPS = ["run", "build", "test", "seed"]
     LOG_CONFIG = {"log_format": "json", "log_level": "none", "log_level_file": "debug"}
 
     def __init__(
             self,
             dbt_runtime_config,
-            artifact_input: Path,
-            state: ExecutionState
+            artifact_input: Path
     ):
         self.dbt_runtime_config = dbt_runtime_config
         self.artifact_input = artifact_input
-        self.state = state
 
     def execute_command(self, dbt_command: str, log_queue: queue.Queue):
-        self.state.status = "running"
         dbt_runner = dbtRunner()
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
         if dbt_command in self.CMD_REQUIRES_DEPS:
@@ -51,7 +30,6 @@ class DBTLocalExecutor:
         print("Executing dbt command %s with artifact input %s", (dbt_command, self.artifact_input.as_posix(),))
         dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, log_queue)])
         dbt_result = dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
-        self.state.status = "success" if dbt_result.success else "fail"
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:

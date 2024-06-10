@@ -1,29 +1,21 @@
-import asyncio
 import json
 import logging
 import queue
 import tempfile
 import threading
-import time
 import zipfile
-from dataclasses import dataclass
 from pathlib import Path
-from queue import Queue
-from typing import Optional, Union, Any
+from typing import Optional, Any
 
 import uvicorn
-from dbt.contracts.graph.manifest import Manifest
-from dbt_common.events.functions import msg_to_json
 from fastapi import FastAPI, status, UploadFile, Form, File
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, field_validator, computed_field
-from dbt.cli.main import dbtRunner, dbtRunnerResult
 from snowflake import SnowflakeGenerator
-from fastapi.concurrency import run_in_threadpool
 
 __version__ = "0.0.1"  # TODO: handle this properly
 
-from server.lib.dbt_executor import DBTLocalExecutor, ExecutionState
+from server.lib.dbt_executor import DBTExecutor
 from server.lib.storage.base import StorageBackend
 
 
@@ -42,12 +34,6 @@ class ServerRuntimeConfig(BaseModel):
     @computed_field
     def is_static_run(self) -> bool:
         return self.cron_schedule == "@now"
-
-
-@dataclass
-class RunCommandParameters:
-    dbt_runtime_config: Union[str, dict] = Form(...)
-    server_runtime_config: Union[str, dict] = Form(...)
 
 
 class DBTServer:
@@ -96,15 +82,13 @@ class DBTServer:
                     self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
                 )
                 self.logger.debug("Uploading input artifacts to storage backend")
-                # self.storage_backend.persist_directory(
-                #     source_directory=local_artifact_path,
-                #     destination_prefix=f"runs/{run_id}/artifacts/input"
-                # )
-                execution_state = ExecutionState()
-                dbt_executor = DBTLocalExecutor(
+                self.storage_backend.persist_directory(
+                    source_directory=local_artifact_path,
+                    destination_prefix=f"runs/{run_id}/artifacts/input"
+                )
+                dbt_executor = DBTExecutor(
                     dbt_runtime_config=dbt_runtime_config,
                     artifact_input=local_artifact_path,
-                    state=execution_state
                 )
                 log_queue = queue.Queue()
                 self.logger.debug("Running dbt command locally")
@@ -125,7 +109,7 @@ class DBTServer:
                 # self.storage_backend.persist_directory(
                 #     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
                 #     destination_prefix=f"runs/{run_id}/artifacts/output"
-                # )
+                # ) # TODO: add this in the same execution thread of the dbt command
                 return StreamingResponse(iter_queue(), status_code=status.HTTP_201_CREATED)
 
             else:
@@ -163,11 +147,11 @@ class DBTServer:
                 Path("runs") / run_id / "artifacts" / "input",
                 self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
             )
-            self.executing_command(
-                dbt_runtime_config={},
+            dbt_executor = DBTExecutor(
+                dbt_runtime_config=None,
                 artifact_input=artifact_input,
-                dbt_command="debug",
             )
+            # dbt_executor.execute_command("run", None)
             # self.storage_backend.persist_directory(
             #     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
             #     destination_prefix=f"runs/{run_id}/artifacts/output"
@@ -195,51 +179,9 @@ class DBTServer:
             artifacts_zip_path.unlink()
         return destination_directory
 
-    def executing_command(self, dbt_runtime_config: dict, dbt_command: str,
-                          artifact_input: Path, msg_queue: Queue) -> dbtRunnerResult:
-        # TODO: pass command to execute
-        dbt_runner = dbtRunner()
-        command_args = self.__prepare_command_args(dbt_runtime_config, artifact_input)
-        if dbt_command in self.CMD_REQUIRES_DEPS:
-            self.logger.info("Executing dbt command %s with artifact input %s", "deps", artifact_input.as_posix())
-            dbt_runner.invoke(["deps"], **command_args)
-        manifest = self.__generate_manifest(command_args)
-        self.logger.info("Executing dbt command %s with artifact input %s", dbt_command, artifact_input.as_posix())
-        dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, msg_queue)])
-        dbt_result = dbt_runner.invoke([dbt_command], **command_args)
-        return dbt_result
-
-    @staticmethod
-    def handle_event_msg(event, msg_queue: Queue):
-        msg_queue.put(msg_to_json(event))
-        print(f"event added to queue")
-
-    @staticmethod
-    def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
-        args = {key: val for key, val in command_args.items() if not key.startswith("deprecated")}
-        args.pop("warn_error_options")  # TODO: define how to handle this
-        if "project_dir" in command_args:
-            args["project_dir"] = remote_project_dir.as_posix()
-        if "profiles_dir" in command_args:
-            args["profiles_dir"] = remote_project_dir.as_posix()
-        if not command_args["select"]:
-            args["select"] = ()
-        if not command_args["exclude"]:
-            args["exclude"] = ()
-
-        return args
-
     def __generate_id(self, prefix: str = ""):
         id = next(self.id_generator)
         return f"{prefix}{id}"
-
-    @staticmethod
-    def __generate_manifest(command_args: dict) -> Manifest:
-        res: dbtRunnerResult = dbtRunner().invoke(["parse"], project_dir=command_args["project_dir"],
-                                                  profile_dir=command_args["profiles_dir"], quiet=True)
-        manifest: Manifest = res.result
-        manifest.build_flat_graph()
-        return manifest
 
 
 def get_app():

@@ -2,10 +2,11 @@ import functools
 import io
 import os
 import zipfile
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import click
 import humanize
+from dbt_common.helper_types import WarnErrorOptions
 
 from cli.remote_server import DbtServer
 from dbt.cli.main import cli as dbt_cli
@@ -52,7 +53,7 @@ def artifacts_archive(func):
         virtual_file = io.BytesIO()
         with zipfile.ZipFile(virtual_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file in files_to_keep:
-                zipf.write(file, file)
+                zipf.write(file, file.relative_to(project_dir))
 
         virtual_file.seek(0, os.SEEK_END)
         archive_size = virtual_file.tell()
@@ -68,6 +69,7 @@ def artifacts_archive(func):
         # virtual_file.seek(0)
 
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -95,12 +97,20 @@ def runtime_config(func):
         assert isinstance(ctx, click.Context)
 
         native_params = {param.name for param in dbt_cli.commands[func.__name__].params}
-        dbt_runtime_config = {key: value for key, value in ctx.params.items() if key in native_params}
+        _dbt_runtime_config = {key: value for key, value in ctx.params.items() if key in native_params}
+        dbt_runtime_config = {}
+        for key, value in _dbt_runtime_config.items():
+            if type(value) is PosixPath:
+                dbt_runtime_config[key] = value.as_posix()
+            elif type(value) is WarnErrorOptions:
+                dbt_runtime_config[key] = value.to_dict()
+            else:
+                dbt_runtime_config[key] = value
         server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
-
         ctx.obj["dbt_runtime_config"] = dbt_runtime_config
         ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -118,6 +128,7 @@ def dbt_server(func):
     Returns:
         The wrapped command function after server setup has been handled.
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         ctx = args[0]
@@ -143,4 +154,5 @@ def dbt_server(func):
         ctx.obj["server"] = server
 
         return func(*args, **kwargs)
+
     return wrapper
