@@ -97,17 +97,21 @@ def runtime_config(func):
         assert isinstance(ctx, click.Context)
 
         native_params = {param.name for param in dbt_cli.commands[func.__name__].params}
-        _dbt_runtime_config = {key: value for key, value in ctx.params.items() if key in native_params}
-        dbt_runtime_config = {}
-        for key, value in _dbt_runtime_config.items():
+        _dbt_runtime_config_args = {key: value for key, value in ctx.params.items() if key in native_params}
+        dbt_runtime_config_args = {}
+        for key, value in _dbt_runtime_config_args.items():
             if type(value) is PosixPath:
-                dbt_runtime_config[key] = value.as_posix()
+                dbt_runtime_config_args[key] = value.as_posix()
             elif type(value) is WarnErrorOptions:
-                dbt_runtime_config[key] = value.to_dict()
+                dbt_runtime_config_args[key] = value.to_dict()
             else:
-                dbt_runtime_config[key] = value
-        server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
+                dbt_runtime_config_args[key] = value
+
+        command = func.__name__
+        dbt_runtime_config = {"command": command, "flags": dbt_runtime_config_args}
         ctx.obj["dbt_runtime_config"] = dbt_runtime_config
+
+        server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
         ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
 

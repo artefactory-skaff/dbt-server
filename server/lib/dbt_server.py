@@ -42,7 +42,12 @@ class DBTServer:
 
     def __init__(self, logger: logging.Logger, port: int, storage_backend: StorageBackend, schedule_backend=None):
 
-        self.app = get_app()
+        self.app = FastAPI(
+            title="dbt-server",
+            description="A server to run dbt commands in the cloud",
+            version=__version__,
+            docs_url="/docs"
+        )
         self.logger = logger
         self.port = port
         self.storage_backend = storage_backend
@@ -51,7 +56,7 @@ class DBTServer:
 
     def start(self, reload: bool = False):
         self.__setup_api_routes()
-        uvicorn.run("server.lib.dbt_server:get_app", host="0.0.0.0", port=self.port, reload=reload)
+        uvicorn.run(self.app, host="0.0.0.0", port=self.port, reload=False)
 
     def __setup_api_routes(self):
         @self.app.post("/api/run")
@@ -72,6 +77,9 @@ class DBTServer:
                 - we return state of run (⚠︎ how to handle log)
             """
             dbt_runtime_config = json.loads(dbt_runtime_config)
+            flags = dbt_runtime_config["flags"]
+            command = dbt_runtime_config["command"]
+
             server_runtime_config = ServerRuntimeConfig(**json.loads(server_runtime_config))
             if server_runtime_config.is_static_run:
                 run_id = self.__generate_id()
@@ -82,19 +90,19 @@ class DBTServer:
                     self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
                 )
                 self.logger.debug("Uploading input artifacts to storage backend")
-                self.storage_backend.persist_directory(
-                    source_directory=local_artifact_path,
-                    destination_prefix=f"runs/{run_id}/artifacts/input"
-                )
+                # self.storage_backend.persist_directory(
+                #     source_directory=local_artifact_path,
+                #     destination_prefix=f"runs/{run_id}/artifacts/input"
+                # )
                 dbt_executor = DBTExecutor(
-                    dbt_runtime_config=dbt_runtime_config,
+                    dbt_runtime_config=flags,
                     artifact_input=local_artifact_path,
                 )
                 log_queue = queue.Queue()
                 self.logger.debug("Running dbt command locally")
 
                 thread = threading.Thread(target=dbt_executor.execute_command,
-                                          args=("run", log_queue,))
+                                          args=(command, log_queue,))
                 thread.start()
 
                 def iter_queue():
@@ -182,12 +190,3 @@ class DBTServer:
     def __generate_id(self, prefix: str = ""):
         id = next(self.id_generator)
         return f"{prefix}{id}"
-
-
-def get_app():
-    return FastAPI(
-        title="dbt-server",
-        description="A server to run dbt commands in the cloud",
-        version=__version__,
-        docs_url="/docs"
-    )

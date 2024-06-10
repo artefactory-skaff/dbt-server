@@ -39,9 +39,9 @@ class DBTExecutor:
             args["project_dir"] = remote_project_dir.as_posix()
         if "profiles_dir" in command_args:
             args["profiles_dir"] = remote_project_dir.as_posix()
-        if not command_args["select"]:
+        if not command_args.get("select", None):
             args["select"] = ()
-        if not command_args["exclude"]:
+        if not command_args.get("exclude", None):
             args["exclude"] = ()
         return args
 
