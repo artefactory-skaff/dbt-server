@@ -31,12 +31,16 @@ def remote(ctx, **kwargs):
 @click.pass_context
 @p.image
 @p.service
+@p.port
 @global_flags
 def deploy(ctx, **kwargs):
     cloud_provider = ctx.params["cloud_provider"]
     if cloud_provider == "google":
         from cli.cloud_providers.google import deploy
-        deploy(image=ctx.params["image"], service_name=ctx.params["service"], project_id=ctx.params["gcp_project"])
+        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], project_id=ctx.params["gcp_project"])
+    elif cloud_provider == "local":
+        from cli.cloud_providers.local import deploy
+        deploy(port=ctx.params["port"])
     else:
         click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported provider at the moment is 'google'")
 

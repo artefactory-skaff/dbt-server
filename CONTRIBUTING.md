@@ -1,3 +1,9 @@
+## Deploy locally
+
+```
+poetry run python cli/main.py remote deploy --cloud-provider local
+```
+
 ## Deploy a dev server to GCP
 
 Submit a dev image

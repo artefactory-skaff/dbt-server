@@ -9,10 +9,10 @@ from google.cloud.iam_admin_v1 import types
 from google.api_core.exceptions import AlreadyExists, DeadlineExceeded
 from googleapiclient import discovery, errors
 
-from cli.server import DbtServer
+from cli.remote_server import DbtServer
 
 
-def deploy(image: str, service_name: str, project_id: str = None):
+def deploy(image: str, service_name: str, port: int, project_id: str = None):
     if project_id is None:
         project_id = get_project_id()
     enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
@@ -21,7 +21,8 @@ def deploy(image: str, service_name: str, project_id: str = None):
     deploy_cloud_run(
         image=image,
         service_name=service_name,
-        service_account_email=service_account.email
+        service_account_email=service_account.email,
+        port=port,
     )
 
 
@@ -92,7 +93,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(image: str, service_name: str, region: str = "europe-west1", service_account_email: str = None):
+def deploy_cloud_run(image: str, service_name: str, region: str = "europe-west1", service_account_email: str = None, port: int):
     project_id = get_project_id()
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
@@ -102,7 +103,7 @@ def deploy_cloud_run(image: str, service_name: str, region: str = "europe-west1"
 
     container = run_v2.Container(
         image=image,
-        ports=[run_v2.ContainerPort(container_port=8080)]
+        ports=[run_v2.ContainerPort(container_port=port)]
     )
 
     template = run_v2.RevisionTemplate(

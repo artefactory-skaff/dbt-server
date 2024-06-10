@@ -65,3 +65,10 @@ image = click.option(
     default="europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/prod:latest",
     help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/dbt-server-sbx-f570/dbt_server/prod:latest"
 )
+
+port = click.option(
+    "--port",
+    envvar="PORT",
+    default=8080,
+    help="Port the dbt server will run on. Default: 8080"
+)

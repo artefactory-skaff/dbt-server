@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 import humanize
 
-from cli.server import DbtServer
+from cli.remote_server import DbtServer
 from dbt.cli.main import cli as dbt_cli
 
 
