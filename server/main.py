@@ -3,13 +3,20 @@ import os
 
 from server.lib.dbt_server import DBTServer
 from server.lib.logger import get_logger
+from server.lib.storage import storage_backend
 
 
 def main(args: argparse.Namespace):
     logger = get_logger(args.log_level)
     # storage backend and schedule backend should inherit a common class and we should pick which subclass based on
     # user input (provider)
-    dbt_server = DBTServer(logger, args.port, storage_backend=None, schedule_backend=None)
+    bucket = os.environ["BUCKET"]  # TODO: refacto with config module
+    dbt_server = DBTServer(
+        logger,
+        args.port,
+        storage_backend=storage_backend[args.provider](bucket=bucket),
+        schedule_backend=None
+    )
     dbt_server.start()
 
 
