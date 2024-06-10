@@ -21,6 +21,7 @@ def deploy(image: str, service_name: str, port: int, project_id: str = None):
     deploy_cloud_run(
         image=image,
         service_name=service_name,
+        backend_bucket=bucket,
         service_account_email=service_account.email,
         port=port,
     )
@@ -93,7 +94,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(image: str, service_name: str, region: str = "europe-west1", service_account_email: str = None, port: int):
+def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket,region: str = "europe-west1", service_account_email: str = None):
     project_id = get_project_id()
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
@@ -103,23 +104,31 @@ def deploy_cloud_run(image: str, service_name: str, region: str = "europe-west1"
 
     container = run_v2.Container(
         image=image,
-        ports=[run_v2.ContainerPort(container_port=port)]
+        ports=[run_v2.ContainerPort(container_port=port)],
+        volume_mounts=[run_v2.VolumeMount(mount_path="/home/dbt_user/dbt-server-volume", name="dbt-server-volume")],
+    )
+
+    volume = run_v2.Volume(
+        name="dbt-server-volume",
+        gcs=run_v2.types.GCSVolumeSource(bucket=backend_bucket.name)
     )
 
     template = run_v2.RevisionTemplate(
         revision=f"{service_name}-{str(uuid4()).split('-')[0]}",
         containers=[container],
-        service_account=service_account_email
+        service_account=service_account_email,
+        volumes=[volume],
     )
 
     service = run_v2.Service(
         template=template,
+        launch_stage="BETA",
     )
 
     request = run_v2.CreateServiceRequest(
         parent=parent,
         service=service,
-        service_id=service_name
+        service_id=service_name,
     )
 
     service.name = f"projects/{project_id}/locations/{region}/services/{service_name}"
