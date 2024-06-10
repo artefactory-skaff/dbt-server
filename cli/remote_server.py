@@ -57,7 +57,7 @@ class DbtServer(Server):
 
     def is_dbt_server(self):
         try:
-            response = self.session.get(url=self.server_url + "check")
+            response = self.session.get(url=self.server_url + "api/check")
             if "dbt-server" in response.json()["response"]:
                 return True
             return False

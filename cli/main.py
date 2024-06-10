@@ -11,8 +11,8 @@ from cli.utils import rename
 
 def global_flags(func):
     @p.server_url
-    @p.gcp_location
     @p.cloud_provider
+    @p.gcp_location
     @p.gcp_project
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -27,7 +27,32 @@ def remote(ctx, **kwargs):
     pass
 
 
+@remote.command("deploy", help="Deploy a dbt server on the selected cloud provider")
+@click.pass_context
+@p.image
+@p.service
+@p.port
+@global_flags
+def deploy(ctx, **kwargs):
+    cloud_provider = ctx.params["cloud_provider"]
+    if cloud_provider == "google":
+        from cli.cloud_providers.google import deploy
+        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], project_id=ctx.params["gcp_project"])
+    elif cloud_provider == "local":
+        from cli.cloud_providers.local import deploy
+        deploy(port=ctx.params["port"])
+    else:
+        click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported provider at the moment is 'google'")
+
+
 def create_command(name, help_message):
+    """
+    Dynamically creates a new command for the remote CLI group.
+
+    Args:
+        name (str): The name of the command.
+        help_message (str): The help message for the command.
+    """
     @remote.command(name, help=help_message)
     @click.pass_context
     @global_flags
@@ -51,6 +76,7 @@ def create_command(name, help_message):
         click.echo(response)
 
 
+# Subset of base dbt commands that can be used a subcommands of the `remote` group
 commands = [
     ("debug", "Execute a debug command on a remote server"),
     ("build", "Execute a build command on a remote server"),

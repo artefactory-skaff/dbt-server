@@ -45,21 +45,16 @@ class DBTServer:
 
     def __init__(self, logger: logging.Logger, port: int, storage_backend: StorageBackend, schedule_backend=None):
 
-        self.app = FastAPI(
-            title="dbt-server",
-            description="A server to run dbt commands in the cloud",
-            version=__version__,
-            docs_url="/docs"
-        )
+        self.app = get_app()
         self.logger = logger
         self.port = port
         self.storage_backend = storage_backend
         self.schedule_backend = schedule_backend
         self.id_generator = SnowflakeGenerator(instance=1)
 
-    def start(self):
+    def start(self, reload: bool = False):
         self.__setup_api_routes()
-        uvicorn.run(self.app, port=self.port)
+        uvicorn.run("server.lib.dbt_server:get_app", host="0.0.0.0", port=self.port, reload=reload)
 
     def __setup_api_routes(self):
         @self.app.post("/api/run")
@@ -148,8 +143,12 @@ class DBTServer:
             return JSONResponse(status_code=status.HTTP_201_CREATED, content={"schedule_run_id": schedule_run_id})
 
         @self.app.get("/api/version")
-        def get_version():
+        async def get_version():
             return JSONResponse(status_code=status.HTTP_200_OK, content={"version": __version__})
+
+        @self.app.get("/api/check")
+        async def check():
+            return {"response": f"Running dbt-server"}
 
     async def unpack_artifact(self, artifact_file: tempfile.SpooledTemporaryFile, destination_directory: Path) -> Path:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -169,3 +168,12 @@ class DBTServer:
     def __generate_id(self, prefix: str = ""):
         id = next(self.id_generator)
         return f"{prefix}{id}"
+
+
+def get_app():
+    return FastAPI(
+        title="dbt-server",
+        description="A server to run dbt commands in the cloud",
+        version=__version__,
+        docs_url="/docs"
+    )
