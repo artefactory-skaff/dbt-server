@@ -34,7 +34,7 @@ def artifacts_archive(func):
         flags = ctx.obj["flags"]
         project_dir = Path(flags.project_dir)
 
-        ignore = ["target/*", "dbt_packages/*", "logs/*"]
+        ignore = ["target/**", "dbt_packages/**", "logs/**"]
         dbt_remote_ignore_path = project_dir / ".dbtremoteignore"
         if dbt_remote_ignore_path.exists():
             with open(dbt_remote_ignore_path, "r") as f:
@@ -47,7 +47,7 @@ def artifacts_archive(func):
             paths_to_ignore.update(matches)
 
         all_files = [p for p in Path(project_dir).rglob('*') if p.is_file()]
-        files_to_keep = [file for file in all_files if not any(file.match(pattern) for pattern in ignore)]
+        files_to_keep = [file for file in all_files if not any([file.parent == path for path in paths_to_ignore])]
         print(f"Building artifacts archive to send the dbt server with {len(files_to_keep)} files from {project_dir}")
 
         virtual_file = io.BytesIO()
