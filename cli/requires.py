@@ -2,10 +2,11 @@ import functools
 import io
 import os
 import zipfile
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import click
 import humanize
+from dbt_common.helper_types import WarnErrorOptions
 
 from cli.remote_server import DbtServer
 from dbt.cli.main import cli as dbt_cli
@@ -33,7 +34,7 @@ def artifacts_archive(func):
         flags = ctx.obj["flags"]
         project_dir = Path(flags.project_dir)
 
-        ignore = ["target/*", "dbt_packages/*", "logs/*"]
+        ignore = ["target/**", "dbt_packages/**", "logs/**"]
         dbt_remote_ignore_path = project_dir / ".dbtremoteignore"
         if dbt_remote_ignore_path.exists():
             with open(dbt_remote_ignore_path, "r") as f:
@@ -46,13 +47,13 @@ def artifacts_archive(func):
             paths_to_ignore.update(matches)
 
         all_files = [p for p in Path(project_dir).rglob('*') if p.is_file()]
-        files_to_keep = [file for file in all_files if not any(file.match(pattern) for pattern in ignore)]
+        files_to_keep = [file for file in all_files if not any([file.parent == path for path in paths_to_ignore])]
         print(f"Building artifacts archive to send the dbt server with {len(files_to_keep)} files from {project_dir}")
 
         virtual_file = io.BytesIO()
         with zipfile.ZipFile(virtual_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file in files_to_keep:
-                zipf.write(file, file)
+                zipf.write(file, file.relative_to(project_dir))
 
         virtual_file.seek(0, os.SEEK_END)
         archive_size = virtual_file.tell()
@@ -68,6 +69,7 @@ def artifacts_archive(func):
         # virtual_file.seek(0)
 
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -95,12 +97,24 @@ def runtime_config(func):
         assert isinstance(ctx, click.Context)
 
         native_params = {param.name for param in dbt_cli.commands[func.__name__].params}
-        dbt_runtime_config = {key: value for key, value in ctx.params.items() if key in native_params}
-        server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
+        _dbt_runtime_config_args = {key: value for key, value in ctx.params.items() if key in native_params}
+        dbt_runtime_config_args = {}
+        for key, value in _dbt_runtime_config_args.items():
+            if type(value) is PosixPath:
+                dbt_runtime_config_args[key] = value.as_posix()
+            elif type(value) is WarnErrorOptions:
+                dbt_runtime_config_args[key] = value.to_dict()
+            else:
+                dbt_runtime_config_args[key] = value
 
+        command = func.__name__
+        dbt_runtime_config = {"command": command, "flags": dbt_runtime_config_args}
         ctx.obj["dbt_runtime_config"] = dbt_runtime_config
+
+        server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
         ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -118,6 +132,7 @@ def dbt_server(func):
     Returns:
         The wrapped command function after server setup has been handled.
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         ctx = args[0]
@@ -143,4 +158,5 @@ def dbt_server(func):
         ctx.obj["server"] = server
 
         return func(*args, **kwargs)
+
     return wrapper

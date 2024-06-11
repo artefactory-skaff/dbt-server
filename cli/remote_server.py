@@ -1,3 +1,4 @@
+import json
 from typing import Dict
 from io import BytesIO
 from subprocess import check_output
@@ -38,16 +39,27 @@ class DbtServer(Server):
     def __init__(self, server_url):
         super().__init__(server_url)
 
-    def send_task(self, dbt_remote_artifacts: BytesIO, dbt_runtime_config: Dict[str, str], server_runtime_config: Dict[str, str]) -> requests.Response:
-        response = self.session.post(
-            url=self.server_url + "run",
-            files={"dbt_remote_artifacts": dbt_remote_artifacts},
-            data={
-                "dbt_runtime_config": dbt_runtime_config,
-                "server_runtime_config": server_runtime_config
-            }
-        )
-        return response
+    def send_task(
+            self,
+            dbt_remote_artifacts: BytesIO,
+            dbt_runtime_config: Dict[str, str],
+            server_runtime_config: Dict[str, str]
+    ) -> requests.Response:
+        def get_log():
+            with self.session.post(
+                    url=self.server_url + "api/run",
+                    files={"dbt_remote_artifacts": dbt_remote_artifacts},
+                    data={
+                        "dbt_runtime_config": json.dumps(dbt_runtime_config),
+                        "server_runtime_config": json.dumps({**server_runtime_config, "cron_schedule": "@now"})
+                    },
+                    stream=True
+            ) as response:
+                for chunk in response.iter_lines():
+                    yield json.loads(chunk.decode("utf-8"))
+
+        for event in get_log():
+            print(event.get("info", {}).get("msg", ""))
 
     def check_version_match(self):
         raw_response = self.session.get(url=self.server_url + "version")
