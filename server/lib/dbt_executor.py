@@ -29,6 +29,7 @@ class DBTExecutor:
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
+        print(remote_project_dir)
         args = {key: val for key, val in command_args.items() if not key.startswith("deprecated")}
         args.pop("warn_error_options")  # TODO: define how to handle this
         if "project_dir" in command_args:
