@@ -1,5 +1,5 @@
+import concurrent.futures
 import json
-import os
 import shutil
 import tempfile
 import zipfile
@@ -15,6 +15,17 @@ def generate_id(prefix: str = "") -> str:
     return f"{prefix}{id}"
 
 
+async def unpack_and_persist_artifact(artifact_file: tempfile.SpooledTemporaryFile, destination: Path):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
+        local_artifact_path = await unpack_artifact(
+            artifact_file,
+            temp_dir_path
+        )
+        destination_folder = move_folder(local_artifact_path, destination, delete_after_copy=True)
+    return destination_folder
+
+
 async def unpack_artifact(dbt_remote_artifacts: tempfile.SpooledTemporaryFile, destination_folder: Path):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
@@ -28,17 +39,48 @@ async def unpack_artifact(dbt_remote_artifacts: tempfile.SpooledTemporaryFile, d
     return destination_folder
 
 
-def move_folder(source_folder: Path, destination_folder: Path) -> Path:
-    if not destination_folder.exists():
-        destination_folder.mkdir(parents=True, exist_ok=True)
-    for file in source_folder.glob("**/*"):
-        if file.is_file():
-            file_subpath_name = file.relative_to(source_folder)
-            target_file = destination_folder / file_subpath_name
-            target_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(file, target_file)
+def move_folder(
+        source_folder: Path,
+        destination_folder: Path,
+        delete_after_copy: bool = False,
+        max_workers: int = 32,
+        deadline=None,
+        raise_exception: bool = False
+) -> Path:
+    files = [item for item in source_folder.glob("**/*") if item.is_file()]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for file in files:
+            futures.append(executor.submit(
+                move_file,
+                file,
+                destination_folder / file.relative_to(source_folder),
+                delete_after_copy
+            ))
+        concurrent.futures.wait(
+            futures, timeout=deadline, return_when=concurrent.futures.ALL_COMPLETED
+        )
 
+    results = []
+    for future in futures:
+        exp = future.exception()
+
+        # If raise_exception is False, don't call future.result()
+        if exp and not raise_exception:
+            results.append(exp)
+        # Get the real result. If there was an exception not handled above,
+        # this will raise it.
+        else:
+            results.append(future.result())
     return destination_folder
+
+
+def move_file(source: Path, destination: Path, delete_after_copy: bool = False):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if delete_after_copy:
+        shutil.move(source, destination)
+    else:
+        shutil.copy(source, destination)
 
 
 def persist_metadata(dbt_runtime_config: dict, server_runtime_config: dict, metadata_file: Path) -> Path:

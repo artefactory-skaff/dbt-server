@@ -34,7 +34,7 @@ def artifacts_archive(func):
         flags = ctx.obj["flags"]
         project_dir = Path(flags.project_dir)
 
-        ignore = ["target/**", "dbt_packages/**", "logs/**"]
+        ignore = ["target/**", "logs/**"]
         dbt_remote_ignore_path = project_dir / ".dbtremoteignore"
         if dbt_remote_ignore_path.exists():
             with open(dbt_remote_ignore_path, "r") as f:

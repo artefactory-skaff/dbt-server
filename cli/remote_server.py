@@ -80,7 +80,7 @@ class DbtServer(Server):
             data={
                 "dbt_runtime_config": json.dumps(dbt_runtime_config),
                 "server_runtime_config": json.dumps(
-                    {**server_runtime_config, "cron_schedule": "@no"})
+                    {**server_runtime_config, "cron_schedule": "@now"})
             },
         )
         if not res.ok:

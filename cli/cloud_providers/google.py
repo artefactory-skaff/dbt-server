@@ -118,6 +118,7 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
         containers=[container],
         service_account=service_account_email,
         volumes=[volume],
+        scaling=run_v2.RevisionScaling(min_instance_count=1, max_instance_count=1),
     )
 
     service = run_v2.Service(

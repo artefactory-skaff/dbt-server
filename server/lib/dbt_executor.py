@@ -1,11 +1,12 @@
-import queue
+import logging
+import threading
 from pathlib import Path
 from typing import Any
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
-from dbt_common.events.base_types import EventMsg
-from dbt_common.events.functions import msg_to_json
+
+manifest_lock = threading.Lock()
 
 
 class DBTExecutor:
@@ -14,17 +15,18 @@ class DBTExecutor:
     def __init__(
             self,
             dbt_runtime_config,
-            artifact_input: Path
+            artifact_input: Path,
+            logger: logging.Logger,
     ):
         self.dbt_runtime_config = dbt_runtime_config
         self.artifact_input = artifact_input
+        self.logger = logger
 
     def execute_command(self, dbt_command: str):
-        dbt_runner = dbtRunner()
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
-        dbt_runner.invoke(["deps"], **{**command_args, **self.LOG_CONFIG,
-                                       "log_level_file": "none"})  # TODO: might need to be removed
-        manifest = self.__generate_manifest(command_args)
+        with manifest_lock:
+            self.logger.info("Building manifest")
+            manifest = self.__generate_manifest(command_args)
         dbt_runner = dbtRunner(manifest=manifest)
         dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
 

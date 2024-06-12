@@ -8,7 +8,8 @@ from fastapi import FastAPI, Form, UploadFile, File, status, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from server.config import CONFIG
-from server.lib.artifacts import generate_id, unpack_artifact, move_folder, persist_metadata, load_metadata
+from server.lib.artifacts import generate_id, move_folder, persist_metadata, load_metadata, \
+    unpack_and_persist_artifact
 from server.lib.dbt_executor import DBTExecutor
 from server.lib.logger import get_logger
 from server.lib.models import ServerRuntimeConfig
@@ -55,7 +56,7 @@ async def create_run(
         persist_metadata(dbt_runtime_config, server_runtime_config,
                          CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
         logger.debug("Unzipping artifact files %s", dbt_remote_artifacts.filename)
-        local_artifact_path = await unpack_artifact(
+        local_artifact_path = await unpack_and_persist_artifact(
             dbt_remote_artifacts,
             CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "input"
         )
@@ -63,6 +64,7 @@ async def create_run(
         dbt_executor = DBTExecutor(
             dbt_runtime_config=flags,
             artifact_input=local_artifact_path,
+            logger=logger
         )
         background_tasks.add_task(dbt_executor.execute_command, command)
         return JSONResponse(status_code=status.HTTP_200_OK, content={"run_id": run_id})
@@ -74,7 +76,7 @@ async def create_run(
         persist_metadata(dbt_runtime_config, server_runtime_config,
                          CONFIG.persisted_dir / "schedules" / scheduled_run_id / "metadata.json")
         logger.debug("Unzipping artifacts")
-        await unpack_artifact(
+        await unpack_and_persist_artifact(
             dbt_remote_artifacts,
             CONFIG.persisted_dir / "schedules" / scheduled_run_id / "artifacts" / "input"
         )
@@ -120,6 +122,7 @@ def trigger_scheduled_run(schedule_run_id: str, background_tasks: BackgroundTask
     dbt_executor = DBTExecutor(
         dbt_runtime_config=dbt_runtime_config["flags"],
         artifact_input=run_input / "artifacts" / "input",
+        logger=logger
     )
     background_tasks.add_task(dbt_executor.execute_command, dbt_runtime_config["command"])
     return JSONResponse(status_code=status.HTTP_200_OK, content={"run_id": run_id})
