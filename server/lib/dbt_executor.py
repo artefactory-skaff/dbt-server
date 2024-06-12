@@ -27,6 +27,8 @@ class DBTExecutor:
         with manifest_lock:
             self.logger.info("Building manifest")
             manifest = self.__generate_manifest(command_args)
+
+        print(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
         dbt_runner = dbtRunner(manifest=manifest)
         dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
 

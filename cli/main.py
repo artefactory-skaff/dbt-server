@@ -6,6 +6,7 @@ from dbt.cli import requires as dbt_requires
 
 from cli import requires
 import cli.params as p
+from cli.remote_server import DbtServer
 from cli.utils import rename
 
 
@@ -42,7 +43,7 @@ def deploy(ctx, **kwargs):
         from cli.cloud_providers.local import deploy
         deploy(port=ctx.params["port"])
     else:
-        click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported provider at the moment is 'google'")
+        click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported providers at the moment are 'google' and 'local'")
 
 
 def create_command(name, help_message):
@@ -67,13 +68,14 @@ def create_command(name, help_message):
     @requires.dbt_server
     @rename(name)
     def command_function(ctx, **kwargs):
-        server = ctx.obj["server"]
+        server: DbtServer = ctx.obj["server"]
         response = server.send_task(
             ctx.obj["dbt_remote_artifacts"],
             ctx.obj["dbt_runtime_config"],
             ctx.obj["server_runtime_config"]
         )
-        click.echo(response)
+        for log in response:
+            click.echo(log)
 
 
 # Subset of base dbt commands that can be used a subcommands of the `remote` group
@@ -85,7 +87,6 @@ commands = [
     ("run-operation", "Execute a run-operation command on a remote server"),
     ("seed", "Execute a seed command on a remote server"),
     ("snapshot", "Execute a snapshot command on a remote server"),
-    ("source", "Execute a source command on a remote server"),
     ("retry", "Execute a retry command on a remote server"),
     ("list", "Execute a list command on a remote server"),
 ]
