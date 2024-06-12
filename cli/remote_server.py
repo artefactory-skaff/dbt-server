@@ -44,14 +44,14 @@ class DbtServer(Server):
             dbt_remote_artifacts: BytesIO,
             dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
-    ) -> requests.Response:
+    ) -> Iterator[str]:
         run_id = self.create_task(
             dbt_remote_artifacts, dbt_runtime_config, server_runtime_config
         )
 
         # TODO: add option to not stream log (fire and forget for client)
         for log in self.stream_log(f"{self.server_url}/api/logs/{run_id}"):
-            print(log.get("info", {}).get("msg", ""))
+            yield log.get("info", {}).get("msg", "")
 
     def check_version_match(self):
         raw_response = self.session.get(url=self.server_url + "version")

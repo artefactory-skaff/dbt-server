@@ -152,3 +152,6 @@ dbt-server-volume-tmp/
 
 Taskfile.yaml
 Taskfile.yml
+
+# Elementary
+edr_target/

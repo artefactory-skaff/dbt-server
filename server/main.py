@@ -55,12 +55,11 @@ async def create_run(
         logger.debug("Persisting metadata")
         persist_metadata(dbt_runtime_config, server_runtime_config,
                          CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
-        logger.debug("Unzipping artifact files %s", dbt_remote_artifacts.filename)
+        logger.debug(f"Unzipping artifact files {dbt_remote_artifacts.filename}")
         local_artifact_path = await unpack_and_persist_artifact(
             dbt_remote_artifacts,
             CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "input"
         )
-        logger.debug("Uploading input artifacts to storage backend")
         dbt_executor = DBTExecutor(
             dbt_runtime_config=flags,
             artifact_input=local_artifact_path,

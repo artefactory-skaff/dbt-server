@@ -36,6 +36,7 @@ class DBTExecutor:
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
         args = {key: val for key, val in command_args.items() if not key.startswith("deprecated")}
         args.pop("warn_error_options", None)  # TODO: define how to handle this
+        args.pop("args", None)
         if "project_dir" in command_args:
             args["project_dir"] = remote_project_dir.as_posix()
         if "profiles_dir" in command_args:
