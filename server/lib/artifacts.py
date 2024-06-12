@@ -43,7 +43,7 @@ def move_folder(
         source_folder: Path,
         destination_folder: Path,
         delete_after_copy: bool = False,
-        max_workers: int = 32,
+        max_workers: int = 64,
         deadline=None,
         raise_exception: bool = False
 ) -> Path:
