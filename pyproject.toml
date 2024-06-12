@@ -20,6 +20,8 @@ google-cloud-storage = "^2.16.0"
 uvicorn = "^0"
 fastapi = "^0"
 snowflake-id = "^1.0.2"
+pytest = "^8"
+pytest-xdist = "^3"
 
 [build-system]
 requires = ["poetry-core"]

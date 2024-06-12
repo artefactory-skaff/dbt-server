@@ -1,5 +1,5 @@
 import json
-from typing import Dict
+from typing import Dict, Iterator
 from io import BytesIO
 from subprocess import check_output
 import requests
@@ -44,28 +44,20 @@ class DbtServer(Server):
             dbt_remote_artifacts: BytesIO,
             dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
-    ) -> requests.Response:
-        def get_log():
-            with self.session.post(
-                    url=self.server_url + "api/run",
-                    files={"dbt_remote_artifacts": dbt_remote_artifacts},
-                    data={
-                        "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                        "server_runtime_config": json.dumps({**server_runtime_config, "cron_schedule": "@now"})
-                    },
-                    stream=True
-            ) as response:
-                for chunk in response.iter_lines():
-                    yield json.loads(chunk.decode("utf-8"))
-
-        for event in get_log():
-            print(event.get("info", {}).get("msg", ""))
-
-    def check_version_match(self):
-        raw_response = self.session.get(url=self.server_url + "version")
-        response = raw_response.json()
-        print(f"Server version: {response}")
-        # server_version = response["version"]
+    ) -> Iterator[str]:
+        print("Sending task to dbt server...")
+        with self.session.post(
+                url=self.server_url + "api/run",
+                files={"dbt_remote_artifacts": dbt_remote_artifacts},
+                data={
+                    "dbt_runtime_config": json.dumps(dbt_runtime_config),
+                    "server_runtime_config": json.dumps({**server_runtime_config, "cron_schedule": "@now"})
+                },
+                stream=True
+        ) as response:
+            for chunk in response.iter_lines():
+                event = json.loads(chunk.decode("utf-8"))
+                yield event.get("info", {}).get("msg", "")
 
     def is_dbt_server(self):
         try:
