@@ -89,7 +89,6 @@ class DbtServer(Server):
             else:
                 raise Exception(f"Server Error {res.status_code}: {res.content}")
         else:
-            print(res.json())
             return res.json()["run_id"]
 
     def stream_log(self, url) -> Iterator[dict[str, Any]]:
