@@ -1,5 +1,5 @@
 import json
-from typing import Dict
+from typing import Dict, Iterator, Any
 from io import BytesIO
 from subprocess import check_output
 import requests
@@ -45,21 +45,13 @@ class DbtServer(Server):
             dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
     ) -> requests.Response:
-        def get_log():
-            with self.session.post(
-                    url=self.server_url + "api/run",
-                    files={"dbt_remote_artifacts": dbt_remote_artifacts},
-                    data={
-                        "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                        "server_runtime_config": json.dumps({**server_runtime_config, "cron_schedule": "@now"})
-                    },
-                    stream=True
-            ) as response:
-                for chunk in response.iter_lines():
-                    yield json.loads(chunk.decode("utf-8"))
+        run_id = self.create_task(
+            dbt_remote_artifacts, dbt_runtime_config, server_runtime_config
+        )
 
-        for event in get_log():
-            print(event.get("info", {}).get("msg", ""))
+        # TODO: add option to not stream log (fire and forget for client)
+        for log in self.stream_log(f"{self.server_url}/api/logs/{run_id}"):
+            print(log.get("info", {}).get("msg", ""))
 
     def check_version_match(self):
         raw_response = self.session.get(url=self.server_url + "version")
@@ -75,3 +67,35 @@ class DbtServer(Server):
             return False
         except Exception:  # request timeout or max retries
             return False
+
+    def create_task(
+            self,
+            dbt_remote_artifacts: BytesIO,
+            dbt_runtime_config: Dict[str, str],
+            server_runtime_config: Dict[str, str]
+    ) -> str:
+        res = self.session.post(
+            url=self.server_url + "api/run",
+            files={"dbt_remote_artifacts": dbt_remote_artifacts},
+            data={
+                "dbt_runtime_config": json.dumps(dbt_runtime_config),
+                "server_runtime_config": json.dumps(
+                    {**server_runtime_config, "cron_schedule": "@no"})
+            },
+        )
+        if not res.ok:
+            if 400 <= res.status_code < 500:
+                raise ValueError(f"Error {res.status_code}: {res.content}")
+            else:
+                raise Exception(f"Server Error {res.status_code}: {res.content}")
+        else:
+            print(res.json())
+            return res.json()["run_id"]
+
+    def stream_log(self, url) -> Iterator[dict[str, Any]]:
+        with self.session.get(
+                url=url,
+                stream=True
+        ) as response:
+            for chunk in response.iter_lines():
+                yield json.loads(chunk.decode("utf-8"))
