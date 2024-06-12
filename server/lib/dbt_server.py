@@ -1,8 +1,12 @@
+from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
+import os
 import queue
+import concurrent.futures
 import tempfile
 import threading
+import time
 import zipfile
 from pathlib import Path
 from typing import Optional, Any
@@ -37,7 +41,7 @@ class ServerRuntimeConfig(BaseModel):
 
 
 class DBTServer:
-    LOCAL_DATA_DIR = Path(__file__).parent.parent / "data"
+    LOCAL_DATA_DIR = Path(__file__).parent.parent.parent / "dbt-server-volume" / "runs"
     CMD_REQUIRES_DEPS = ["run", "build", "test", "seed"]
 
     def __init__(self, logger: logging.Logger, port: int, storage_backend: StorageBackend, schedule_backend=None):
@@ -84,22 +88,17 @@ class DBTServer:
             if server_runtime_config.is_static_run:
                 run_id = self.__generate_id()
                 self.logger.info("Creating static run")
-                self.logger.debug("Unzipping artifact files %s", dbt_remote_artifacts.filename)
-                local_artifact_path = await self.unpack_artifact(
-                    dbt_remote_artifacts,
-                    self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
-                )
-                self.logger.debug("Uploading input artifacts to storage backend")
-                # self.storage_backend.persist_directory(
-                #     source_directory=local_artifact_path,
-                #     destination_prefix=f"runs/{run_id}/artifacts/input"
-                # )
+                local_artifact_path = self.LOCAL_DATA_DIR / run_id / "artifacts" / "input"
+
+                self.unzip_and_upload_artifacts(dbt_remote_artifacts, local_artifact_path)
+
                 dbt_executor = DBTExecutor(
                     dbt_runtime_config=flags,
                     artifact_input=local_artifact_path,
+                    logger=self.logger
                 )
                 log_queue = queue.Queue()
-                self.logger.debug("Running dbt command locally")
+                self.logger.info("Running dbt command locally")
 
                 thread = threading.Thread(target=dbt_executor.execute_command,
                                           args=(command, log_queue,))
@@ -113,27 +112,15 @@ class DBTServer:
                         if message["info"]["name"] == "CommandCompleted":
                             return
 
-                self.logger.debug("Uploading output artifacts to storage backend")
-                # self.storage_backend.persist_directory(
-                #     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
-                #     destination_prefix=f"runs/{run_id}/artifacts/output"
-                # ) # TODO: add this in the same execution thread of the dbt command
-                return StreamingResponse(iter_queue(), status_code=status.HTTP_201_CREATED)
+                self.logger.info("Uploading output artifacts to storage backend")
+                return StreamingResponse(iter_queue(), status_code=status.HTTP_200_OK, media_type="text/event-stream")
 
             else:
                 scheduled_run_id = self.__generate_id("schedule-")
                 self.logger.info("Creating scheduled run")
-                self.logger.debug("Unzipping artifacts")
-                local_artifact_path = await self.unpack_artifact(
-                    dbt_remote_artifacts,
-                    self.LOCAL_DATA_DIR / scheduled_run_id / "artifacts" / "input"
-                )
-                self.logger.debug("Uploading artifacts to storage backend")
-                self.storage_backend.persist_directory(
-                    source_directory=local_artifact_path,
-                    destination_prefix=f"schedules/{scheduled_run_id}/artifacts/input"
-                )
+                self.unzip_and_upload_artifacts(dbt_remote_artifacts, self.LOCAL_DATA_DIR / scheduled_run_id / "artifacts" / "input")
                 self.logger.debug("Creating scheduler")
+                # TODO: create scheduler
                 return JSONResponse(status_code=status.HTTP_201_CREATED,
                                     content={"type": "scheduled", "schedule_id": scheduled_run_id})
 
@@ -158,12 +145,8 @@ class DBTServer:
             dbt_executor = DBTExecutor(
                 dbt_runtime_config=None,
                 artifact_input=artifact_input,
+                logger=self.logger
             )
-            # dbt_executor.execute_command("run", None)
-            # self.storage_backend.persist_directory(
-            #     self.LOCAL_DATA_DIR / run_id / "artifacts" / "output",
-            #     destination_prefix=f"runs/{run_id}/artifacts/output"
-            # )
             return JSONResponse(status_code=status.HTTP_200_OK, content={"schedule_run_id": schedule_run_id})
 
         @self.app.get("/api/version")
@@ -173,6 +156,30 @@ class DBTServer:
         @self.app.get("/api/check")
         async def check():
             return {"response": f"Running dbt-server"}
+
+
+    def __generate_id(self, prefix: str = ""):
+        id = next(self.id_generator)
+        return f"{prefix}{id}"
+
+
+    async def unzip_and_upload_artifacts(self, artifact_file: UploadFile, destination: Path):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.logger.info(f"Unzipping artifact files {artifact_file.filename}")
+            start = time.time()
+            temp_dir_path = Path(temp_dir)
+            local_artifact_path = await self.unpack_artifact(
+                artifact_file,
+                temp_dir_path
+            )
+            self.logger.info(f"Unzipping artifact files took {time.time() - start} seconds")
+
+            files = [item for item in local_artifact_path.rglob("*") if item.is_file()]
+            self.logger.info(f"Uploading {len(files)} artifact files to storage backend")
+            start = time.time()
+            upload_many(files, destination)
+            self.logger.info(f"Artifact files uploaded to storage backend in {time.time() - start} seconds")
+
 
     @staticmethod
     async def unpack_artifact(artifact_file: tempfile.SpooledTemporaryFile, destination_directory: Path) -> Path:
@@ -187,6 +194,34 @@ class DBTServer:
             artifacts_zip_path.unlink()
         return destination_directory
 
-    def __generate_id(self, prefix: str = ""):
-        id = next(self.id_generator)
-        return f"{prefix}{id}"
+
+def upload_many(files, destination, deadline = None, raise_exception = False, max_workers = 32):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for file in files:
+            futures.append(executor.submit(
+                upload,
+                file,
+                destination,
+            ))
+        concurrent.futures.wait(
+            futures, timeout=deadline, return_when=concurrent.futures.ALL_COMPLETED
+        )
+
+    results = []
+    for future in futures:
+        exp = future.exception()
+
+        # If raise_exception is False, don't call future.result()
+        if exp and not raise_exception:
+            results.append(exp)
+        # Get the real result. If there was an exception not handled above,
+        # this will raise it.
+        else:
+            results.append(future.result())
+    return results
+
+
+def upload(file, destination):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    os.copy(file, destination)

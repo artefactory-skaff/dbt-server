@@ -1,5 +1,7 @@
+import logging
 import queue
 from pathlib import Path
+import threading
 from typing import Any
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
@@ -8,22 +10,30 @@ from dbt_common.events.base_types import EventMsg
 from dbt_common.events.functions import msg_to_json
 
 
+# The "deps" command and the manifest generation are not thread-safe
+deps_lock = threading.Lock()
+
 class DBTExecutor:
     LOG_CONFIG = {"log_format": "json", "log_level": "none", "log_level_file": "debug"}
 
     def __init__(
             self,
             dbt_runtime_config,
-            artifact_input: Path
+            artifact_input: Path,
+            logger: logging.Logger,
     ):
         self.dbt_runtime_config = dbt_runtime_config
         self.artifact_input = artifact_input
+        self.logger = logger
 
     def execute_command(self, dbt_command: str, log_queue: queue.Queue):
         dbt_runner = dbtRunner()
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
-        dbt_runner.invoke(["deps"], **{**command_args, **self.LOG_CONFIG})
-        manifest = self.__generate_manifest(command_args)
+
+        with deps_lock:
+            self.logger.info("Building manifest...")
+            manifest = self.__generate_manifest(command_args)
+
         print(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
         dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, log_queue)])
         dbt_result = dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
