@@ -24,7 +24,7 @@ class DBTExecutor:
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
         dbt_runner.invoke(["deps"], **{**command_args, **self.LOG_CONFIG})
         manifest = self.__generate_manifest(command_args)
-        print("Executing dbt command %s with artifact input %s", (dbt_command, self.artifact_input.as_posix(),))
+        print(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
         dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, log_queue)])
         dbt_result = dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
 
