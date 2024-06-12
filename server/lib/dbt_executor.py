@@ -1,7 +1,7 @@
 import logging
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
@@ -22,15 +22,16 @@ class DBTExecutor:
         self.artifact_input = artifact_input
         self.logger = logger
 
-    def execute_command(self, dbt_command: str):
+    def execute_command(self, dbt_command: List[str]):
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
         with manifest_lock:
             self.logger.info("Building manifest")
             manifest = self.__generate_manifest(command_args)
 
-        print(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
+        self.logger.info(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
         dbt_runner = dbtRunner(manifest=manifest)
-        dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
+        dbt_runner.invoke(dbt_command, **{**command_args, **self.LOG_CONFIG})
+        self.logger.info(f"DBT command {dbt_command} completed")
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:

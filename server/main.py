@@ -1,6 +1,7 @@
 import asyncio
 import json
 from pathlib import Path
+import time
 from typing import Callable
 
 import uvicorn
@@ -56,10 +57,14 @@ async def create_run(
         persist_metadata(dbt_runtime_config, server_runtime_config,
                          CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
         logger.debug(f"Unzipping artifact files {dbt_remote_artifacts.filename}")
+
+        start = time.time()
         local_artifact_path = await unpack_and_persist_artifact(
             dbt_remote_artifacts,
             CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "input"
         )
+        logger.debug(f"Unpacked and persisted artifact in {round(time.time() - start, 1)} seconds")
+
         dbt_executor = DBTExecutor(
             dbt_runtime_config=flags,
             artifact_input=local_artifact_path,

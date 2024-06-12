@@ -107,7 +107,10 @@ def runtime_config(func):
             else:
                 dbt_runtime_config_args[key] = value
 
-        command = func.__name__
+        command = [func.__name__]
+        if "macro" in ctx.params:
+            command.append(ctx.params["macro"])
+
         dbt_runtime_config = {"command": command, "flags": dbt_runtime_config_args}
         ctx.obj["dbt_runtime_config"] = dbt_runtime_config
 

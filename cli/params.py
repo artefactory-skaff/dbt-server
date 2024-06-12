@@ -72,3 +72,10 @@ port = click.option(
     default=8080,
     help="Port the dbt server will run on. Default: 8080"
 )
+
+log_level = click.option(
+    "--log-level",
+    envvar="LOG_LEVEL",
+    default="INFO",
+    help="Log level for the dbt server. Default: INFO"
+)
