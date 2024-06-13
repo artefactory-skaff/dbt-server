@@ -28,6 +28,7 @@ google-cloud-run = { version = "^0", optional = true }
 google-cloud-resource-manager = { version = "^1", optional = true }
 google-api-python-client = { version = "^2", optional = true }
 google-cloud-storage = { version = "^2", optional = true }
+google-cloud-scheduler = { version = "^2", optional = true }
 
 [tool.poetry.extras]
 google = [
@@ -37,7 +38,8 @@ google = [
     "google-cloud-run",
     "google-cloud-resource-manager",
     "google-api-python-client",
-    "google-cloud-storage"
+    "google-cloud-storage",
+    "google-cloud-scheduler"
 ]
 local = []
 

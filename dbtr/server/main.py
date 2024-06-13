@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from pathlib import Path
 import time
 from typing import Callable
@@ -18,11 +17,11 @@ from dbtr.server.lib.logger import get_logger
 from dbtr.server.lib.models import ServerRuntimeConfig
 from dbtr.server.version import __version__
 from dbtr.server.lib.lock import Lock, LockException
-
+from dbtr.server.lib.scheduler import schedulers
+from dbtr.server.lib.scheduler.base import BaseScheduler
 
 logger = get_logger(CONFIG.log_level)
-schedule_backend = None  # should be different based on CONFIG.provider
-
+schedule_backend: BaseScheduler = schedulers[CONFIG.provider]()
 
 app = FastAPI(
     title="dbt-server",
@@ -34,9 +33,11 @@ app = FastAPI(
 
 @app.middleware("http")
 async def telemetry_middleware(request: Request, call_next):
-    @skaff_telemetry(accelerator_name="dbtr-server", function_name=request.url.path, version_number=__version__, project_name='')
+    @skaff_telemetry(accelerator_name="dbtr-server", function_name=request.url.path, version_number=__version__,
+                     project_name='')
     async def perform_request(request):
         return await call_next(request)
+
     response = await perform_request(request)
     return response
 
@@ -69,12 +70,13 @@ async def create_run(
             lock = Lock(CONFIG.lockfile_path).acquire(holder=server_runtime_conf.requester, run_id=run_id)
         except LockException as e:
             logger.error(f"Failed to acquire lock: {e}")
-            return JSONResponse(status_code=status.HTTP_423_LOCKED, content={"error": "Run already in progress", "lock_info": str(e.lock_data)})
+            return JSONResponse(status_code=status.HTTP_423_LOCKED,
+                                content={"error": "Run already in progress", "lock_info": str(e.lock_data)})
 
         logger.info("Creating static run")
         logger.debug("Persisting metadata")
         persist_metadata(dbt_runtime_config, server_runtime_config,
-                        CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
+                         CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
         logger.debug(f"Unzipping artifact files {dbt_remote_artifacts.filename}")
 
         start = time.time()
@@ -106,6 +108,8 @@ async def create_run(
             CONFIG.persisted_dir / "schedules" / scheduled_run_id / "artifacts" / "input"
         )
         logger.debug("Creating scheduler")
+        schedule_backend.create_or_update_job(**server_runtime_conf.schedule,
+                                              server_url=server_runtime_conf.server_url)
         return JSONResponse(status_code=status.HTTP_201_CREATED,
                             content={"type": "scheduled", "schedule_id": scheduled_run_id})
 
