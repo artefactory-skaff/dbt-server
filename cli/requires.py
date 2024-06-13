@@ -34,7 +34,7 @@ def artifacts_archive(func):
         flags = ctx.obj["flags"]
         project_dir = Path(flags.project_dir)
 
-        ignore = ["target/**", "dbt_packages/**", "logs/**"]
+        ignore = ["target/**", "logs/**"]
         dbt_remote_ignore_path = project_dir / ".dbtremoteignore"
         if dbt_remote_ignore_path.exists():
             with open(dbt_remote_ignore_path, "r") as f:
@@ -107,7 +107,10 @@ def runtime_config(func):
             else:
                 dbt_runtime_config_args[key] = value
 
-        command = func.__name__
+        command = [func.__name__]
+        if "macro" in ctx.params:
+            command.append(ctx.params["macro"])
+
         dbt_runtime_config = {"command": command, "flags": dbt_runtime_config_args}
         ctx.obj["dbt_runtime_config"] = dbt_runtime_config
 

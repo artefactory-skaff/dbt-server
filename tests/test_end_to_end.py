@@ -53,6 +53,12 @@ metric:jaffle_shop.cumulative_revenue
 metric:jaffle_shop.drink_orders""",
         ]
     ),
+    (
+        "dbtr remote run-operation clean_stale_models --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        [
+            "dbt could not find a macro with the name 'clean_stale_models' in any package",
+        ]
+    ),
 ])
 def test_dbt_remote(command, expected_in_output: List[str]):
     result = run_command(command)

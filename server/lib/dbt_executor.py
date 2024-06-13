@@ -1,37 +1,43 @@
-import queue
+import logging
+import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
-from dbt_common.events.base_types import EventMsg
-from dbt_common.events.functions import msg_to_json
+
+manifest_lock = threading.Lock()
 
 
 class DBTExecutor:
-    LOG_CONFIG = {"log_format": "json", "log_level": "none", "log_level_file": "debug"}
+    LOG_CONFIG = {"log_format_file": "json", "log_level": "none", "log_level_file": "debug"}
 
     def __init__(
             self,
             dbt_runtime_config,
-            artifact_input: Path
+            artifact_input: Path,
+            logger: logging.Logger,
     ):
         self.dbt_runtime_config = dbt_runtime_config
         self.artifact_input = artifact_input
+        self.logger = logger
 
-    def execute_command(self, dbt_command: str, log_queue: queue.Queue):
-        dbt_runner = dbtRunner()
+    def execute_command(self, dbt_command: List[str]):
         command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
-        dbt_runner.invoke(["deps"], **{**command_args, **self.LOG_CONFIG})
-        manifest = self.__generate_manifest(command_args)
-        print(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
-        dbt_runner = dbtRunner(manifest=manifest, callbacks=[lambda event: self.handle_event_msg(event, log_queue)])
-        dbt_result = dbt_runner.invoke([dbt_command], **{**command_args, **self.LOG_CONFIG})
+        with manifest_lock:
+            self.logger.info("Building manifest")
+            manifest = self.__generate_manifest(command_args)
+
+        self.logger.info(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
+        dbt_runner = dbtRunner(manifest=manifest)
+        dbt_runner.invoke(dbt_command, **{**command_args, **self.LOG_CONFIG})
+        self.logger.info(f"DBT command {dbt_command} completed")
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
         args = {key: val for key, val in command_args.items() if not key.startswith("deprecated")}
-        args.pop("warn_error_options")  # TODO: define how to handle this
+        args.pop("warn_error_options", None)  # TODO: define how to handle this
+        args.pop("args", None)
         if "project_dir" in command_args:
             args["project_dir"] = remote_project_dir.as_posix()
         if "profiles_dir" in command_args:
@@ -45,15 +51,10 @@ class DBTExecutor:
     def __generate_manifest(self, command_args: dict) -> Manifest:
         res: dbtRunnerResult = dbtRunner().invoke(
             ["parse"],
-            **{**command_args, **self.LOG_CONFIG}
+            **{**command_args, **self.LOG_CONFIG, "log_level_file": "none"}  # log ignored here to
         )
         if not res.success:
             raise res.exception
         manifest: Manifest = res.result
         manifest.build_flat_graph()
         return manifest
-
-    @staticmethod
-    def handle_event_msg(event: EventMsg, msg_queue: queue.Queue):
-        if event.info.level != "debug" or event.info.name == "CommandCompleted":
-            msg_queue.put(msg_to_json(event))

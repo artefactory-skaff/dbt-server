@@ -1,11 +1,16 @@
+import os
 from pathlib import Path
 
-from server.lib.dbt_server import DBTServer
-from server.lib.logger import get_logger
+import uvicorn
 
 
 def deploy(port: int, log_level: str = "INFO"):
     Path("./dbt-server-volume").mkdir(parents=True, exist_ok=True)
-    logger = get_logger(log_level)
-    dbt_server = DBTServer(logger, port, storage_backend=None, schedule_backend=None)
-    dbt_server.start(reload=True)
+    os.environ["LOG_LEVEL"] = log_level
+    uvicorn.run(
+        "server.main:app",
+        host="0.0.0.0",
+        port=port,
+        workers=1,
+        reload=False, # TODO: figure out how to relaod while ignoring dbt-server-volume
+    )

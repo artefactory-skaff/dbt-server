@@ -8,4 +8,5 @@ def get_logger(level: str) -> logging.Logger:
     logger_handler.setFormatter(logger_formatter)
     logger.addHandler(logger_handler)
     logger.setLevel(level)
+    logger.propagate = False
     return logger

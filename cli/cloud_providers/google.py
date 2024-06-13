@@ -12,7 +12,7 @@ from googleapiclient import discovery, errors
 from cli.remote_server import DbtServer
 
 
-def deploy(image: str, service_name: str, port: int, project_id: str = None):
+def deploy(image: str, service_name: str, port: int, project_id: str = None, log_level: str = "INFO"):
     if project_id is None:
         project_id = get_project_id()
     enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
@@ -24,6 +24,7 @@ def deploy(image: str, service_name: str, port: int, project_id: str = None):
         backend_bucket=bucket,
         service_account_email=service_account.email,
         port=port,
+        log_level=log_level,
     )
 
 
@@ -94,7 +95,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket,region: str = "europe-west1", service_account_email: str = None):
+def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket,region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
     project_id = get_project_id()
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
@@ -106,6 +107,7 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
         image=image,
         ports=[run_v2.ContainerPort(container_port=port)],
         volume_mounts=[run_v2.VolumeMount(mount_path="/home/dbt_user/dbt-server-volume", name="dbt-server-volume")],
+        env=[run_v2.EnvVar(name="LOG_LEVEL", value=log_level)]
     )
 
     volume = run_v2.Volume(
@@ -118,6 +120,7 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
         containers=[container],
         service_account=service_account_email,
         volumes=[volume],
+        scaling=run_v2.RevisionScaling(min_instance_count=1, max_instance_count=1),
     )
 
     service = run_v2.Service(
