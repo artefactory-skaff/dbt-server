@@ -115,6 +115,7 @@ def runtime_config(func):
         ctx.obj["dbt_runtime_config"] = dbt_runtime_config
 
         server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
+        server_runtime_config["requester"] = os.getenv("USER") or os.getenv("USERNAME", "unknown")
         ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
 
@@ -139,6 +140,7 @@ def dbt_server(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         ctx = args[0]
+        ctx.obj = ctx.obj or {}
         assert isinstance(ctx, click.Context)
 
         if ctx.params["server_url"] is None:

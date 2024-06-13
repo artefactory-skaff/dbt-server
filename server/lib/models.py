@@ -5,6 +5,7 @@ from pydantic import field_validator, computed_field, BaseModel
 
 class ServerRuntimeConfig(BaseModel):
     cron_schedule: Optional[str] = "@now"
+    requester: str = "unknown"
 
     @field_validator("cron_schedule")
     def validate_cron_expression(cls, cron_value: Any):

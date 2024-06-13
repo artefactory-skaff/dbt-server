@@ -34,7 +34,6 @@ class Server:
 
         return id_token
 
-
 class DbtServer(Server):
     def __init__(self, server_url):
         super().__init__(server_url)
@@ -84,7 +83,9 @@ class DbtServer(Server):
             },
         )
         if not res.ok:
-            if 400 <= res.status_code < 500:
+            if res.status_code == 423:
+                raise ServerLocked(res.json()["lock_info"])
+            elif 400 <= res.status_code < 500:
                 raise ValueError(f"Error {res.status_code}: {res.content}")
             else:
                 raise Exception(f"Server Error {res.status_code}: {res.content}")
@@ -98,3 +99,13 @@ class DbtServer(Server):
         ) as response:
             for chunk in response.iter_lines():
                 yield json.loads(chunk.decode("utf-8"))
+
+    def unlock(self):
+        res = self.session.post(url=self.server_url + "api/unlock")
+        if not res.ok:
+            raise Exception(f"Failed to unlock the server: {res.status_code} {res.content}")
+        return res.json()
+
+
+class ServerLocked(Exception):
+    pass

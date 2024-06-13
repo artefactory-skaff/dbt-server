@@ -15,6 +15,7 @@ from server.lib.dbt_executor import DBTExecutor
 from server.lib.logger import get_logger
 from server.lib.models import ServerRuntimeConfig
 from server.version import __version__
+from server.lib.lock import Lock, LockException
 
 logger = get_logger(CONFIG.log_level)
 schedule_backend = None  # should be different based on CONFIG.provider
@@ -48,14 +49,19 @@ async def create_run(
     dbt_runtime_config = json.loads(dbt_runtime_config)
     flags = dbt_runtime_config["flags"]
     command = dbt_runtime_config["command"]
-    server_runtime_config = json.loads(server_runtime_config)
-    server_runtime_conf = ServerRuntimeConfig(**server_runtime_config)
+    server_runtime_conf = ServerRuntimeConfig(**json.loads(server_runtime_config))
     if server_runtime_conf.is_static_run:
         run_id = generate_id()
+        try:
+            lock = Lock(CONFIG.lockfile_path).acquire(holder=server_runtime_conf.requester, run_id=run_id)
+        except LockException as e:
+            logger.error(f"Failed to acquire lock: {e}")
+            return JSONResponse(status_code=status.HTTP_423_LOCKED, content={"error": "Run already in progress", "lock_info": str(e.lock_data)})
+
         logger.info("Creating static run")
         logger.debug("Persisting metadata")
         persist_metadata(dbt_runtime_config, server_runtime_config,
-                         CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
+                        CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
         logger.debug(f"Unzipping artifact files {dbt_remote_artifacts.filename}")
 
         start = time.time()
@@ -70,7 +76,9 @@ async def create_run(
             artifact_input=local_artifact_path,
             logger=logger
         )
-        background_tasks.add_task(dbt_executor.execute_command, command)
+
+        # The lock is released when the background task is completed
+        background_tasks.add_task(dbt_executor.execute_command, command, lock)
         return JSONResponse(status_code=status.HTTP_200_OK, content={"run_id": run_id})
 
     else:
@@ -91,11 +99,9 @@ async def create_run(
 
 @app.get("/api/logs/{run_id}")
 def stream_log(run_id: str):
-    # TODO: we should retrieve the path to the log file from run metadata
-    run_id_log_file = CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "input" / "logs" / "dbt.log"
     return StreamingResponse(
         stream_log_file(
-            run_id_log_file,
+            run_id,
             filter=lambda line: line.get("info", {}).get("level") != "debug",
             # TODO: loglevel should be dynamic (from query or run metadata w/ query > run metadata)
             stop=lambda line: line.get("info", {}).get("name") == "CommandCompleted"
@@ -142,7 +148,23 @@ async def check():
     return {"response": f"Running dbt-server version {__version__}"}
 
 
-async def stream_log_file(log_file: Path, filter: Callable, stop: Callable):
+@app.post("/api/unlock")
+def unlock_server():
+    try:
+        lock = Lock.from_file(CONFIG.lockfile_path)
+        lock.release()
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "Server unlocked successfully"})
+    except FileNotFoundError:
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "Lock file not found"})
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(e)})
+
+
+
+async def stream_log_file(run_id: str, filter: Callable, stop: Callable):
+    # TODO: we should retrieve the path to the log file from run metadata
+    log_file = CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "input" / "logs" / "dbt.log"
+
     while not log_file.exists():  # TODO: handle queued run to avoid having a blocking operation here
         await asyncio.sleep(0.1)
     with open(log_file, "r") as file:
@@ -150,6 +172,11 @@ async def stream_log_file(log_file: Path, filter: Callable, stop: Callable):
         while True:
             _line = file.readline()
             if _line:
+
+                lock = Lock.from_file(CONFIG.lockfile_path)
+                if lock.lock_data.run_id == run_id:
+                    lock.refresh()
+
                 line = json.loads(_line)
                 if filter(line):
                     yield _line

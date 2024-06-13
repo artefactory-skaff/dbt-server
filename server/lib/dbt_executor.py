@@ -6,7 +6,7 @@ from typing import Any, List
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 
-manifest_lock = threading.Lock()
+from server.lib.lock import Lock
 
 
 class DBTExecutor:
@@ -22,16 +22,21 @@ class DBTExecutor:
         self.artifact_input = artifact_input
         self.logger = logger
 
-    def execute_command(self, dbt_command: List[str]):
-        command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
-        with manifest_lock:
+    def execute_command(self, dbt_command: List[str], lock: Lock = None):
+        try:
+            command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
             self.logger.info("Building manifest")
             manifest = self.__generate_manifest(command_args)
-
-        self.logger.info(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
-        dbt_runner = dbtRunner(manifest=manifest)
-        dbt_runner.invoke(dbt_command, **{**command_args, **self.LOG_CONFIG})
-        self.logger.info(f"DBT command {dbt_command} completed")
+            self.logger.info(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
+            dbt_runner = dbtRunner(manifest=manifest)
+            dbt_runner.invoke(dbt_command, **{**command_args, **self.LOG_CONFIG})
+            self.logger.info(f"DBT command {dbt_command} completed")
+        except Exception as e:
+            self.logger.error(f"Failed to execute dbt command {dbt_command}: {e}")
+            raise
+        finally:
+            if lock:
+                lock.release()
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
