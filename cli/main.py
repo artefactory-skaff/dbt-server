@@ -3,11 +3,13 @@ import functools
 import click
 from dbt.cli.main import cli as dbt_cli
 from dbt.cli import requires as dbt_requires
+from skaff_telemetry import skaff_telemetry
 
 from cli import requires
 import cli.params as p
 from cli.remote_server import DbtServer, ServerLocked
 from cli.utils import rename
+from server.version import __version__
 
 
 def global_flags(func):
@@ -35,6 +37,7 @@ def remote(ctx, **kwargs):
 @p.port
 @p.log_level
 @global_flags
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
 def deploy(ctx, **kwargs):
     cloud_provider = ctx.params["cloud_provider"]
     if cloud_provider == "google":
@@ -51,6 +54,7 @@ def deploy(ctx, **kwargs):
 @click.pass_context
 @global_flags
 @requires.dbt_server
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
 def unlock(ctx, **kwargs):
     server: DbtServer = ctx.obj["server"]
     if not click.confirm("Removing the lock will cause issue with the run in progress.\nAre you sure you want to unlock the server?", abort=True):
@@ -80,15 +84,17 @@ def create_command(name, help_message):
     @requires.dbt_server
     @rename(name)
     def command_function(ctx, **kwargs):
-        server: DbtServer = ctx.obj["server"]
-        response = server.send_task(
-            ctx.obj["dbt_remote_artifacts"],
-            ctx.obj["dbt_runtime_config"],
-            ctx.obj["server_runtime_config"]
-        )
-        for log in response:
-            click.echo(log)
-
+        @skaff_telemetry(accelerator_name="dbtr-cli", function_name=name, version_number=__version__, project_name=ctx.obj["project"].project_name)
+        def inner_command_function(ctx, **kwargs):
+            server: DbtServer = ctx.obj["server"]
+            response = server.send_task(
+                ctx.obj["dbt_remote_artifacts"],
+                ctx.obj["dbt_runtime_config"],
+                ctx.obj["server_runtime_config"]
+            )
+            for log in response:
+                click.echo(log)
+        return inner_command_function(ctx, **kwargs)
 
 # Subset of base dbt commands that can be used a subcommands of the `remote` group
 commands = [
