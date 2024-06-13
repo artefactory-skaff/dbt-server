@@ -6,7 +6,7 @@ from dbt.cli import requires as dbt_requires
 
 from cli import requires
 import cli.params as p
-from cli.remote_server import DbtServer
+from cli.remote_server import DbtServer, ServerLocked
 from cli.utils import rename
 
 
@@ -45,6 +45,17 @@ def deploy(ctx, **kwargs):
         deploy(port=ctx.params["port"], log_level=ctx.params["log_level"])
     else:
         click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported providers at the moment are 'google' and 'local'")
+
+
+@remote.command("unlock", help="Forcefully remove a server lock")
+@click.pass_context
+@global_flags
+@requires.dbt_server
+def unlock(ctx, **kwargs):
+    server: DbtServer = ctx.obj["server"]
+    if not click.confirm("Removing the lock will cause issue with the run in progress.\nAre you sure you want to unlock the server?", abort=True):
+        return
+    server.unlock()
 
 
 def create_command(name, help_message):
@@ -100,4 +111,12 @@ dbt_cli.add_command(remote)
 
 
 if __name__ == "__main__":
-    dbt_cli()
+    try:
+        dbt_cli()
+    except ServerLocked as e:
+        click.echo(f"Run already in progress:\n{e}")
+        click.echo("You can unlock the server by running 'dbt remote unlock'")
+        exit(1)
+    except Exception as e:
+        click.echo(f"Unhandled exception occured: {e}")
+        raise
