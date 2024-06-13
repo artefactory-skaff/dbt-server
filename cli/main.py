@@ -100,7 +100,6 @@ commands = [
     ("seed", "Execute a seed command on a remote server"),
     ("snapshot", "Execute a snapshot command on a remote server"),
     ("retry", "Execute a retry command on a remote server"),
-    ("list", "Execute a list command on a remote server"),
 ]
 
 

@@ -1,6 +1,24 @@
 version: '3'
 
 tasks:
+  dbtr-build:
+    cmds:
+      - poetry run python cli/main.py remote build --project-dir jaffle-shop --server-url {{.SERVER_URL}}
+    requires:
+      vars: [SERVER_URL]
+
+  test:
+    cmds:
+      - SERVER_URL={{.SERVER_URL}} poetry run pytest tests -log_cli=true -log_cli_level=info -vvv
+    requires:
+      vars: [SERVER_URL]
+
+  cloud_run:
+    cmds:
+      - poetry run python cli/main.py remote deploy --image europe-docker.pkg.dev/{{.PROJECT_ID}}/dbt-server/{{.ENV}}:{{.TAG}} --service {{.SERVICE_NAME}} --log-level {{.LOG_LEVEL}}
+    requires:
+      vars: [PROJECT_ID, ENV, TAG, SERVICE_NAME, LOG_LEVEL]
+
   image:
     cmds:
       - gcloud builds submit server --region={{.LOCATION}} --tag europe-docker.pkg.dev/{{.PROJECT_ID}}/dbt-server/{{.ENV}}:{{.TAG}}
