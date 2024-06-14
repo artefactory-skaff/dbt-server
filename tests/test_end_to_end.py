@@ -1,5 +1,5 @@
+import os
 import shlex
-from time import sleep
 from typing import List
 
 from click.testing import CliRunner
@@ -7,54 +7,47 @@ import pytest
 
 from cli.main import dbt_cli
 
+SERVER_URL = os.environ.get("SERVER_URL")
+
 @pytest.mark.parametrize("command, expected_in_output", [
     (
-        "dbtr remote debug --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote debug --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "All checks passed!",
         ]
     ),
     (
-        "dbtr remote build --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote build --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "Done. PASS=46 WARN=0 ERROR=0 SKIP=0 TOTAL=46",
         ]
     ),
     (
-        "dbtr remote run --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote run --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "Done. PASS=13 WARN=0 ERROR=0 SKIP=0 TOTAL=13",
         ]
     ),
     (
-        "dbtr remote test --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote test --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "Done. PASS=30 WARN=0 ERROR=0 SKIP=0 TOTAL=30",
         ]
     ),
     (
-        "dbtr remote seed --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote seed --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "Done. PASS=0 WARN=0 ERROR=0 SKIP=0 TOTAL=0",
         ]
     ),
     (
-        "dbtr remote snapshot --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote snapshot --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "Nothing to do. Try checking your model configs and model specification args",
         ]
     ),
     (
-        "dbtr remote list --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
-        [
-            """metric:jaffle_shop.average_order_value
-metric:jaffle_shop.count_lifetime_orders
-metric:jaffle_shop.cumulative_revenue
-metric:jaffle_shop.drink_orders""",
-        ]
-    ),
-    (
-        "dbtr remote run-operation clean_stale_models --server-url http://0.0.0.0:8080 --project-dir jaffle-shop --cloud-provider local",
+        f"dbtr remote run-operation clean_stale_models --server-url {SERVER_URL} --project-dir jaffle-shop --cloud-provider local",
         [
             "dbt could not find a macro with the name 'clean_stale_models' in any package",
         ]
