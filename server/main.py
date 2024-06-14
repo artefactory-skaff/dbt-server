@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 import time
 from typing import Callable
+from skaff_telemetry import skaff_telemetry
 
 import uvicorn
-from fastapi import FastAPI, Form, UploadFile, File, status, BackgroundTasks
+from fastapi import FastAPI, Form, Request, UploadFile, File, status, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from server.config import CONFIG
@@ -20,12 +21,22 @@ from server.lib.lock import Lock, LockException
 logger = get_logger(CONFIG.log_level)
 schedule_backend = None  # should be different based on CONFIG.provider
 
+
 app = FastAPI(
     title="dbt-server",
     description="A server to run dbt commands in the cloud",
     version=__version__,
     docs_url="/docs"
 )
+
+
+@app.middleware("http")
+async def telemetry_middleware(request: Request, call_next):
+    @skaff_telemetry(accelerator_name="dbtr-server", function_name=request.url.path, version_number=__version__, project_name='')
+    async def perform_request(request):
+        return await call_next(request)
+    response = await perform_request(request)
+    return response
 
 
 @app.post("/api/run")

@@ -2338,6 +2338,20 @@ files = [
 ]
 
 [[package]]
+name = "skaff-telemetry"
+version = "0.1.3"
+description = "Decorator for adding telemetry sending capability to functions."
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "skaff_telemetry-0.1.3-py3-none-any.whl", hash = "sha256:c7e390e6e4def1d9d93b9bb99f7c8c9bd631cbfee68651966d70bf351a0ab333"},
+    {file = "skaff_telemetry-0.1.3.tar.gz", hash = "sha256:e517a97ab5c3fa627437686db486987e439f4295799ad68e25f106537075ba6f"},
+]
+
+[package.dependencies]
+requests = ">=2.25,<3"
+
+[[package]]
 name = "sniffio"
 version = "1.3.1"
 description = "Sniff out which async library your code is running under"
@@ -2823,4 +2837,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0a6202a3ecfd93ee857e71225bd01e6b2836d7d45d6a6c1cc3c05efa21d0391c"
+content-hash = "f053027b63b9cfa3cc82fd0354f00f7877220f18fa105e013c390b6dbda8c155"
