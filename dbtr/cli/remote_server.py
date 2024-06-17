@@ -3,7 +3,7 @@ from typing import Callable, Dict, Iterator, Any
 from io import BytesIO
 import requests
 
-from dbtr.cli.exceptions import Server400, Server500, ServerLocked, ServerUnlockFailed
+from dbtr.cli.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
 
 
 class Server:
@@ -61,15 +61,19 @@ class DbtServer(Server):
             dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
     ) -> str:
-        res = self.session.post(
-            url=self.server_url + "api/run",
-            files={"dbt_remote_artifacts": dbt_remote_artifacts},
-            data={
-                "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                "server_runtime_config": json.dumps(
-                    {**server_runtime_config, "cron_schedule": "@now"})
-            },
-        )
+        try:
+            res = self.session.post(
+                url=self.server_url + "api/run",
+                files={"dbt_remote_artifacts": dbt_remote_artifacts},
+                data={
+                    "dbt_runtime_config": json.dumps(dbt_runtime_config),
+                    "server_runtime_config": json.dumps(
+                        {**server_runtime_config, "cron_schedule": "@now"})
+                },
+            )
+        except requests.exceptions.ConnectionError as e:
+            raise ServerConnectionError(f"Failed to connect to {self.server_url}, make sure the server is running and accessible.")
+
         if not res.ok:
             if res.status_code == 423:
                 raise ServerLocked(res.json()["lock_info"])

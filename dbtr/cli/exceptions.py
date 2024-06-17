@@ -32,6 +32,9 @@ class Server400(DbtrException):
 class Server500(DbtrException):
     pass
 
+class ServerConnectionError(DbtrException):
+    pass
+
 def handle_exceptions(e):
     if isinstance(e, DbtrException):
         click.echo(e)
