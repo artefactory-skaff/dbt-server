@@ -177,7 +177,7 @@ def find_dbt_server(location: str = None, gcp_project: str = None) -> str:
 
     dbt_servers = []
     for uri in result:
-        if DbtServer(uri).is_dbt_server():
+        if DbtServer(uri, token_generator=get_auth_token).is_dbt_server():
             dbt_servers.append(uri)
 
     if len(dbt_servers) == 0:
