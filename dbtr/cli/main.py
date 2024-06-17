@@ -41,7 +41,7 @@ def remote(ctx, **kwargs):
 def deploy(ctx, **kwargs):
     cloud_provider = ctx.params["cloud_provider"]
     if cloud_provider == "google":
-        from dbtr.cli.cloud_providers.google import deploy
+        from dbtr.cli.cloud_providers.gcp import deploy
         deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], project_id=ctx.params["gcp_project"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
     elif cloud_provider == "local":
         from dbtr.cli.cloud_providers.local import deploy

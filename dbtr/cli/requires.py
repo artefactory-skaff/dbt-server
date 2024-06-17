@@ -144,18 +144,18 @@ def dbt_server(func):
         assert isinstance(ctx, click.Context)
 
         if ctx.params["cloud_provider"] == "google":
-            from dbtr.cli.cloud_providers import google
+            from dbtr.cli.cloud_providers import gcp
 
             if ctx.params["server_url"] is None:
                 print("--server-url not set, performing server discovery...")
                 if ctx.params["gcp_project"] is None:
-                    project_id = google.get_project_id()
+                    project_id = gcp.get_project_id()
                     click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
 
-                server_url = google.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
+                server_url = gcp.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
             else:
                 server_url = ctx.params["server_url"]
-            server = DbtServer(server_url, token_generator=google.get_auth_token)
+            server = DbtServer(server_url, token_generator=gcp.get_auth_token)
 
         elif ctx.params["cloud_provider"] == "local":
             if ctx.params["server_url"] is None:
