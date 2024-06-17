@@ -7,9 +7,9 @@ from pathlib import Path, PosixPath
 import click
 import humanize
 from dbt_common.helper_types import WarnErrorOptions
-
-from cli.remote_server import DbtServer
 from dbt.cli.main import cli as dbt_cli
+
+from dbtr.cli.remote_server import DbtServer
 
 
 def artifacts_archive(func):
@@ -34,7 +34,7 @@ def artifacts_archive(func):
         flags = ctx.obj["flags"]
         project_dir = Path(flags.project_dir)
 
-        ignore = ["target/**", "logs/**"]
+        ignore = ["target/**", "logs/**", "venv/**"]
         dbt_remote_ignore_path = project_dir / ".dbtremoteignore"
         if dbt_remote_ignore_path.exists():
             with open(dbt_remote_ignore_path, "r") as f:
@@ -143,23 +143,28 @@ def dbt_server(func):
         ctx.obj = ctx.obj or {}
         assert isinstance(ctx, click.Context)
 
-        if ctx.params["server_url"] is None:
-            print("--server-url not set, performing server discovery...")
+        if ctx.params["cloud_provider"] == "google":
+            from dbtr.cli.cloud_providers import google
 
-            if ctx.params["cloud_provider"] == "google":
-                from cli.cloud_providers import google
+            if ctx.params["server_url"] is None:
+                print("--server-url not set, performing server discovery...")
                 if ctx.params["gcp_project"] is None:
                     project_id = google.get_project_id()
                     click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
 
                 server_url = google.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
-
             else:
-                raise click.ClickException("Only Google Cloud (--cloud-provider google) is supported for now.")
-        else:
-            server_url = ctx.params["server_url"]
+                server_url = ctx.params["server_url"]
+            server = DbtServer(server_url, token_generator=google.get_auth_token)
 
-        server = DbtServer(server_url)
+        elif ctx.params["cloud_provider"] == "local":
+            if ctx.params["server_url"] is None:
+                raise click.ClickException("--server-url is required for local runs.")
+            server = DbtServer(ctx.params["server_url"])
+
+        else:
+            raise click.ClickException("Only Google Cloud (--cloud-provider google) and local (--cloud-provider local) are supported for now.")
+
         ctx.obj["server"] = server
 
         return func(*args, **kwargs)

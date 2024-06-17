@@ -1,42 +1,28 @@
 import json
-from typing import Dict, Iterator, Any
+from typing import Callable, Dict, Iterator, Any
 from io import BytesIO
-from subprocess import check_output
 import requests
-from google.cloud import iam_credentials_v1
-import google.oauth2.id_token
 
 
 class Server:
-    def __init__(self, server_url):
+    def __init__(self, server_url, token_generator: Callable = None):
         self.server_url = server_url if server_url.endswith("/") else server_url + "/"
+        self.token_generator = token_generator
+
         self.session = self.get_auth_session()
 
     def get_auth_session(self) -> requests.Session:
-        id_token = self.get_auth_token()
+        if self.token_generator is None:
+            return requests.Session()
+
+        token = self.token_generator(server_url=self.server_url)
         session = requests.Session()
-        session.headers.update({"Authorization": f"Bearer {id_token}"})
+        session.headers.update({"Authorization": f"Bearer {token}"})
         return session
 
-    def get_auth_token(self):
-        try:
-            # Assumes a GCP service account is available, e.g. in a CI/CD pipeline
-            client = iam_credentials_v1.IAMCredentialsClient()
-            response = client.generate_id_token(
-                name=self.get_service_account_email(),
-                audience=self.server_url,
-            )
-            id_token = response.token
-        except (google.api_core.exceptions.PermissionDenied, AttributeError):
-            # No GCP service account available, assumes a local env where gcloud is installed
-            id_token_raw = check_output("gcloud auth print-identity-token", shell=True)
-            id_token = id_token_raw.decode("utf8").strip()
-
-        return id_token
-
 class DbtServer(Server):
-    def __init__(self, server_url):
-        super().__init__(server_url)
+    def __init__(self, server_url, token_generator: Callable = None):
+        super().__init__(server_url, token_generator)
 
     def send_task(
             self,

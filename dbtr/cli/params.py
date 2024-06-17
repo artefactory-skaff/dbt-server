@@ -26,7 +26,8 @@ server_url = click.option(
 cloud_provider = click.option(
     '--cloud-provider',
     envvar='CLOUD_PROVIDER',
-    default='google',
+    required=True,
+    prompt='Cloud provider where the dbt server runs (google, local)',
     help='Cloud provider where the dbt server runs.',
 )
 
@@ -64,6 +65,14 @@ image = click.option(
     envvar="IMAGE",
     default="europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/prod:latest",
     help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/dbt-server-sbx-f570/dbt_server/prod:latest"
+)
+
+adapter = click.option(
+    "--adapter",
+    envvar="ADAPTER",
+    required=True,
+    prompt="Adapter for the dbt server (dbt-bigquery, dbt-snowflake, ... )",
+    help="Adapter to use on the dbt server. dbt-bigquery, dbt-snowflake, etc."
 )
 
 port = click.option(

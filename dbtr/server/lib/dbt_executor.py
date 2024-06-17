@@ -1,12 +1,11 @@
 import logging
-import threading
 from pathlib import Path
 from typing import Any, List
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 
-from server.lib.lock import Lock
+from dbtr.server.lib.lock import Lock
 
 
 class DBTExecutor:

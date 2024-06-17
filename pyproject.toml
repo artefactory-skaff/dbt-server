@@ -1,28 +1,45 @@
 [tool.poetry]
-name = "dbt-server"
-version = "2.0.0-rc.1"
+name = "dbtr"
+version = "0.1.1"
 description = "An extension for the dbt CLI that allows deploying and running jobs remotely"
 authors = ["Alexis VIALARET <alexis.vialaret@artefact.com>", "Samy DOUGUI <samy.dougui@artefact.com>"]
 license = "Apache2.0"
 readme = "README.md"
 
+[tool.poetry.scripts]
+dbtr = "dbtr.cli.main:main"
+
 [tool.poetry.dependencies]
 python = "^3.10"
-dbt-bigquery = "^1.8"
 python-multipart = "^0"
 humanize = "^4"
-google-cloud-iam = "^2"
-google-cloud-compute = "^1"
-google-cloud-run = "^0"
-google-cloud-resource-manager = "^1"
-google-api-python-client = "^2"
-google-cloud-storage = "^2"
 uvicorn = "^0"
 fastapi = "^0"
 snowflake-id = "^1"
 pytest = "^8"
 pytest-xdist = "^3"
-skaff-telemetry = "^0"
+skaff-telemetry = "^0.1"
+click = "^8"
+dbt-core = { version = "^1", optional = true }
+dbt-bigquery = { version = "^1", optional = true }
+google-cloud-iam = { version = "^2", optional = true }
+google-cloud-compute = { version = "^1", optional = true }
+google-cloud-run = { version = "^0", optional = true }
+google-cloud-resource-manager = { version = "^1", optional = true }
+google-api-python-client = { version = "^2", optional = true }
+google-cloud-storage = { version = "^2", optional = true }
+
+[tool.poetry.extras]
+google = [
+    "dbt-bigquery",
+    "google-cloud-iam",
+    "google-cloud-compute",
+    "google-cloud-run",
+    "google-cloud-resource-manager",
+    "google-api-python-client",
+    "google-cloud-storage"
+]
+local = []
 
 [build-system]
 requires = ["poetry-core"]
