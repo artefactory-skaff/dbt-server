@@ -8,6 +8,7 @@ import click
 import humanize
 from dbt_common.helper_types import WarnErrorOptions
 from dbt.cli.main import cli as dbt_cli
+from dbtr.cli.exceptions import MissingServerURL, UnsupportedCloudProvider
 
 from dbtr.cli.remote_server import DbtServer
 
@@ -159,11 +160,11 @@ def dbt_server(func):
 
         elif ctx.params["cloud_provider"] == "local":
             if ctx.params["server_url"] is None:
-                raise click.ClickException("--server-url is required for local runs.")
+                raise MissingServerURL("--server-url is required for local runs.")
             server = DbtServer(ctx.params["server_url"])
 
         else:
-            raise click.ClickException("Only Google Cloud (--cloud-provider google) and local (--cloud-provider local) are supported for now.")
+            raise UnsupportedCloudProvider("Only Google Cloud (--cloud-provider google) and local (--cloud-provider local) are supported for now.")
 
         ctx.obj["server"] = server
 
