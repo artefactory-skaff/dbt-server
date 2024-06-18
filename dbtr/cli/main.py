@@ -6,8 +6,9 @@ from dbt.cli import requires as dbt_requires
 from skaff_telemetry import skaff_telemetry
 
 from dbtr.cli import requires
+from dbtr.cli.exceptions import handle_exceptions
 import dbtr.cli.params as p
-from dbtr.cli.remote_server import DbtServer, ServerLocked
+from dbtr.cli.remote_server import DbtServer
 from dbtr.cli.utils import rename
 from dbtr.cli.version import __version__
 
@@ -96,6 +97,7 @@ def create_command(name, help_message):
                 click.echo(log)
         return inner_command_function(ctx, **kwargs)
 
+
 # Subset of base dbt commands that can be used a subcommands of the `remote` group
 commands = [
     ("debug", "Execute a debug command on a remote server"),
@@ -109,22 +111,21 @@ commands = [
 ]
 
 
+# Dynamically build the remote commands
 for name, help_message in commands:
     create_command(name, help_message)
 
+
+# Extend the dbt CLI with the remote commands
 dbt_cli.add_command(remote)
 
 
+# Run the CLI and catch top-level exceptions
 def main():
     try:
         dbt_cli()
-    except ServerLocked as e:
-        click.echo(f"Run already in progress:\n{e}")
-        click.echo("You can unlock the server by running 'dbtr remote unlock'")
-        exit(1)
     except Exception as e:
-        click.echo(f"Unhandled exception occured: {e}")
-        raise
+        handle_exceptions(e)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,8 @@ from typing import Callable, Dict, Iterator, Any
 from io import BytesIO
 import requests
 
+from dbtr.cli.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
+
 
 class Server:
     def __init__(self, server_url, token_generator: Callable = None):
@@ -59,22 +61,26 @@ class DbtServer(Server):
             dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
     ) -> str:
-        res = self.session.post(
-            url=self.server_url + "api/run",
-            files={"dbt_remote_artifacts": dbt_remote_artifacts},
-            data={
-                "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                "server_runtime_config": json.dumps(
-                    {**server_runtime_config, "cron_schedule": "@now"})
-            },
-        )
+        try:
+            res = self.session.post(
+                url=self.server_url + "api/run",
+                files={"dbt_remote_artifacts": dbt_remote_artifacts},
+                data={
+                    "dbt_runtime_config": json.dumps(dbt_runtime_config),
+                    "server_runtime_config": json.dumps(
+                        {**server_runtime_config, "cron_schedule": "@now"})
+                },
+            )
+        except requests.exceptions.ConnectionError as e:
+            raise ServerConnectionError(f"Failed to connect to {self.server_url}, make sure the server is running and accessible.")
+
         if not res.ok:
             if res.status_code == 423:
                 raise ServerLocked(res.json()["lock_info"])
             elif 400 <= res.status_code < 500:
-                raise ValueError(f"Error {res.status_code}: {res.content}")
+                raise Server400(f"Error {res.status_code}: {res.content}")
             else:
-                raise Exception(f"Server Error {res.status_code}: {res.content}")
+                raise Server500(f"Server Error {res.status_code}: {res.content}")
         else:
             return res.json()["run_id"]
 
@@ -89,9 +95,5 @@ class DbtServer(Server):
     def unlock(self):
         res = self.session.post(url=self.server_url + "api/unlock")
         if not res.ok:
-            raise Exception(f"Failed to unlock the server: {res.status_code} {res.content}")
+            raise ServerUnlockFailed(f"Failed to unlock the server: {res.status_code} {res.content}")
         return res.json()
-
-
-class ServerLocked(Exception):
-    pass

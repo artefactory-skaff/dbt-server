@@ -4,7 +4,7 @@ from typing import List
 from uuid import uuid4
 from subprocess import check_output
 
-import click
+from dbtr.cli.exceptions import MissingExtraPackage, ServerNotFound
 
 try:
     from google.cloud import iam_credentials_v1, compute_v1, bigquery, run_v2, storage, iam_admin_v1, resourcemanager_v3
@@ -16,7 +16,7 @@ try:
     from google.auth.transport.requests import Request
     from google.auth import default
 except ImportError:
-    raise click.ClickException("dbtr is not installed with Google Cloud support. Please install with `pip install dbtr[google]`.")
+    raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install dbtr[google]`.")
 
 
 from dbtr.cli.remote_server import DbtServer
@@ -181,7 +181,7 @@ def find_dbt_server(location: str = None, gcp_project: str = None) -> str:
             dbt_servers.append(uri)
 
     if len(dbt_servers) == 0:
-        raise Exception(f"No dbt server found on {gcp_project}")
+        raise ServerNotFound(f"No dbt server found on {gcp_project}")
     elif len(dbt_servers) > 1:
         print(f"Multiple dbt servers found: {dbt_servers}")
         print(f"Using the first one at {dbt_servers[0]}")
