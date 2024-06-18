@@ -47,8 +47,20 @@ def artifacts_archive(func):
             matches = [p for p in Path(project_dir).rglob(pattern)]
             paths_to_ignore.update(matches)
 
-        all_files = [p for p in Path(project_dir).rglob('*') if p.is_file()]
-        files_to_keep = [file for file in all_files if not any([file.parent == path for path in paths_to_ignore])]
+        def should_ignore(path):
+            return any(path.match(pattern) for pattern in ignore)
+
+        files_to_keep = []
+        for root, dirs, files in os.walk(project_dir):
+            root_path = Path(root)
+            if should_ignore(root_path.relative_to(project_dir)):
+                dirs[:] = []  # Don't traverse into subdirectories
+                continue
+            for file in files:
+                file_path = root_path / file
+                if not should_ignore(file_path.relative_to(project_dir)):
+                    files_to_keep.append(file_path)
+
         print(f"Building artifacts archive to send the dbt server with {len(files_to_keep)} files from {project_dir}")
 
         virtual_file = io.BytesIO()
