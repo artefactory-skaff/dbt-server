@@ -108,8 +108,10 @@ async def create_run(
             CONFIG.persisted_dir / "schedules" / scheduled_run_id / "artifacts" / "input"
         )
         logger.debug("Creating scheduler")
-        schedule_backend.create_or_update_job(**server_runtime_conf.schedule,
-                                              server_url=server_runtime_conf.server_url)
+        schedule_backend.create_or_update_job(
+            **server_runtime_conf.schedule,
+            server_url=f"{server_runtime_conf.server_url}/api/schedule/{scheduled_run_id}/trigger"
+        )
         return JSONResponse(status_code=status.HTTP_201_CREATED,
                             content={"type": "scheduled", "schedule_id": scheduled_run_id})
 
@@ -145,6 +147,9 @@ def trigger_scheduled_run(schedule_run_id: str, background_tasks: BackgroundTask
         CONFIG.persisted_dir / Path("runs") / run_id
     )
     metadata = load_metadata(CONFIG.persisted_dir / Path("runs") / run_id / "metadata.json")
+    metadata["server_runtime_config"]["created_from"] = schedule_run_id
+    persist_metadata(metadata["dbt_runtime_config"], metadata["server_runtime_config"],
+                     CONFIG.persisted_dir / Path("runs") / run_id / "metadata.json")
     dbt_runtime_config = metadata["dbt_runtime_config"]
     dbt_executor = DBTExecutor(
         dbt_runtime_config=dbt_runtime_config["flags"],

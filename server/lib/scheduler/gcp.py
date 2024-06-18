@@ -16,9 +16,9 @@ class GCPScheduler(BaseScheduler):
         self.job_parent = f"projects/{self.project_id}/locations/{self.location}"
         self.client = scheduler_v1.CloudSchedulerClient()
 
-    def create_or_update_job(self, job_name: str, cron_expression: str, server_url: str, description: str = ""):
+    def create_or_update_job(self, name: str, cron_expression: str, server_url: str, description: str = ""):
         job = {
-            "name": f"{self.job_parent}/jobs/{job_name}",
+            "name": f"{self.job_parent}/jobs/{name}",
             "schedule": cron_expression,
             "http_target": HttpTarget(
                 uri=server_url,

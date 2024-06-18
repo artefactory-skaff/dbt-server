@@ -1,7 +1,9 @@
+from typing import Optional, Any, Dict
 from pydantic import field_validator, computed_field, BaseModel
 
 
 class ServerRuntimeConfig(BaseModel):
+    schedule: Optional[dict] = {}
     requester: str = "unknown"
     schedule: dict
     cloud_provider: str
@@ -16,4 +18,4 @@ class ServerRuntimeConfig(BaseModel):
 
     @computed_field
     def is_static_run(self) -> bool:
-        return self.schedule.get("cron_expression", "@now") == "@now"
+        return self.schedule.get("cron_expression", "@now") == "@now" or self.schedule.get("cron_expression") is None

@@ -22,6 +22,7 @@ class Server:
         session.headers.update({"Authorization": f"Bearer {token}"})
         return session
 
+
 class DbtServer(Server):
     def __init__(self, server_url, token_generator: Callable = None):
         super().__init__(server_url, token_generator)
@@ -62,17 +63,18 @@ class DbtServer(Server):
             server_runtime_config: Dict[str, str]
     ) -> str:
         try:
+            _server_runtime_config = self.format_server_runtime_config(server_runtime_config)
             res = self.session.post(
                 url=self.server_url + "api/run",
                 files={"dbt_remote_artifacts": dbt_remote_artifacts},
                 data={
                     "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                    "server_runtime_config": json.dumps(
-                        {**server_runtime_config, "cron_schedule": "@now"})
+                    "server_runtime_config": json.dumps(_server_runtime_config)
                 },
             )
         except requests.exceptions.ConnectionError as e:
-            raise ServerConnectionError(f"Failed to connect to {self.server_url}, make sure the server is running and accessible.")
+            raise ServerConnectionError(
+                f"Failed to connect to {self.server_url}, make sure the server is running and accessible.")
 
         if not res.ok:
             if res.status_code == 423:
@@ -97,3 +99,16 @@ class DbtServer(Server):
         if not res.ok:
             raise ServerUnlockFailed(f"Failed to unlock the server: {res.status_code} {res.content}")
         return res.json()
+
+    @staticmethod
+    def format_server_runtime_config(config: dict) -> dict:
+        schedule_config = {}
+        server_runtime_config = {}
+        for key_param, val_param in config.items():
+            if key_param.startswith("schedule"):
+                new_key_param = key_param[len("schedule") + 1:]
+                schedule_config[new_key_param] = val_param
+            else:
+                server_runtime_config[key_param] = val_param
+        server_runtime_config["schedule"] = schedule_config
+        return server_runtime_config
