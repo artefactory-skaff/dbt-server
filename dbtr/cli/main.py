@@ -18,6 +18,8 @@ def global_flags(func):
     @p.cloud_provider
     @p.gcp_location
     @p.gcp_project
+    @p.azure_location
+    @p.azure_resource_group
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -43,7 +45,10 @@ def deploy(ctx, **kwargs):
     cloud_provider = ctx.params["cloud_provider"]
     if cloud_provider == "google":
         from dbtr.cli.cloud_providers.gcp import deploy
-        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], project_id=ctx.params["gcp_project"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
+        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], region=ctx.params["gcp_location"], project_id=ctx.params["gcp_project"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
+    elif cloud_provider == "azure":
+        from dbtr.cli.cloud_providers.az import deploy
+        deploy(image=ctx.params["image"], service_name=ctx.params["service"], location=ctx.params["azure_location"], adpater=ctx.params["adapter"], resource_group=ctx.params["azure_resource_group"], log_level=ctx.params["log_level"])
     elif cloud_provider == "local":
         from dbtr.cli.cloud_providers.local import deploy
         deploy(port=ctx.params["port"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])

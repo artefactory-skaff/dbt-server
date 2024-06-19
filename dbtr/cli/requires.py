@@ -160,7 +160,7 @@ def dbt_server(func):
             from dbtr.cli.cloud_providers import gcp
 
             if ctx.params["server_url"] is None:
-                print("--server-url not set, performing server discovery...")
+                click.echo("--server-url not set, performing server discovery...")
                 if ctx.params["gcp_project"] is None:
                     project_id = gcp.get_project_id()
                     click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
@@ -170,13 +170,18 @@ def dbt_server(func):
                 server_url = ctx.params["server_url"]
             server = DbtServer(server_url, token_generator=gcp.get_auth_token)
 
+        elif ctx.params["cloud_provider"] == "azure":
+            from dbtr.cli.cloud_providers import az
+
+            if ctx.params["server_url"] is None:
+                raise MissingServerURL("--server-url is required for Azure runs.")
+            server = DbtServer(ctx.params["server_url"], token_generator=az.get_auth_token)
+
         elif ctx.params["cloud_provider"] == "local":
             if ctx.params["server_url"] is None:
                 raise MissingServerURL("--server-url is required for local runs.")
             server = DbtServer(ctx.params["server_url"])
 
-        else:
-            raise UnsupportedCloudProvider("Only Google Cloud (--cloud-provider google) and local (--cloud-provider local) are supported for now.")
 
         ctx.obj["server"] = server
 

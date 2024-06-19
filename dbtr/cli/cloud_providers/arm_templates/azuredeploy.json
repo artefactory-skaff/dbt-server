@@ -1,0 +1,250 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "name": {
+            "type": "string",
+            "defaultValue": "dbt-server-four"
+        },
+        "nameSanitized": {
+            "type": "string",
+            "defaultValue": "dbtserverfour"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "francecentral"
+        },
+        "image": {
+            "type": "string",
+            "defaultValue": "europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/dev:avi"
+        },
+        "envVars": {
+            "type": "array",
+            "defaultValue": [
+                {
+                    "name": "LOG_LEVEL",
+                    "value": "debug"
+                },
+                {
+                    "name": "ADAPTER",
+                    "value": "dbt-bigquery"
+                }
+            ]
+        },
+        "secrets": {
+            "type": "secureObject",
+            "defaultValue": {
+                "arrayValue": []
+            }
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2024-02-02-preview",
+            "name": "[parameters('name')]",
+            "type": "Microsoft.App/containerapps",
+            "kind": "containerapps",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.App/managedEnvironments/', parameters('name'))]",
+                "[resourceId('Microsoft.App/managedEnvironments/storages', parameters('name'), parameters('nameSanitized'))]"
+            ],
+            "properties": {
+                "environmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('name'))]",
+                "configuration": {
+                    "secrets": "[parameters('secrets').arrayValue]",
+                    "registries": [],
+                    "activeRevisionsMode": "Single",
+                    "ingress": {
+                        "external": true,
+                        "transport": "Auto",
+                        "allowInsecure": false,
+                        "targetPort": 8080,
+                        "stickySessions": {
+                            "affinity": "none"
+                        },
+                        "additionalPortMappings": []
+                    }
+                },
+                "template": {
+                    "containers": [
+                        {
+                            "name": "[parameters('name')]",
+                            "image": "[parameters('image')]",
+                            "command": [],
+                            "resources": {
+                                "cpu": 0.5,
+                                "memory": "1Gi"
+                            },
+                            "env": "[parameters('envVars')]",
+                            "volumeMounts": [
+                                {
+                                    "volumeName": "[parameters('name')]",
+                                    "mountPath": "/home/dbt_user/dbt-server-volume/"
+                                }
+                            ]
+                        }
+                    ],
+                    "scale": {
+                        "minReplicas": 0,
+                        "maxReplicas": 1
+                    },
+                    "volumes": [
+                        {
+                            "name": "[parameters('name')]",
+                            "storageType": "AzureFile",
+                            "storageName": "[parameters('nameSanitized')]"
+                        }
+                    ]
+                },
+                "workloadProfileName": "Consumption"
+            }
+        },
+        {
+            "apiVersion": "2024-02-02-preview",
+            "name": "[parameters('name')]",
+            "type": "Microsoft.App/managedEnvironments",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.OperationalInsights/workspaces/', parameters('nameSanitized'))]"
+            ],
+            "properties": {
+                "appLogsConfiguration": {
+                    "destination": "log-analytics",
+                    "logAnalyticsConfiguration": {
+                        "customerId": "[reference(concat('Microsoft.OperationalInsights/workspaces/', parameters('nameSanitized')), '2020-08-01').customerId]",
+                        "sharedKey": "[listKeys(concat('Microsoft.OperationalInsights/workspaces/', parameters('nameSanitized')), '2020-08-01').primarySharedKey]"
+                    }
+                },
+                "workloadProfiles": [
+                    {
+                        "name": "Consumption",
+                        "workloadProfileType": "Consumption"
+                    }
+                ]
+            },
+            "resources": [
+                {
+                    "type": "storages",
+                    "name": "[parameters('nameSanitized')]",
+                    "apiVersion": "2022-03-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.App/managedEnvironments', parameters('name'))]"
+                    ],
+                    "properties": {
+                        "azureFile": {
+                            "accountName": "[parameters('nameSanitized')]",
+                            "accountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('nameSanitized')), '2022-09-01').keys[0].value]",
+                            "shareName": "[parameters('name')]",
+                            "accessMode": "ReadWrite"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "apiVersion": "2020-08-01",
+            "name": "[parameters('nameSanitized')]",
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "location": "[parameters('location')]",
+            "dependsOn": [],
+            "properties": {
+                "sku": {
+                    "name": "PerGB2018"
+                },
+                "retentionInDays": 30,
+                "workspaceCapping": {}
+            }
+        },
+        {
+            "name": "[parameters('nameSanitized')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2022-09-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": true,
+                "defaultToOAuthAuthentication": false,
+                "accessTier": "Hot",
+                "publicNetworkAccess": "Enabled",
+                "allowCrossTenantReplication": false,
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "defaultAction": "Allow",
+                    "ipRules": []
+                },
+                "dnsEndpointType": "Standard",
+                "isHnsEnabled": true,
+                "isSftpEnabled": false,
+                "largeFileSharesState": "Enabled",
+                "encryption": {
+                    "keySource": "Microsoft.Storage",
+                    "services": {
+                        "blob": {
+                            "enabled": true
+                        },
+                        "file": {
+                            "enabled": true
+                        },
+                        "table": {
+                            "enabled": true
+                        },
+                        "queue": {
+                            "enabled": true
+                        }
+                    },
+                    "requireInfrastructureEncryption": false
+                }
+            },
+            "dependsOn": [],
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "tags": {}
+        },
+        {
+            "name": "[concat(parameters('nameSanitized'), '/default')]",
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2022-09-01",
+            "properties": {
+                "deleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": 7
+                },
+                "containerDeleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": 7
+                }
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', parameters('nameSanitized'))]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('nameSanitized'), '/default')]",
+            "type": "Microsoft.Storage/storageAccounts/fileservices",
+            "apiVersion": "2022-09-01",
+            "properties": {
+                "protocolSettings": null,
+                "shareDeleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": 7
+                }
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', parameters('nameSanitized'))]"
+            ]
+        },
+        {
+            "name": "[format('{0}/default/{1}', parameters('nameSanitized'), parameters('name'))]",
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2021-04-01",
+            "dependsOn": [
+              "[resourceId('Microsoft.Storage/storageAccounts', parameters('nameSanitized'))]"
+            ]
+        }
+    ]
+}

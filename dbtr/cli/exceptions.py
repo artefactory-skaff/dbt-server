@@ -32,9 +32,17 @@ class Server400(DbtrException):
 class Server500(DbtrException):
     pass
 
+class AzureDeploymentFailed(DbtrException):
+    pass
+
+class MissingAzureParams(DbtrException):
+    pass
+
+
 def handle_exceptions(e):
     if isinstance(e, DbtrException):
         click.echo(e)
     else:
         click.echo("".join(tb.format_exception(e)))
         click.echo(f"An unhandled exception occured, please report this issue with the above traceback to the dbtr team by creating an issue at https://github.com/artefactory-skaff/dbt-server/issues")
+        exit(1)
