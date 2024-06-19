@@ -1,42 +1,30 @@
 import json
-from typing import Dict, Iterator, Any
+from typing import Callable, Dict, Iterator, Any
 from io import BytesIO
-from subprocess import check_output
 import requests
-from google.cloud import iam_credentials_v1
-import google.oauth2.id_token
+
+from dbtr.cli.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
 
 
 class Server:
-    def __init__(self, server_url):
+    def __init__(self, server_url, token_generator: Callable = None):
         self.server_url = server_url if server_url.endswith("/") else server_url + "/"
+        self.token_generator = token_generator
+
         self.session = self.get_auth_session()
 
     def get_auth_session(self) -> requests.Session:
-        id_token = self.get_auth_token()
+        if self.token_generator is None:
+            return requests.Session()
+
+        token = self.token_generator(server_url=self.server_url)
         session = requests.Session()
-        session.headers.update({"Authorization": f"Bearer {id_token}"})
+        session.headers.update({"Authorization": f"Bearer {token}"})
         return session
 
-    def get_auth_token(self):
-        try:
-            # Assumes a GCP service account is available, e.g. in a CI/CD pipeline
-            client = iam_credentials_v1.IAMCredentialsClient()
-            response = client.generate_id_token(
-                name=self.get_service_account_email(),
-                audience=self.server_url,
-            )
-            id_token = response.token
-        except (google.api_core.exceptions.PermissionDenied, AttributeError):
-            # No GCP service account available, assumes a local env where gcloud is installed
-            id_token_raw = check_output("gcloud auth print-identity-token", shell=True)
-            id_token = id_token_raw.decode("utf8").strip()
-
-        return id_token
-
 class DbtServer(Server):
-    def __init__(self, server_url):
-        super().__init__(server_url)
+    def __init__(self, server_url, token_generator: Callable = None):
+        super().__init__(server_url, token_generator)
 
     def send_task(
             self,
@@ -73,22 +61,26 @@ class DbtServer(Server):
             dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
     ) -> str:
-        res = self.session.post(
-            url=self.server_url + "api/run",
-            files={"dbt_remote_artifacts": dbt_remote_artifacts},
-            data={
-                "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                "server_runtime_config": json.dumps(
-                    {**server_runtime_config, "cron_schedule": "@now"})
-            },
-        )
+        try:
+            res = self.session.post(
+                url=self.server_url + "api/run",
+                files={"dbt_remote_artifacts": dbt_remote_artifacts},
+                data={
+                    "dbt_runtime_config": json.dumps(dbt_runtime_config),
+                    "server_runtime_config": json.dumps(
+                        {**server_runtime_config, "cron_schedule": "@now"})
+                },
+            )
+        except requests.exceptions.ConnectionError as e:
+            raise ServerConnectionError(f"Failed to connect to {self.server_url}, make sure the server is running and accessible.")
+
         if not res.ok:
             if res.status_code == 423:
                 raise ServerLocked(res.json()["lock_info"])
             elif 400 <= res.status_code < 500:
-                raise ValueError(f"Error {res.status_code}: {res.content}")
+                raise Server400(f"Error {res.status_code}: {res.content}")
             else:
-                raise Exception(f"Server Error {res.status_code}: {res.content}")
+                raise Server500(f"Server Error {res.status_code}: {res.content}")
         else:
             return res.json()["run_id"]
 
@@ -103,9 +95,5 @@ class DbtServer(Server):
     def unlock(self):
         res = self.session.post(url=self.server_url + "api/unlock")
         if not res.ok:
-            raise Exception(f"Failed to unlock the server: {res.status_code} {res.content}")
+            raise ServerUnlockFailed(f"Failed to unlock the server: {res.status_code} {res.content}")
         return res.json()
-
-
-class ServerLocked(Exception):
-    pass

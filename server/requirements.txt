@@ -1,4 +1,0 @@
-fastapi
-uvicorn
-dbt-bigquery
-snowflake-id

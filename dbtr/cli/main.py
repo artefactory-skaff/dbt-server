@@ -5,11 +5,12 @@ from dbt.cli.main import cli as dbt_cli
 from dbt.cli import requires as dbt_requires
 from skaff_telemetry import skaff_telemetry
 
-from cli import requires
-import cli.params as p
-from cli.remote_server import DbtServer, ServerLocked
-from cli.utils import rename
-from server.version import __version__
+from dbtr.cli import requires
+from dbtr.cli.exceptions import handle_exceptions
+import dbtr.cli.params as p
+from dbtr.cli.remote_server import DbtServer
+from dbtr.cli.utils import rename
+from dbtr.cli.version import __version__
 
 
 def global_flags(func):
@@ -25,27 +26,27 @@ def global_flags(func):
 
 @click.group("remote", help="Perform dbt commands on a remote server")
 @click.pass_context
-@global_flags
 def remote(ctx, **kwargs):
     pass
 
 
 @remote.command("deploy", help="Deploy a dbt server on the selected cloud provider")
 @click.pass_context
+@global_flags
 @p.image
+@p.adapter
 @p.service
 @p.port
 @p.log_level
-@global_flags
 @skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
 def deploy(ctx, **kwargs):
     cloud_provider = ctx.params["cloud_provider"]
     if cloud_provider == "google":
-        from cli.cloud_providers.google import deploy
-        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], project_id=ctx.params["gcp_project"], log_level=ctx.params["log_level"])
+        from dbtr.cli.cloud_providers.gcp import deploy
+        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], project_id=ctx.params["gcp_project"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
     elif cloud_provider == "local":
-        from cli.cloud_providers.local import deploy
-        deploy(port=ctx.params["port"], log_level=ctx.params["log_level"])
+        from dbtr.cli.cloud_providers.local import deploy
+        deploy(port=ctx.params["port"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
     else:
         click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported providers at the moment are 'google' and 'local'")
 
@@ -96,6 +97,7 @@ def create_command(name, help_message):
                 click.echo(log)
         return inner_command_function(ctx, **kwargs)
 
+
 # Subset of base dbt commands that can be used a subcommands of the `remote` group
 commands = [
     ("debug", "Execute a debug command on a remote server"),
@@ -109,19 +111,22 @@ commands = [
 ]
 
 
+# Dynamically build the remote commands
 for name, help_message in commands:
     create_command(name, help_message)
 
+
+# Extend the dbt CLI with the remote commands
 dbt_cli.add_command(remote)
 
 
-if __name__ == "__main__":
+# Run the CLI and catch top-level exceptions
+def main():
     try:
         dbt_cli()
-    except ServerLocked as e:
-        click.echo(f"Run already in progress:\n{e}")
-        click.echo("You can unlock the server by running 'dbt remote unlock'")
-        exit(1)
     except Exception as e:
-        click.echo(f"Unhandled exception occured: {e}")
-        raise
+        handle_exceptions(e)
+
+
+if __name__ == "__main__":
+    main()

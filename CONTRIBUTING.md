@@ -16,3 +16,12 @@ Deploy a new dev server revision
 ```
 poetry run python cli/main.py remote deploy --image europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/dev:avi --service dbt-server-avi
 ```
+
+## Publish the package
+
+Increment the version number in `pyproject.toml`, `cli/version/py`, and `server/version.py`.
+
+Publish to Pypi after your changes are validated.
+```shell
+task publish
+```

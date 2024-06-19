@@ -1,22 +1,24 @@
 import asyncio
 import json
+import os
 from pathlib import Path
 import time
 from typing import Callable
-from skaff_telemetry import skaff_telemetry
 
+from skaff_telemetry import skaff_telemetry
 import uvicorn
 from fastapi import FastAPI, Form, Request, UploadFile, File, status, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from server.config import CONFIG
-from server.lib.artifacts import generate_id, move_folder, persist_metadata, load_metadata, \
+from dbtr.server.config import CONFIG
+from dbtr.server.lib.artifacts import generate_id, move_folder, persist_metadata, load_metadata, \
     unpack_and_persist_artifact
-from server.lib.dbt_executor import DBTExecutor
-from server.lib.logger import get_logger
-from server.lib.models import ServerRuntimeConfig
-from server.version import __version__
-from server.lib.lock import Lock, LockException
+from dbtr.server.lib.dbt_executor import DBTExecutor
+from dbtr.server.lib.logger import get_logger
+from dbtr.server.lib.models import ServerRuntimeConfig
+from dbtr.server.version import __version__
+from dbtr.server.lib.lock import Lock, LockException
+
 
 logger = get_logger(CONFIG.log_level)
 schedule_backend = None  # should be different based on CONFIG.provider
@@ -198,4 +200,4 @@ async def stream_log_file(run_id: str, filter: Callable, stop: Callable):
 
 
 if __name__ == '__main__':
-    uvicorn.run("server.main:app", host="0.0.0.0", port=CONFIG.port, workers=1, reload=False)
+    uvicorn.run("dbtr.server.main:app", host="0.0.0.0", port=CONFIG.port, workers=1, reload=False)

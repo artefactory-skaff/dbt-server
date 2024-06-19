@@ -2,17 +2,27 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import List
 from uuid import uuid4
+from subprocess import check_output
 
-from google.cloud import compute_v1, bigquery, run_v2, storage, iam_admin_v1, resourcemanager_v3
-from google.iam.v1 import iam_policy_pb2, policy_pb2
-from google.cloud.iam_admin_v1 import types
-from google.api_core.exceptions import AlreadyExists, DeadlineExceeded
-from googleapiclient import discovery, errors
+from dbtr.cli.exceptions import MissingExtraPackage, ServerNotFound
 
-from cli.remote_server import DbtServer
+try:
+    from google.cloud import iam_credentials_v1, compute_v1, bigquery, run_v2, storage, iam_admin_v1, resourcemanager_v3
+    from google.iam.v1 import iam_policy_pb2, policy_pb2
+    from google.cloud.iam_admin_v1 import types
+    from google.api_core.exceptions import AlreadyExists, DeadlineExceeded
+    from googleapiclient import discovery, errors
+    import google.oauth2.id_token
+    from google.auth.transport.requests import Request
+    from google.auth import default
+except ImportError:
+    raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install dbtr[google]`.")
 
 
-def deploy(image: str, service_name: str, port: int, project_id: str = None, log_level: str = "INFO"):
+from dbtr.cli.remote_server import DbtServer
+
+
+def deploy(image: str, service_name: str, port: int, adapter: str, project_id: str = None, log_level: str = "INFO"):
     if project_id is None:
         project_id = get_project_id()
     enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
@@ -25,6 +35,7 @@ def deploy(image: str, service_name: str, port: int, project_id: str = None, log
         service_account_email=service_account.email,
         port=port,
         log_level=log_level,
+        adapter=adapter,
     )
 
 
@@ -95,7 +106,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket,region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
+def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket, adapter: str, region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
     project_id = get_project_id()
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
@@ -107,7 +118,7 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
         image=image,
         ports=[run_v2.ContainerPort(container_port=port)],
         volume_mounts=[run_v2.VolumeMount(mount_path="/home/dbt_user/dbt-server-volume", name="dbt-server-volume")],
-        env=[run_v2.EnvVar(name="LOG_LEVEL", value=log_level)]
+        env=[run_v2.EnvVar(name="LOG_LEVEL", value=log_level), run_v2.EnvVar(name="ADAPTER", value=adapter)]
     )
 
     volume = run_v2.Volume(
@@ -166,11 +177,11 @@ def find_dbt_server(location: str = None, gcp_project: str = None) -> str:
 
     dbt_servers = []
     for uri in result:
-        if DbtServer(uri).is_dbt_server():
+        if DbtServer(uri, token_generator=get_auth_token).is_dbt_server():
             dbt_servers.append(uri)
 
     if len(dbt_servers) == 0:
-        raise Exception(f"No dbt server found on {gcp_project}")
+        raise ServerNotFound(f"No dbt server found on {gcp_project}")
     elif len(dbt_servers) > 1:
         print(f"Multiple dbt servers found: {dbt_servers}")
         print(f"Using the first one at {dbt_servers[0]}")
@@ -271,3 +282,26 @@ def enable_gcp_services(services: List[str], project_id: str):
                 print(f"Service {service} is already enabled.")
             else:
                 print(f"Failed to enable service {service}: {e}")
+
+
+def get_auth_token(server_url: str):
+    try:
+        # Assumes a GCP service account is available, e.g. in a CI/CD pipeline
+        client = iam_credentials_v1.IAMCredentialsClient()
+        response = client.generate_id_token(
+            name=get_service_account_email(),
+            audience=server_url,
+        )
+        id_token = response.token
+    except (google.api_core.exceptions.PermissionDenied, AttributeError):
+        # No GCP service account available, assumes a local env where gcloud is installed
+        id_token_raw = check_output("gcloud auth print-identity-token", shell=True)
+        id_token = id_token_raw.decode("utf8").strip()
+
+    return id_token
+
+
+def get_service_account_email(scopes=["https://www.googleapis.com/auth/cloud-platform"]):
+    credentials, _ = default(scopes=scopes)
+    credentials.refresh(Request())
+    return credentials.service_account_email
