@@ -5,7 +5,6 @@ from pydantic import field_validator, computed_field, BaseModel
 class ServerRuntimeConfig(BaseModel):
     schedule: Optional[dict] = {}
     requester: str = "unknown"
-    schedule: dict
     cloud_provider: str
     server_url: str
 

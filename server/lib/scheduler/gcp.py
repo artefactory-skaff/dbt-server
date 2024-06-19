@@ -37,6 +37,5 @@ class GCPScheduler(BaseScheduler):
         try:
             self.client.create_job(parent=self.job_parent, job=job)
         except AlreadyExists:
-            print("updating job")
             self.client.delete_job(name=job["name"])
             self.client.create_job(parent=self.job_parent, job=job)
