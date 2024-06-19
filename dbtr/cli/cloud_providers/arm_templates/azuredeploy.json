@@ -82,6 +82,35 @@
                                     "volumeName": "[parameters('name')]",
                                     "mountPath": "/home/dbt_user/dbt-server-volume/"
                                 }
+                            ],
+                            "probes": [
+                                {
+                                  "type": "liveness",
+                                  "httpGet": {
+                                    "path": "/api/version",
+                                    "port": 8080
+                                  },
+                                  "initialDelaySeconds": 0,
+                                  "periodSeconds": 10
+                                },
+                                {
+                                  "type": "readiness",
+                                  "httpGet": {
+                                    "path": "/api/version",
+                                    "port": 8080
+                                  },
+                                  "initialDelaySeconds": 0,
+                                  "periodSeconds": 10
+                                },
+                                {
+                                  "type": "startup",
+                                  "httpGet": {
+                                    "path": "/api/version",
+                                    "port": 8080
+                                  },
+                                  "initialDelaySeconds": 0,
+                                  "periodSeconds": 10
+                                }
                             ]
                         }
                     ],
