@@ -38,6 +38,9 @@ class AzureDeploymentFailed(DbtrException):
 class MissingAzureParams(DbtrException):
     pass
 
+class ServerConnectionError(DbtrException):
+    pass
+
 
 def handle_exceptions(e):
     if isinstance(e, DbtrException):
