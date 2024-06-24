@@ -9,5 +9,5 @@ class CONFIG:
     provider: str = os.getenv("PROVIDER", "GCP")
     log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
     persisted_dir: Path = Path(__file__).parent.parent.parent / "dbt-server-volume"
-    lockfile_path: Path = persisted_dir / "lock.json"
+    db_connection_string: str = f"sqlite:///{persisted_dir / 'db.sqlite3'}"
     dbt_adapter: str = os.getenv("DBT_ADAPTER", "dbt-bigquery")

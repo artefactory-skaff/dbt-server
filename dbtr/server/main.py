@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from dbtr.server.config import CONFIG
 from dbtr.server.lib.artifacts import generate_id, move_folder, persist_metadata, load_metadata, \
     unpack_and_persist_artifact
+from dbtr.server.lib.database import Database
 from dbtr.server.lib.dbt_executor import DBTExecutor
 from dbtr.server.lib.logger import get_logger
 from dbtr.server.lib.models import ServerRuntimeConfig
@@ -30,6 +31,10 @@ app = FastAPI(
     version=__version__,
     docs_url="/docs"
 )
+
+
+with Database(CONFIG.db_connection_string, logger=logger) as db:
+    db.initialize_schema()
 
 
 @app.middleware("http")
@@ -66,7 +71,7 @@ async def create_run(
     if server_runtime_conf.is_static_run:
         run_id = generate_id()
         try:
-            lock = Lock(CONFIG.lockfile_path).acquire(holder=server_runtime_conf.requester, run_id=run_id)
+            lock = Lock(Database(CONFIG.db_connection_string, logger=logger)).acquire(holder=server_runtime_conf.requester, run_id=run_id)
         except LockException as e:
             logger.error(f"Failed to acquire lock: {e}")
             return JSONResponse(status_code=status.HTTP_423_LOCKED, content={"error": "Run already in progress", "lock_info": str(e.lock_data)})
@@ -111,12 +116,11 @@ async def create_run(
 
 
 @app.get("/api/logs/{run_id}")
-def stream_log(run_id: str):
+def stream_log(run_id: str, include_debug: bool = False):
     return StreamingResponse(
         stream_log_file(
             run_id,
-            filter=lambda line: line.get("info", {}).get("level") != "debug",
-            # TODO: loglevel should be dynamic (from query or run metadata w/ query > run metadata)
+            filter=lambda line: include_debug or line.get("info", {}).get("level") != "debug",
             stop=lambda line: line.get("info", {}).get("name") == "CommandCompleted"
         ),
         media_type="text/event-stream",
@@ -128,6 +132,43 @@ def stream_log(run_id: str):
 def get_run(run_id: str):
     logger.info("Retrieving artifacts from storage backend")
     return JSONResponse(status_code=status.HTTP_200_OK, content={"status": "in progress", "run_id": run_id})
+
+
+@app.get("/api/run")
+def list_runs(skip: int = 0, limit: int = 20):
+    logger.info("Listing past runs")
+    runs_dir = CONFIG.persisted_dir / "runs"
+    runs = sorted([run / "metadata.json" for run in runs_dir.iterdir() if run.is_dir()], reverse=True)
+
+    skip = min(max(skip, 0), len(runs))
+    paginated_runs = runs[skip: min(skip + limit, len(runs))]
+
+    runs = {}
+    for metadata_file in paginated_runs:
+        if metadata_file.exists():
+            with open(metadata_file, "r") as file:
+                metadata = json.load(file)
+                run_id = metadata_file.parent.name
+                runs[run_id] = metadata
+    return JSONResponse(status_code=status.HTTP_200_OK, content=runs)
+
+
+@app.get("/api/project")
+def get_project():
+    runs_dir = CONFIG.persisted_dir / "runs"
+    project_names = set()
+
+    for run in runs_dir.iterdir():
+        if run.is_dir():
+            metadata_file = run / "metadata.json"
+            if metadata_file.exists():
+                with open(metadata_file, "r") as file:
+                    metadata = json.load(file)
+                    project_dir = metadata["dbt_runtime_config"]["flags"]["project_dir"]
+                    project_name = project_dir.split("/")[-1]
+                    project_names.add(project_name)
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"projects": list(project_names)})
 
 
 @app.post("/api/schedule/{schedule_run_id}/trigger")
@@ -164,7 +205,7 @@ async def check():
 @app.post("/api/unlock")
 def unlock_server():
     try:
-        lock = Lock.from_file(CONFIG.lockfile_path)
+        lock = Lock.from_db(Database(CONFIG.db_connection_string, logger=logger))
         lock.release()
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "Server unlocked successfully"})
     except FileNotFoundError:
@@ -186,9 +227,12 @@ async def stream_log_file(run_id: str, filter: Callable, stop: Callable):
             _line = file.readline()
             if _line:
 
-                lock = Lock.from_file(CONFIG.lockfile_path)
-                if lock.lock_data.run_id == run_id:
-                    lock.refresh()
+                try:
+                    lock = Lock.from_db(Database(CONFIG.db_connection_string, logger=logger))
+                    if lock.lock_data.run_id == run_id:
+                        lock.refresh()
+                except FileNotFoundError:
+                    pass
 
                 line = json.loads(_line)
                 if filter(line):
