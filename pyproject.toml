@@ -20,6 +20,8 @@ pytest = "^8"
 pytest-xdist = "^3"
 skaff-telemetry = "^0.1"
 click = "^8"
+dbutils = "^3"
+sqlalchemy = "^2"
 dbt-core = { version = "^1", optional = true }
 dbt-bigquery = { version = "^1", optional = true }
 google-cloud-iam = { version = "^2", optional = true }
