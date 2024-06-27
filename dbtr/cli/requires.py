@@ -8,7 +8,7 @@ import click
 import humanize
 from dbt_common.helper_types import WarnErrorOptions
 from dbt.cli.main import cli as dbt_cli
-from dbtr.cli.exceptions import MissingServerURL, UnsupportedCloudProvider
+from dbtr.cli.exceptions import MissingServerURL
 
 from dbtr.cli.remote_server import DbtServer
 
@@ -129,6 +129,7 @@ def runtime_config(func):
 
         server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
         server_runtime_config["requester"] = os.getenv("USER") or os.getenv("USERNAME", "unknown")
+        server_runtime_config["project"] = ctx.obj["project"].project_name
         ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
 

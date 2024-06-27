@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from pathlib import Path
 import time
 from typing import Callable
@@ -11,7 +10,7 @@ from fastapi import FastAPI, Form, Request, UploadFile, File, status, Background
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from dbtr.server.config import CONFIG
-from dbtr.server.lib.artifacts import generate_id, move_folder, persist_metadata, load_metadata, \
+from dbtr.server.lib.artifacts import fetch_run_config, generate_id, move_folder, persist_run_config, \
     unpack_and_persist_artifact
 from dbtr.server.lib.database import Database
 from dbtr.server.lib.dbt_executor import DBTExecutor
@@ -65,11 +64,14 @@ async def create_run(
         - we return state of run (⚠︎ how to handle log)
     """
     dbt_runtime_config = json.loads(dbt_runtime_config)
+    server_runtime_config = json.loads(server_runtime_config)
     flags = dbt_runtime_config["flags"]
     command = dbt_runtime_config["command"]
-    server_runtime_conf = ServerRuntimeConfig(**json.loads(server_runtime_config))
+    server_runtime_conf = ServerRuntimeConfig(**server_runtime_config)
     if server_runtime_conf.is_static_run:
         run_id = generate_id()
+        server_runtime_config["run_id"] = run_id
+
         try:
             lock = Lock(Database(CONFIG.db_connection_string, logger=logger)).acquire(holder=server_runtime_conf.requester, run_id=run_id)
         except LockException as e:
@@ -78,8 +80,7 @@ async def create_run(
 
         logger.info("Creating static run")
         logger.debug("Persisting metadata")
-        persist_metadata(dbt_runtime_config, server_runtime_config,
-                        CONFIG.persisted_dir / "runs" / run_id / "metadata.json")
+        persist_run_config(dbt_runtime_config, server_runtime_config)
         logger.debug(f"Unzipping artifact files {dbt_remote_artifacts.filename}")
 
         start = time.time()
@@ -91,6 +92,7 @@ async def create_run(
 
         dbt_executor = DBTExecutor(
             dbt_runtime_config=flags,
+            server_runtime_config=server_runtime_config,
             artifact_input=local_artifact_path,
             logger=logger
         )
@@ -101,16 +103,18 @@ async def create_run(
 
     else:
         scheduled_run_id = generate_id("schedule-")
+        server_runtime_config["run_id"] = scheduled_run_id
+
         logger.info("Creating scheduled run")
         logger.debug("Persisting metadata")
-        persist_metadata(dbt_runtime_config, server_runtime_config,
-                         CONFIG.persisted_dir / "schedules" / scheduled_run_id / "metadata.json")
+        persist_run_config(dbt_runtime_config, server_runtime_config, run_id)
         logger.debug("Unzipping artifacts")
         await unpack_and_persist_artifact(
             dbt_remote_artifacts,
             CONFIG.persisted_dir / "schedules" / scheduled_run_id / "artifacts" / "input"
         )
         logger.debug("Creating scheduler")
+        # TODO: scheduling
         return JSONResponse(status_code=status.HTTP_201_CREATED,
                             content={"type": "scheduled", "schedule_id": scheduled_run_id})
 
@@ -181,10 +185,11 @@ def trigger_scheduled_run(schedule_run_id: str, background_tasks: BackgroundTask
         CONFIG.persisted_dir / Path("schedules") / schedule_run_id,
         CONFIG.persisted_dir / Path("runs") / run_id
     )
-    metadata = load_metadata(CONFIG.persisted_dir / Path("runs") / run_id / "metadata.json")
-    dbt_runtime_config = metadata["dbt_runtime_config"]
+    server_runtime_config = fetch_run_config(run_id)
+    dbt_runtime_config = server_runtime_config["dbt_runtime_config"]
     dbt_executor = DBTExecutor(
         dbt_runtime_config=dbt_runtime_config["flags"],
+        server_runtime_config=server_runtime_config,
         artifact_input=run_input / "artifacts" / "input",
         logger=logger
     )
@@ -209,7 +214,7 @@ def unlock_server():
         lock.release()
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "Server unlocked successfully"})
     except FileNotFoundError:
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "Lock file not found"})
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "Lock not found"})
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(e)})
 
@@ -227,12 +232,13 @@ async def stream_log_file(run_id: str, filter: Callable, stop: Callable):
             _line = file.readline()
             if _line:
 
-                try:
-                    lock = Lock.from_db(Database(CONFIG.db_connection_string, logger=logger))
-                    if lock.lock_data.run_id == run_id:
-                        lock.refresh()
-                except FileNotFoundError:
-                    pass
+                with Database(CONFIG.db_connection_string, logger=logger) as db:
+                    try:
+                        lock = Lock.from_db(db)
+                        if lock.lock_data.run_id == run_id:
+                            lock.refresh()
+                    except FileNotFoundError:
+                        pass
 
                 line = json.loads(_line)
                 if filter(line):

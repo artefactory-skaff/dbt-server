@@ -8,6 +8,9 @@ from typing import Any
 
 from snowflake import SnowflakeGenerator
 
+from dbtr.server.config import CONFIG
+from dbtr.server.lib.database import Database
+
 
 def generate_id(prefix: str = "") -> str:
     id_generator = SnowflakeGenerator(instance=1)
@@ -83,14 +86,37 @@ def move_file(source: Path, destination: Path, delete_after_copy: bool = False):
         shutil.copy(source, destination)
 
 
-def persist_metadata(dbt_runtime_config: dict, server_runtime_config: dict, metadata_file: Path) -> Path:
-    metadata = {"dbt_runtime_config": dbt_runtime_config, "server_runtime_config": server_runtime_config}
-    metadata_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(metadata_file, "w") as file:
-        json.dump(metadata, file)
-    return metadata_file
+def persist_run_config(dbt_runtime_config: dict, server_runtime_config: dict):
+    run_info = {
+        "run_conf_version": 1,
+        "dbt_runtime_config": json.dumps(dbt_runtime_config),
+        **server_runtime_config
+    }
+
+    with Database(CONFIG.db_connection_string) as db:
+        db.execute(
+            """
+            INSERT INTO RunConfiguration (
+                run_id, run_conf_version, project, server_url, cloud_provider,
+                gcp_location, gcp_project, azure_location, azure_resource_group,
+                schedule, schedule_name, requester, cron_schedule, dbt_runtime_config
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_info["run_id"], run_info["run_conf_version"], run_info["project"],
+                run_info["server_url"], run_info["cloud_provider"], run_info["gcp_location"],
+                run_info["gcp_project"], run_info["azure_location"], run_info["azure_resource_group"],
+                run_info["schedule"], run_info["schedule_name"], run_info["requester"],
+                run_info["cron_schedule"], run_info["dbt_runtime_config"]
+            )
+        )
 
 
-def load_metadata(metadata_file: Path) -> dict[str, Any]:
-    with open(metadata_file, "r") as file:
-        return json.load(file)
+def fetch_run_config(run_id: str) -> dict[str, Any]:
+    with Database(CONFIG.db_connection_string) as db:
+        db.execute("SELECT * FROM RunConfiguration WHERE run_id = ?", (run_id,))
+        run_config = db.fetchone()
+    if run_config:
+        return {key: json.loads(value) if key == "dbt_runtime_config" else value for key, value in run_config.items()}
+    else:
+        raise Exception(f"Run {run_id} not found")
