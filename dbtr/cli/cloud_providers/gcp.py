@@ -22,7 +22,7 @@ except ImportError:
 from dbtr.cli.remote_server import DbtServer
 
 
-def deploy(image: str, service_name: str, port: int, adapter: str, project_id: str = None, log_level: str = "INFO"):
+def deploy(image: str, service_name: str, port: int, region: str, adapter: str, project_id: str = None, log_level: str = "INFO"):
     if project_id is None:
         project_id = get_project_id()
     enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
@@ -34,6 +34,7 @@ def deploy(image: str, service_name: str, port: int, adapter: str, project_id: s
         backend_bucket=bucket,
         service_account_email=service_account.email,
         port=port,
+        region=region,
         log_level=log_level,
         adapter=adapter,
     )

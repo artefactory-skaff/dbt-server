@@ -1,9 +1,9 @@
 from typing import Optional, Any, Dict
-from pydantic import field_validator, computed_field, BaseModel
+from pydantic import Field, field_validator, computed_field, BaseModel
 
 
 class ServerRuntimeConfig(BaseModel):
-    schedule: Optional[dict] = {}
+    schedule: Optional[dict] = Field(default_factory=dict)
     requester: str = "unknown"
     cloud_provider: str
     server_url: str
