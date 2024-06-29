@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dbtr"
-version = "0.1.1"
+version = "0.2.0"
 description = "An extension for the dbt CLI that allows deploying and running jobs remotely"
 authors = ["Alexis VIALARET <alexis.vialaret@artefact.com>", "Samy DOUGUI <samy.dougui@artefact.com>"]
 license = "Apache2.0"
@@ -20,6 +20,8 @@ pytest = "^8"
 pytest-xdist = "^3"
 skaff-telemetry = "^0.1"
 click = "^8"
+dbutils = "^3"
+sqlalchemy = "^2"
 dbt-core = { version = "^1", optional = true }
 dbt-bigquery = { version = "^1", optional = true }
 google-cloud-iam = { version = "^2", optional = true }
@@ -28,6 +30,9 @@ google-cloud-run = { version = "^0", optional = true }
 google-cloud-resource-manager = { version = "^1", optional = true }
 google-api-python-client = { version = "^2", optional = true }
 google-cloud-storage = { version = "^2", optional = true }
+azure-identity = { version = "^1", optional = true }
+azure-mgmt-resource = { version = "^23", optional = true }
+google-cloud-scheduler = { version = "^2", optional = true }
 
 [tool.poetry.extras]
 google = [
@@ -37,7 +42,12 @@ google = [
     "google-cloud-run",
     "google-cloud-resource-manager",
     "google-api-python-client",
-    "google-cloud-storage"
+    "google-cloud-storage",
+    "google-cloud-scheduler"
+]
+azure = [
+    "azure-identity",
+    "azure-mgmt-resource"
 ]
 local = []
 

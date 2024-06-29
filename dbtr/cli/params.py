@@ -2,6 +2,8 @@ from typing import Any, Callable, Union
 import click
 from dbt.cli.main import cli as dbt_cli
 
+from dbtr.cli.exceptions import MissingAzureParams
+
 
 def dbt_flags(command: Union[click.Command, Callable[..., Any]]):
     """Dynamically add the dbt flags of the original command to its remote version. This makes sure the help and validation of the original command is preserved in the remote version, and should allow us to support a broader range of past and future versions of dbt."""
@@ -17,18 +19,30 @@ def dbt_flags(command: Union[click.Command, Callable[..., Any]]):
     return command
 
 
+def cloud_provider_validator(ctx, param, value):
+    if value == 'azure' and ctx.command.name == 'deploy':
+        if not ctx.params.get('azure_location'):
+            raise MissingAzureParams("--azure-location is required when cloud provider is 'azure'")
+        if not ctx.params.get('azure_resource_group'):
+            raise MissingAzureParams("--azure-resource-group is required when cloud provider is 'azure'")
+    return value
+
+
 server_url = click.option(
     '--server-url',
     envvar='DBT_SERVER_URL',
     help='Give dbt server url (ex: https://server.com). If not provided, dbt-remote will look for a dbt server on the GCP project set in your gcloud config.'
 )
 
+
 cloud_provider = click.option(
     '--cloud-provider',
     envvar='CLOUD_PROVIDER',
     required=True,
-    prompt='Cloud provider where the dbt server runs (google, local)',
+    prompt='Cloud provider where the dbt server runs',
+    type=click.Choice(['google', 'azure', 'local'], case_sensitive=False),
     help='Cloud provider where the dbt server runs.',
+    callback=cloud_provider_validator,
 )
 
 gcp_project = click.option(
@@ -43,14 +57,31 @@ gcp_location = click.option(
     help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
 )
 
+azure_resource_group = click.option(
+    '--azure-resource-group',
+    envvar='DBT_SERVER_AZURE_RESOURCE_GROUP',
+    help='Resource group where the dbt server runs.'
+)
+
+azure_location = click.option(
+    '--azure-location',
+    envvar='DBT_SERVER_AZURE_LOCATION',
+    help='Location where the dbt server runs, ex: francecentral. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
+)
+
 schedule = click.option(
-    '--schedule',
+    '--schedule-cron-expression',
     help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information.'
 )
 
 schedule_name = click.option(
     '--schedule-name',
     help='Name of the cloud scheduler job. If none is given, dbt-remote-<uuid> will be used'
+)
+
+schedule_description = click.option(
+    '--schedule-description',
+    help='Description for the scheduler created. If none is given, "" will be used',
 )
 
 service = click.option(
