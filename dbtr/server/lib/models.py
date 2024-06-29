@@ -1,17 +1,20 @@
-from typing import Optional, Any
-
+from typing import Optional, Any, Dict
 from pydantic import field_validator, computed_field, BaseModel
 
 
 class ServerRuntimeConfig(BaseModel):
-    cron_schedule: Optional[str] = "@now"
+    schedule: Optional[dict] = {}
     requester: str = "unknown"
+    cloud_provider: str
+    server_url: str
 
-    @field_validator("cron_schedule")
-    def validate_cron_expression(cls, cron_value: Any):
-        # TODO: add validation
-        return cron_value
+    @field_validator("schedule")
+    def validate_schedule(cls, v):
+        if not v:
+            return {}
+        else:
+            return v
 
     @computed_field
     def is_static_run(self) -> bool:
-        return self.cron_schedule == "@now"
+        return self.schedule.get("cron_expression", "@now") == "@now" or self.schedule.get("cron_expression") is None

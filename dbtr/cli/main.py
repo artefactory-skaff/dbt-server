@@ -82,6 +82,7 @@ def create_command(name, help_message):
     @p.dbt_flags
     @p.schedule
     @p.schedule_name
+    @p.schedule_description
     @dbt_requires.preflight
     @dbt_requires.profile
     @dbt_requires.project
