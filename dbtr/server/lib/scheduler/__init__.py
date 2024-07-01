@@ -1,5 +1,7 @@
-from server.lib.scheduler.gcp import GCPScheduler
+from dbtr.server.lib.scheduler.gcp import GCPScheduler
+from dbtr.server.lib.scheduler.local import LocalScheduler
 
 schedulers = {
-    "GCP": GCPScheduler
+    "gcp": GCPScheduler,
+    "local": LocalScheduler,
 }

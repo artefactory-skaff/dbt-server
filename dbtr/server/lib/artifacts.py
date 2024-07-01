@@ -6,16 +6,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from snowflake import SnowflakeGenerator
-
 from dbtr.server.config import CONFIG
 from dbtr.server.lib.database import Database
-
-
-def generate_id(prefix: str = "") -> str:
-    id_generator = SnowflakeGenerator(instance=1)
-    id = next(id_generator)
-    return f"{prefix}{id}"
 
 
 async def unpack_and_persist_artifact(artifact_file: tempfile.SpooledTemporaryFile, destination: Path):
@@ -84,32 +76,6 @@ def move_file(source: Path, destination: Path, delete_after_copy: bool = False):
         shutil.move(source, destination)
     else:
         shutil.copy(source, destination)
-
-
-def persist_run_config(dbt_runtime_config: dict, server_runtime_config: dict):
-    run_info = {
-        "run_conf_version": 1,
-        "dbt_runtime_config": json.dumps(dbt_runtime_config),
-        **server_runtime_config
-    }
-
-    with Database(CONFIG.db_connection_string) as db:
-        db.execute(
-            """
-            INSERT INTO RunConfiguration (
-                run_id, run_conf_version, project, server_url, cloud_provider,
-                gcp_location, gcp_project, azure_location, azure_resource_group,
-                schedule, schedule_name, requester, cron_schedule, dbt_runtime_config
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                run_info["run_id"], run_info["run_conf_version"], run_info["project"],
-                run_info["server_url"], run_info["cloud_provider"], run_info["gcp_location"],
-                run_info["gcp_project"], run_info["azure_location"], run_info["azure_resource_group"],
-                run_info["schedule"], run_info["schedule_name"], run_info["requester"],
-                run_info["cron_schedule"], run_info["dbt_runtime_config"]
-            )
-        )
 
 
 def fetch_run_config(run_id: str) -> dict[str, Any]:

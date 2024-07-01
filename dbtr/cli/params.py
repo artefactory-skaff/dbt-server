@@ -28,6 +28,14 @@ def cloud_provider_validator(ctx, param, value):
     return value
 
 
+def register_as_cloud_provider_config(ctx, param, value):
+    provider_config = ctx.params.get('provider_config', {})
+    if value:
+        provider_config[param.name] = value
+    ctx.params['provider_config'] = provider_config
+    return value
+
+
 server_url = click.option(
     '--server-url',
     envvar='DBT_SERVER_URL',
@@ -48,29 +56,33 @@ cloud_provider = click.option(
 gcp_project = click.option(
     '--gcp-project',
     envvar='GCP_PROJECT',
-    help='GCP project where the dbt server runs. Useful for server auto detection. If none is given, the project in your gcloud config will be used.'
+    help='GCP project where the dbt server runs. Useful for server auto detection. If none is given, the project in your gcloud config will be used.',
+    callback=register_as_cloud_provider_config,
 )
 
 gcp_location = click.option(
     '--gcp-location',
     envvar='DBT_SERVER_GCP_LOCATION',
-    help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
+    help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.',
+    callback=register_as_cloud_provider_config,
 )
 
 azure_resource_group = click.option(
     '--azure-resource-group',
     envvar='DBT_SERVER_AZURE_RESOURCE_GROUP',
-    help='Resource group where the dbt server runs.'
+    help='Resource group where the dbt server runs.',
+    callback=register_as_cloud_provider_config,
 )
 
 azure_location = click.option(
     '--azure-location',
     envvar='DBT_SERVER_AZURE_LOCATION',
-    help='Location where the dbt server runs, ex: francecentral. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.'
+    help='Location where the dbt server runs, ex: francecentral. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.',
+    callback=register_as_cloud_provider_config,
 )
 
-schedule = click.option(
-    '--schedule-cron-expression',
+schedule_cron = click.option(
+    '--schedule-cron',
     help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information.'
 )
 

@@ -124,12 +124,11 @@ def runtime_config(func):
         if "macro" in ctx.params:
             command.append(ctx.params["macro"])
 
-        dbt_runtime_config = {"command": command, "flags": dbt_runtime_config_args}
-        ctx.obj["dbt_runtime_config"] = dbt_runtime_config
-
         server_runtime_config = {key: value for key, value in ctx.params.items() if key not in native_params}
+        server_runtime_config["dbt_runtime_config"] = {"command": command, "flags": dbt_runtime_config_args}
         server_runtime_config["requester"] = os.getenv("USER") or os.getenv("USERNAME", "unknown")
         server_runtime_config["project"] = ctx.obj["project"].project_name
+
         ctx.obj["server_runtime_config"] = server_runtime_config
         return func(*args, **kwargs)
 

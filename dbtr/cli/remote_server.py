@@ -3,6 +3,8 @@ from typing import Callable, Dict, Iterator, Any
 from io import BytesIO
 import requests
 
+from cron_descriptor import get_description, Options
+
 from dbtr.cli.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
 
 
@@ -30,22 +32,22 @@ class DbtServer(Server):
     def send_task(
             self,
             dbt_remote_artifacts: BytesIO,
-            dbt_runtime_config: Dict[str, str],
             server_runtime_config: Dict[str, str]
     ) -> Iterator[str]:
-        run_id = self.create_task(
-            dbt_remote_artifacts, dbt_runtime_config, server_runtime_config
-        )
-
-        # TODO: add option to not stream log (fire and forget for client)
-        for log in self.stream_log(f"{self.server_url}/api/logs/{run_id}"):
-            yield log.get("info", {}).get("msg", "")
+        result = self.create_task(dbt_remote_artifacts, server_runtime_config)
+        if result["type"] == "static":
+            for log in self.stream_log(result["next_url"]):
+                yield log.get("info", {}).get("msg", "")
+        elif result["type"] == "scheduled":
+            cron_description_options = Options()
+            cron_description_options.verbose = True
+            yield f"Job {result['schedule_name']} has been created to run {get_description(result['schedule_cron'], options=cron_description_options)}."
+            yield f"Job can be manually triggered at {result['next_url']}"
 
     def check_version_match(self):
         raw_response = self.session.get(url=self.server_url + "version")
         response = raw_response.json()
         print(f"Server version: {response}")
-        # server_version = response["version"]
 
     def is_dbt_server(self):
         try:
@@ -57,34 +59,31 @@ class DbtServer(Server):
             return False
 
     def create_task(
-            self,
-            dbt_remote_artifacts: BytesIO,
-            dbt_runtime_config: Dict[str, str],
-            server_runtime_config: Dict[str, str]
+        self,
+        dbt_remote_artifacts: BytesIO,
+        server_runtime_config: Dict[str, Any]
     ) -> str:
         try:
-            _server_runtime_config = self.format_server_runtime_config(server_runtime_config)
             res = self.session.post(
                 url=self.server_url + "api/run",
                 files={"dbt_remote_artifacts": dbt_remote_artifacts},
-                data={
-                    "dbt_runtime_config": json.dumps(dbt_runtime_config),
-                    "server_runtime_config": json.dumps(_server_runtime_config)
-                },
+                data={"server_runtime_config": json.dumps(server_runtime_config)},
             )
         except requests.exceptions.ConnectionError as e:
             raise ServerConnectionError(
                 f"Failed to connect to {self.server_url}, make sure the server is running and accessible.")
 
-        if not res.ok:
+        if res.ok:
+            result = res.json()
+            return result
+        else:
             if res.status_code == 423:
                 raise ServerLocked(res.json()["lock_info"])
             elif 400 <= res.status_code < 500:
                 raise Server400(f"Error {res.status_code}: {res.content}")
             else:
                 raise Server500(f"Server Error {res.status_code}: {res.content}")
-        else:
-            return res.json()["run_id"]
+
 
     def stream_log(self, url) -> Iterator[dict[str, Any]]:
         with self.session.get(
@@ -99,16 +98,3 @@ class DbtServer(Server):
         if not res.ok:
             raise ServerUnlockFailed(f"Failed to unlock the server: {res.status_code} {res.content}")
         return res.json()
-
-    @staticmethod
-    def format_server_runtime_config(config: dict) -> dict:
-        schedule_config = {}
-        server_runtime_config = {}
-        for key_param, val_param in config.items():
-            if key_param.startswith("schedule"):
-                new_key_param = key_param[len("schedule") + 1:]
-                schedule_config[new_key_param] = val_param
-            else:
-                server_runtime_config[key_param] = val_param
-        server_runtime_config["schedule"] = schedule_config
-        return server_runtime_config

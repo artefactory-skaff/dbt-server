@@ -119,7 +119,12 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
         image=image,
         ports=[run_v2.ContainerPort(container_port=port)],
         volume_mounts=[run_v2.VolumeMount(mount_path="/home/dbt_user/dbt-server-volume", name="dbt-server-volume")],
-        env=[run_v2.EnvVar(name="LOG_LEVEL", value=log_level), run_v2.EnvVar(name="ADAPTER", value=adapter)]
+        env=[
+            run_v2.EnvVar(name="LOG_LEVEL", value=log_level),
+            run_v2.EnvVar(name="ADAPTER", value=adapter),
+            run_v2.EnvVar(name="LOCATION", value=region),
+            run_v2.EnvVar(name="PROJECT_ID", value=project_id),
+        ]
     )
 
     volume = run_v2.Volume(

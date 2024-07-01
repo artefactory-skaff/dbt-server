@@ -31,7 +31,7 @@ class DBTExecutor:
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
                     "INSERT INTO Runs (run_id, start_time, run_status) VALUES (?, ?, ?)",
-                    (self.server_runtime_config["run_id"], time.time(), "initializing")
+                    (self.server_runtime_config.run_id, time.time(), "initializing")
                 )
             command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
             self.logger.info("Building manifest")
@@ -40,7 +40,7 @@ class DBTExecutor:
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
                     "UPDATE Runs SET run_status = 'running' WHERE run_id = ?",
-                    (self.server_runtime_config["run_id"],)
+                    (self.server_runtime_config.run_id,)
                 )
             dbt_runner = dbtRunner(manifest=manifest)
             result = dbt_runner.invoke(dbt_command, **{**command_args, **self.LOG_CONFIG})
@@ -49,14 +49,14 @@ class DBTExecutor:
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
                     "UPDATE Runs SET end_time = ?, run_status = ? WHERE run_id = ?",
-                    (time.time(), final_run_status, self.server_runtime_config["run_id"])
+                    (time.time(), final_run_status, self.server_runtime_config.run_id)
                 )
         except Exception as e:
             self.logger.error(f"Failed to execute dbt command {dbt_command}: {e}")
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
                     "UPDATE Runs SET end_time = ?, run_status = ? WHERE run_id = ?",
-                    (time.time(), "server error", self.server_runtime_config["run_id"])
+                    (time.time(), "server error", self.server_runtime_config.run_id)
                 )
             raise
         finally:

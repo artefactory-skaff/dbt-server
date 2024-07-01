@@ -13,18 +13,15 @@ CREATE TABLE IF NOT EXISTS Runs (
 );
 
 CREATE TABLE IF NOT EXISTS RunConfiguration (
-    run_id INTEGER PRIMARY KEY,
+    run_id TEXT PRIMARY KEY,
     run_conf_version INTEGER,
     project TEXT,
     server_url TEXT,
     cloud_provider TEXT,
-    gcp_location TEXT,
-    gcp_project TEXT,
-    azure_location TEXT,
-    azure_resource_group TEXT,
-    schedule TEXT,
-    schedule_name TEXT,
+    provider_config TEXT,
     requester TEXT,
-    cron_schedule TEXT,
-    dbt_runtime_config TEXT
+    dbt_runtime_config TEXT,
+    schedule_cron TEXT,
+    schedule_name TEXT,
+    schedule_description TEXT
 );

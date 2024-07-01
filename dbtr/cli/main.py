@@ -45,13 +45,32 @@ def deploy(ctx, **kwargs):
     cloud_provider = ctx.params["cloud_provider"]
     if cloud_provider == "google":
         from dbtr.cli.cloud_providers.gcp import deploy
-        deploy(image=ctx.params["image"], service_name=ctx.params["service"], port=ctx.params["port"], region=ctx.params["gcp_location"], project_id=ctx.params["gcp_project"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
+        deploy(
+            image=ctx.params["image"],
+            service_name=ctx.params["service"],
+            port=ctx.params["port"],
+            region=ctx.params["gcp_location"],
+            project_id=ctx.params["gcp_project"],
+            log_level=ctx.params["log_level"],
+            adapter=ctx.params["adapter"]
+        )
     elif cloud_provider == "azure":
         from dbtr.cli.cloud_providers.az import deploy
-        deploy(image=ctx.params["image"], service_name=ctx.params["service"], location=ctx.params["azure_location"], adpater=ctx.params["adapter"], resource_group=ctx.params["azure_resource_group"], log_level=ctx.params["log_level"])
+        deploy(
+            image=ctx.params["image"],
+            service_name=ctx.params["service"],
+            location=ctx.params["azure_location"],
+            adpater=ctx.params["adapter"],
+            resource_group=ctx.params["azure_resource_group"],
+            log_level=ctx.params["log_level"]
+        )
     elif cloud_provider == "local":
         from dbtr.cli.cloud_providers.local import deploy
-        deploy(port=ctx.params["port"], log_level=ctx.params["log_level"], adapter=ctx.params["adapter"])
+        deploy(
+            port=ctx.params["port"],
+            log_level=ctx.params["log_level"],
+            adapter=ctx.params["adapter"]
+        )
     else:
         click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported providers at the moment are 'google' and 'local'")
 
@@ -80,7 +99,7 @@ def create_command(name, help_message):
     @click.pass_context
     @global_flags
     @p.dbt_flags
-    @p.schedule
+    @p.schedule_cron
     @p.schedule_name
     @p.schedule_description
     @dbt_requires.preflight
@@ -96,7 +115,6 @@ def create_command(name, help_message):
             server: DbtServer = ctx.obj["server"]
             response = server.send_task(
                 ctx.obj["dbt_remote_artifacts"],
-                ctx.obj["dbt_runtime_config"],
                 ctx.obj["server_runtime_config"]
             )
             for log in response:

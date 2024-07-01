@@ -10,19 +10,18 @@ from fastapi import FastAPI, Form, Request, UploadFile, File, status, Background
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from dbtr.server.config import CONFIG
-from dbtr.server.lib.artifacts import fetch_run_config, generate_id, move_folder, persist_run_config, \
-    unpack_and_persist_artifact
+from dbtr.server.lib.artifacts import move_folder, unpack_and_persist_artifact
 from dbtr.server.lib.database import Database
 from dbtr.server.lib.dbt_executor import DBTExecutor
 from dbtr.server.lib.logger import get_logger
-from dbtr.server.lib.models import ServerRuntimeConfig
+from dbtr.server.lib.models import ServerRuntimeConfig, generate_id
 from dbtr.server.version import __version__
 from dbtr.server.lib.lock import Lock, LockException
 from dbtr.server.lib.scheduler import schedulers
 from dbtr.server.lib.scheduler.base import BaseScheduler
 
 logger = get_logger(CONFIG.log_level)
-schedule_backend: BaseScheduler = schedulers[CONFIG.provider]()
+schedule_backend: BaseScheduler = schedulers[CONFIG.provider]
 
 app = FastAPI(
     title="dbt-server",
@@ -49,33 +48,30 @@ async def telemetry_middleware(request: Request, call_next):
 
 @app.post("/api/run")
 async def create_run(
-        background_tasks: BackgroundTasks,
-        dbt_runtime_config: str = Form(...),
-        server_runtime_config: str = Form({}),
-        dbt_remote_artifacts: UploadFile = File(...),
+    background_tasks: BackgroundTasks,
+    server_runtime_config: str = Form({}),
+    dbt_remote_artifacts: UploadFile = File(...),
 ):
     """
     if a schedule is given:
         - we upload the data into the scheduled run namespace via storage backend (after unzip)
         - create a scheduler
         - return schedule info and other metadata to user (+ route to trigger schedule in case of dev)
-    if no schedule is given (default to @now):
+    if no schedule is given:
         - we upload the data into the static run namespace via storage backend (after unzip)
-        - we execute it locally
+        - we execute it locally immediately
         - we save output manifest via storage backend
-        - we return state of run (⚠︎ how to handle log)
+        - we stream logs to the user from the dbt.log file
     """
-    dbt_runtime_config = json.loads(dbt_runtime_config)
-    server_runtime_config = json.loads(server_runtime_config)
-    flags = dbt_runtime_config["flags"]
-    command = dbt_runtime_config["command"]
-    server_runtime_conf = ServerRuntimeConfig(**server_runtime_config)
-    if server_runtime_conf.is_static_run:
-        run_id = generate_id()
-        server_runtime_config["run_id"] = run_id
 
+    server_runtime_config_dict = json.loads(server_runtime_config)
+    server_runtime_config = ServerRuntimeConfig(**server_runtime_config_dict)
+    dbt_runtime_config = server_runtime_config.dbt_runtime_config
+    flags = dbt_runtime_config["flags"]
+
+    if server_runtime_config.run_now:
         try:
-            lock = Lock(Database(CONFIG.db_connection_string, logger=logger)).acquire(holder=server_runtime_conf.requester, run_id=run_id)
+            lock = Lock(Database(CONFIG.db_connection_string, logger=logger)).acquire(holder=server_runtime_config.requester, run_id=server_runtime_config.run_id)
         except LockException as e:
             logger.error(f"Failed to acquire lock: {e}")
             return JSONResponse(status_code=status.HTTP_423_LOCKED,
@@ -83,13 +79,14 @@ async def create_run(
 
         logger.info("Creating static run")
         logger.debug("Persisting metadata")
-        persist_run_config(dbt_runtime_config, server_runtime_config)
+        with Database(CONFIG.db_connection_string, logger=logger) as db:
+            server_runtime_config.to_db(db)
         logger.debug(f"Unzipping artifact files {dbt_remote_artifacts.filename}")
 
         start = time.time()
         local_artifact_path = await unpack_and_persist_artifact(
             dbt_remote_artifacts,
-            CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "input"
+            CONFIG.persisted_dir / "runs" / server_runtime_config.run_id / "artifacts" / "input"
         )
         logger.debug(f"Unpacked and persisted artifact in {round(time.time() - start, 1)} seconds")
 
@@ -101,28 +98,42 @@ async def create_run(
         )
 
         # The lock is released when the background task is completed
-        background_tasks.add_task(dbt_executor.execute_command, command, lock)
-        return JSONResponse(status_code=status.HTTP_200_OK, content={"run_id": run_id})
+        background_tasks.add_task(dbt_executor.execute_command, dbt_runtime_config["command"], lock)
+
+        response_contents = {
+            "type": "static",
+            "run_id": server_runtime_config.run_id,
+            "next_url": f"{server_runtime_config.server_url}/api/logs/{server_runtime_config.run_id}"
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=response_contents)
 
     else:
-        scheduled_run_id = generate_id("schedule-")
-        server_runtime_config["run_id"] = scheduled_run_id
-
         logger.info("Creating scheduled run")
         logger.debug("Persisting metadata")
-        persist_run_config(dbt_runtime_config, server_runtime_config, run_id)
+        with Database(CONFIG.db_connection_string, logger=logger) as db:
+            server_runtime_config.to_db(db)
         logger.debug("Unzipping artifacts")
         await unpack_and_persist_artifact(
             dbt_remote_artifacts,
-            CONFIG.persisted_dir / "schedules" / scheduled_run_id / "artifacts" / "input"
+            CONFIG.persisted_dir / "schedules" / server_runtime_config.run_id / "artifacts" / "input"
         )
         logger.debug("Creating scheduler")
-        schedule_backend.create_or_update_job(
-            **server_runtime_conf.schedule,
-            server_url=f"{server_runtime_conf.server_url}/api/schedule/{scheduled_run_id}/trigger"
+        trigger_url = f"{server_runtime_config.server_url}/api/schedule/{server_runtime_config.run_id}/trigger"
+        schedule_backend().create_or_update_job(
+            name=server_runtime_config.schedule_name,
+            cron_expression=server_runtime_config.schedule_cron,
+            trigger_url=trigger_url,
+            description=server_runtime_config.schedule_description,
         )
-        return JSONResponse(status_code=status.HTTP_201_CREATED,
-                            content={"type": "scheduled", "schedule_id": scheduled_run_id})
+
+        response_contents = {
+            "type": "scheduled",
+            "schedule_id": server_runtime_config.run_id,
+            "schedule_name": server_runtime_config.schedule_name,
+            "schedule_cron": server_runtime_config.schedule_cron,
+            "next_url": trigger_url,
+        }
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content=response_contents)
 
 
 @app.get("/api/logs/{run_id}")
@@ -189,17 +200,21 @@ def trigger_scheduled_run(schedule_run_id: str, background_tasks: BackgroundTask
     run_id = generate_id()
     run_input = move_folder(
         CONFIG.persisted_dir / Path("schedules") / schedule_run_id,
-        CONFIG.persisted_dir / Path("runs") / run_id
+        CONFIG.persisted_dir / Path("runs") / run_id,
+        delete_after_copy=False,
     )
-    server_runtime_config = fetch_run_config(run_id)
-    dbt_runtime_config = server_runtime_config["dbt_runtime_config"]
+
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        server_runtime_config = ServerRuntimeConfig.from_scheduled_run(db, schedule_run_id)
+        server_runtime_config.to_db(db)
+
     dbt_executor = DBTExecutor(
-        dbt_runtime_config=dbt_runtime_config["flags"],
+        dbt_runtime_config=server_runtime_config.dbt_runtime_config["flags"],
         server_runtime_config=server_runtime_config,
         artifact_input=run_input / "artifacts" / "input",
         logger=logger
     )
-    background_tasks.add_task(dbt_executor.execute_command, dbt_runtime_config["command"])
+    background_tasks.add_task(dbt_executor.execute_command, server_runtime_config.dbt_runtime_config["command"])
     return JSONResponse(status_code=status.HTTP_200_OK, content={"run_id": run_id})
 
 

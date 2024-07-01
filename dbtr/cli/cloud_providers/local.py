@@ -8,6 +8,8 @@ import uvicorn
 def deploy(port: int, adapter: str, log_level: str = "INFO"):
     Path("./dbt-server-volume").mkdir(parents=True, exist_ok=True)
     os.environ["LOG_LEVEL"] = log_level
+    os.environ["DBT_ADAPTER"] = "dbt-bigquery"
+    os.environ["PROVIDER"] = "local"
 
     installed_packages = {pkg.key for pkg in pkg_resources.working_set}
     if adapter not in installed_packages:
