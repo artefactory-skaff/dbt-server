@@ -26,11 +26,6 @@ class LockData:
             f"    Last updated {time_ago}\n"
         )
 
-class LockException(Exception):
-    def __init__(self, lock_data: LockData):
-        self.lock_data = lock_data
-        super().__init__(f"LockException: {lock_data}")
-
 class Lock:
     def __init__(self, db: Database, update_cooldown=10):
         self.db = db
@@ -86,5 +81,15 @@ class Lock:
                 lock.lock_data = LockData(*result)
                 lock.last_update_time = lock.lock_data.updated_at
             else:
-                raise Exception(f"Lock not found.")
+                raise LockNotFound()
         return lock
+
+
+
+class LockException(Exception):
+    def __init__(self, lock_data: LockData):
+        self.lock_data = lock_data
+        super().__init__(f"LockException: {lock_data}")
+
+class LockNotFound(Exception):
+    pass

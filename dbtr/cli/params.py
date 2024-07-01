@@ -83,7 +83,7 @@ azure_location = click.option(
 
 schedule_cron = click.option(
     '--schedule-cron',
-    help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information.'
+    help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information. Warning: Jobs will be scheduled on UTC time.'
 )
 
 schedule_name = click.option(

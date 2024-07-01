@@ -1,6 +1,6 @@
 from logging import Logger
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 import sqlite3
 
 from dbutils.pooled_db import PooledDB
@@ -74,10 +74,11 @@ class Database:
             self.logger.exception("Query execution failed", exc_info=e)
             raise
 
-    def fetchone(self, query: str, params: Optional[tuple] = None) -> Optional[tuple]:
+    def fetchone(self, query: str, params: Optional[tuple] = None) -> Optional[Dict]:
         cursor = self.execute(query, params)
         try:
-            return cursor.fetchone()
+            row = cursor.fetchone()
+            return dict(row) if row else {}
         finally:
             cursor.close()
 
@@ -121,9 +122,13 @@ class Database:
         Path(self.connection_string.replace("sqlite:///", "")).parent.mkdir(
             parents=True, exist_ok=True
         )
+
+        def creator():
+            con = sqlite3.connect(self.connection_string.replace("sqlite:///", ""), check_same_thread=False)
+            con.row_factory = sqlite3.Row
+            return con
+
         return PooledDB(
-            creator=sqlite3,
-            database=self.connection_string.replace("sqlite:///", ""),
+            creator=creator,
             maxconnections=5,
-            check_same_thread=False,
         )

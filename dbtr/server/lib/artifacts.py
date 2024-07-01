@@ -10,10 +10,10 @@ from dbtr.server.config import CONFIG
 from dbtr.server.lib.database import Database
 
 
-async def unpack_and_persist_artifact(artifact_file: tempfile.SpooledTemporaryFile, destination: Path):
+async def unzip_and_persist_artifacts(artifact_file: tempfile.SpooledTemporaryFile, destination: Path):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
-        local_artifact_path = await unpack_artifact(
+        local_artifact_path = await unzip_artifacts(
             artifact_file,
             temp_dir_path
         )
@@ -21,7 +21,7 @@ async def unpack_and_persist_artifact(artifact_file: tempfile.SpooledTemporaryFi
     return destination_folder
 
 
-async def unpack_artifact(dbt_remote_artifacts: tempfile.SpooledTemporaryFile, destination_folder: Path):
+async def unzip_artifacts(dbt_remote_artifacts: tempfile.SpooledTemporaryFile, destination_folder: Path):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         artifacts_zip_path = temp_dir_path / dbt_remote_artifacts.filename

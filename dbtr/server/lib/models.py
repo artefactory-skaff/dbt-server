@@ -48,7 +48,6 @@ class ServerRuntimeConfig(BaseModel):
         entry = self.model_dump(exclude={"run_now"})
         entry["provider_config"] = json.dumps(entry["provider_config"])
         entry["dbt_runtime_config"] = json.dumps(entry["dbt_runtime_config"])
-        print("dbt_runtime_config:", entry["dbt_runtime_config"])
         db.execute(
             f"""
             INSERT INTO RunConfiguration (
@@ -60,8 +59,7 @@ class ServerRuntimeConfig(BaseModel):
 
     @classmethod
     def from_db(cls, db: Database, run_id: str):
-        db.execute("SELECT * FROM RunConfiguration WHERE run_id = ?", (run_id,))
-        run_config = db.fetchone()
+        run_config = db.fetchone("SELECT * FROM RunConfiguration WHERE run_id = ?", (run_id,))
         if run_config:
             run_config["provider_config"] = json.loads(run_config["provider_config"])
             run_config["dbt_runtime_config"] = json.loads(run_config["dbt_runtime_config"])
@@ -71,8 +69,7 @@ class ServerRuntimeConfig(BaseModel):
 
     @classmethod
     def from_scheduled_run(cls, db: Database, schedule_run_id: str):
-        db.execute("SELECT * FROM RunConfiguration WHERE run_id = ?", (schedule_run_id,))
-        run_config = db.fetchone()
+        run_config = db.fetchone("SELECT * FROM RunConfiguration WHERE run_id = ?", (schedule_run_id,))
         if run_config:
             run_config["provider_config"] = json.loads(run_config["provider_config"])
             run_config["dbt_runtime_config"] = json.loads(run_config["dbt_runtime_config"])
