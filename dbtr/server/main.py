@@ -14,12 +14,13 @@ from dbtr.server.config import CONFIG
 from dbtr.server.lib.artifacts import move_folder, unzip_and_persist_artifacts
 from dbtr.server.lib.database import Database
 from dbtr.server.lib.dbt_executor import DBTExecutor
+from dbtr.server.lib.lock import Lock, LockException, LockNotFound
 from dbtr.server.lib.logger import get_logger
 from dbtr.server.lib.models import ServerRuntimeConfig
-from dbtr.server.version import __version__
-from dbtr.server.lib.lock import Lock, LockException, LockNotFound
 from dbtr.server.lib.scheduler import schedulers
 from dbtr.server.lib.scheduler.base import BaseScheduler
+from dbtr.server.version import __version__
+
 
 logger = get_logger(CONFIG.log_level)
 scheduling_backend: BaseScheduler = schedulers[CONFIG.provider]
@@ -93,28 +94,37 @@ def stream_log(run_id: str, include_debug: bool = False):
 
 @app.get("/api/run/{run_id}")
 def get_run(run_id: str):
-    logger.info("Retrieving artifacts from storage backend")
-    return JSONResponse(status_code=status.HTTP_200_OK, content={"status": "in progress", "run_id": run_id})
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        query = """
+            SELECT rc.run_id, rc.run_conf_version, rc.project, rc.server_url, rc.cloud_provider, rc.provider_config, rc.requester, rc.dbt_runtime_config, rc.schedule_cron, rc.schedule_name, rc.schedule_description, r.run_status, r.start_time, r.end_time
+            FROM RunConfiguration rc
+            JOIN Runs r ON rc.run_id = r.run_id
+            WHERE rc.run_id = ?
+        """
+        run = db.fetchone(query, (run_id,))
+    return JSONResponse(status_code=status.HTTP_200_OK, content=sanitize_run_from_db(run))
 
 
 @app.get("/api/run")
 def list_runs(skip: int = 0, limit: int = 20):
     logger.info("Listing past runs")
-    runs_dir = CONFIG.persisted_dir / "runs"
-    runs = sorted([run / "metadata.json" for run in runs_dir.iterdir() if run.is_dir()], reverse=True)
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        query = """
+            SELECT rc.run_id, rc.run_conf_version, rc.project, rc.server_url, rc.cloud_provider, rc.provider_config, rc.requester, rc.dbt_runtime_config, rc.schedule_cron, rc.schedule_name, rc.schedule_description, r.run_status, r.start_time, r.end_time
+            FROM RunConfiguration rc
+            JOIN Runs r ON rc.run_id = r.run_id
+            WHERE rc.schedule_cron IS NULL
+            ORDER BY rc.run_id DESC
+            LIMIT ? OFFSET ?
+        """
+        runs = db.fetchall(query, (limit, skip))
 
-    skip = min(max(skip, 0), len(runs))
-    paginated_runs = runs[skip: min(skip + limit, len(runs))]
-
-    runs = {}
-    for metadata_file in paginated_runs:
-        if metadata_file.exists():
-            with open(metadata_file, "r") as file:
-                metadata = json.load(file)
-                run_id = metadata_file.parent.name
-                runs[run_id] = metadata
-    return JSONResponse(status_code=status.HTTP_200_OK, content=runs)
-
+    runs_dict = {}
+    for run in runs:
+        run = sanitize_run_from_db(run)
+        run_id = run["run_id"]
+        runs_dict[run_id] = run
+    return JSONResponse(status_code=status.HTTP_200_OK, content=runs_dict)
 
 @app.get("/api/project")
 def get_project():
@@ -254,6 +264,12 @@ async def stream_log_file(run_id: str, filter: Callable, stop: Callable):
             else:
                 await asyncio.sleep(0.1)
 
+
+def sanitize_run_from_db(run: str):
+    run = dict(run)
+    run["provider_config"] = json.loads(run["provider_config"])
+    run["dbt_runtime_config"] = json.loads(run["dbt_runtime_config"])
+    return run
 
 if __name__ == '__main__':
     uvicorn.run("dbtr.server.main:app", host="0.0.0.0", port=CONFIG.port, workers=1, reload=False)
