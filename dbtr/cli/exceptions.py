@@ -20,6 +20,9 @@ class MissingServerURL(DbtrException):
 class UnsupportedCloudProvider(DbtrException):
     pass
 
+class MissingLocation(DbtrException):
+    pass
+
 class MissingExtraPackage(DbtrException):
     pass
 

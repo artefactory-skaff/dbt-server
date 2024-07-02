@@ -32,10 +32,6 @@ class GCPScheduler(BaseScheduler):
             "description": description,
             "retry_config": {
                 "retry_count": 0,
-                "max_retry_duration": "120s",
-                "min_backoff_duration": "5s",
-                "max_backoff_duration": "60s",
-                "max_doublings": 5
             }
         }
         try:

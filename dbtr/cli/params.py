@@ -67,6 +67,22 @@ gcp_location = click.option(
     callback=register_as_cloud_provider_config,
 )
 
+gcp_cpu = click.option(
+    '--gcp-cpu',
+    envvar='DBT_SERVER_GCP_CPU',
+    default=1,
+    help='Number of CPUs to use for the dbt server. Default: 1',
+    callback=register_as_cloud_provider_config,
+)
+
+gcp_memory = click.option(
+    '--gcp-memory',
+    envvar='DBT_SERVER_GCP_MEMORY',
+    default="1Gi",
+    help='Amount of memory to use for the dbt server in GB. Default: 1Gi',
+    callback=register_as_cloud_provider_config,
+)
+
 azure_resource_group = click.option(
     '--azure-resource-group',
     envvar='DBT_SERVER_AZURE_RESOURCE_GROUP',
@@ -106,8 +122,8 @@ service = click.option(
 image = click.option(
     "--image",
     envvar="IMAGE",
-    default="europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/prod:latest",
-    help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/dbt-server-sbx-f570/dbt_server/prod:latest"
+    default="europe-docker.pkg.dev/dbt-server-sbx-01-caed/dbt-server/prod:latest",
+    help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/dbt-server-sbx-01-caed/dbt_server/prod:latest"
 )
 
 adapter = click.option(

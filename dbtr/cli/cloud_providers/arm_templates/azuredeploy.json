@@ -16,7 +16,7 @@
         },
         "image": {
             "type": "string",
-            "defaultValue": "europe-docker.pkg.dev/dbt-server-sbx-f570/dbt-server/dev:avi"
+            "defaultValue": "europe-docker.pkg.dev/dbt-server-sbx-01-caed/dbt-server/dev:avi"
         },
         "envVars": {
             "type": "array",

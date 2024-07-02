@@ -18,6 +18,8 @@ def global_flags(func):
     @p.cloud_provider
     @p.gcp_location
     @p.gcp_project
+    @p.gcp_cpu
+    @p.gcp_memory
     @p.azure_location
     @p.azure_resource_group
     @functools.wraps(func)

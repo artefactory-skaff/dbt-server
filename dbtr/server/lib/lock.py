@@ -37,7 +37,7 @@ class Lock:
         with self.db as db:
             result = db.fetchone("SELECT * FROM Lock WHERE holder = ?", (holder,))
             if result:
-                raise LockException(LockData(*result))
+                raise LockException(LockData(**result))
             self.lock_data.holder = holder
             self.lock_data.created_at = time.time()
             self.lock_data.updated_at = self.lock_data.created_at
@@ -78,7 +78,7 @@ class Lock:
         with db as db_conn:
             result = db_conn.fetchone("SELECT * FROM Lock")
             if result:
-                lock.lock_data = LockData(*result)
+                lock.lock_data = LockData(**result)
                 lock.last_update_time = lock.lock_data.updated_at
             else:
                 raise LockNotFound()

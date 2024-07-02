@@ -126,20 +126,19 @@ def list_runs(skip: int = 0, limit: int = 20):
         runs_dict[run_id] = run
     return JSONResponse(status_code=status.HTTP_200_OK, content=runs_dict)
 
+
 @app.get("/api/project")
 def get_project():
-    runs_dir = CONFIG.persisted_dir / "runs"
     project_names = set()
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        query = """
+            SELECT DISTINCT project
+            FROM RunConfiguration
+        """
+        projects = db.fetchall(query)
 
-    for run in runs_dir.iterdir():
-        if run.is_dir():
-            metadata_file = run / "metadata.json"
-            if metadata_file.exists():
-                with open(metadata_file, "r") as file:
-                    metadata = json.load(file)
-                    project_dir = metadata["dbt_runtime_config"]["flags"]["project_dir"]
-                    project_name = project_dir.split("/")[-1]
-                    project_names.add(project_name)
+    for project in projects:
+        project_names.add(project["project"])
 
     return JSONResponse(status_code=status.HTTP_200_OK, content={"projects": list(project_names)})
 
@@ -178,9 +177,9 @@ async def unpack_job_request(server_runtime_config, dbt_remote_artifacts):
     start = time.time()
     local_artifact_path = await unzip_and_persist_artifacts(
         dbt_remote_artifacts,
-        CONFIG.persisted_dir / "runs" if server_runtime_config.run_now else "schedules" / server_runtime_config.run_id / "artifacts" / "input"
+        CONFIG.persisted_dir / ("runs" if server_runtime_config.run_now else "schedules") / server_runtime_config.run_id / "artifacts" / "input"
     )
-    elapsed_time = humanize.naturaltime(time.time() - start)
+    elapsed_time = humanize.naturaldelta(time.time() - start)
     logger.debug(f"Unpacked and persisted artifact in {elapsed_time}")
 
     return server_runtime_config, local_artifact_path
@@ -244,25 +243,28 @@ async def stream_log_file(run_id: str, filter: Callable, stop: Callable):
         await asyncio.sleep(0.1)
     with open(log_file, "r") as file:
         file.seek(0)  # This moves the cursor to the beginning of the file
-        while True:
-            _line = file.readline()
-            if _line:
+        lock_refresh_cooldown = 10
+        last_lock_refresh = 0
+        with Database(CONFIG.db_connection_string, logger=logger) as db:
+            while True:
+                _line = file.readline()
+                if _line:
+                    if time.time() - last_lock_refresh > lock_refresh_cooldown:
+                        last_lock_refresh = time.time()
+                        try:
+                            lock = Lock.from_db(db)
+                            if lock.lock_data.run_id == run_id:
+                                lock.refresh()
+                        except LockNotFound:
+                            pass
 
-                with Database(CONFIG.db_connection_string, logger=logger) as db:
-                    try:
-                        lock = Lock.from_db(db)
-                        if lock.lock_data.run_id == run_id:
-                            lock.refresh()
-                    except LockNotFound:
-                        pass
-
-                line = json.loads(_line)
-                if filter(line):
-                    yield _line
-                if stop(line):
-                    return
-            else:
-                await asyncio.sleep(0.1)
+                    line = json.loads(_line)
+                    if filter(line):
+                        yield _line
+                    if stop(line):
+                        return
+                else:
+                    await asyncio.sleep(0.1)
 
 
 def sanitize_run_from_db(run: str):

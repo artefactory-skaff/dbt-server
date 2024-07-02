@@ -5,4 +5,6 @@ skaff-telemetry>=0.1,<1
 humanize
 dbt-core
 pandas
+dbutils
+sqlalchemy
 google-cloud-scheduler>=2.1,<3

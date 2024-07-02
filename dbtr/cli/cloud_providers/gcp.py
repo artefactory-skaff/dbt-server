@@ -4,7 +4,7 @@ from typing import List
 from uuid import uuid4
 from subprocess import check_output
 
-from dbtr.cli.exceptions import MissingExtraPackage, ServerNotFound
+from dbtr.cli.exceptions import MissingExtraPackage, MissingLocation, ServerNotFound
 
 try:
     from google.cloud import iam_credentials_v1, compute_v1, bigquery, run_v2, storage, iam_admin_v1, resourcemanager_v3
@@ -22,9 +22,11 @@ except ImportError:
 from dbtr.cli.remote_server import DbtServer
 
 
-def deploy(image: str, service_name: str, port: int, region: str, adapter: str, project_id: str = None, log_level: str = "INFO"):
+def deploy(image: str, service_name: str, port: int, region: str, adapter: str, cpu: str = "1", memory: str = "1Gi", project_id: str = None, log_level: str = "INFO"):
     if project_id is None:
         project_id = get_project_id()
+    if region is None:
+        raise MissingLocation("A location is required to deploy a dbt server on gcp. Specify one with --gcp-location (e.g. europe-west1, us-central1)")
     enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
     bucket = get_or_create_backend_bucket()
     service_account = create_dbt_server_service_account()
@@ -37,6 +39,8 @@ def deploy(image: str, service_name: str, port: int, region: str, adapter: str, 
         region=region,
         log_level=log_level,
         adapter=adapter,
+        cpu=cpu,
+        memory=memory,
     )
 
 
@@ -107,7 +111,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket, adapter: str, region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
+def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket, adapter: str, cpu: str = "1", memory: str = "512Mi", region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
     project_id = get_project_id()
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
@@ -124,7 +128,11 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
             run_v2.EnvVar(name="ADAPTER", value=adapter),
             run_v2.EnvVar(name="LOCATION", value=region),
             run_v2.EnvVar(name="PROJECT_ID", value=project_id),
-        ]
+            run_v2.EnvVar(name="PROVIDER", value="google"),
+        ],
+        resources=run_v2.ResourceRequirements(
+            limits={"cpu": cpu, "memory": memory}
+        )
     )
 
     volume = run_v2.Volume(
