@@ -7,7 +7,8 @@ RUN useradd -ms /bin/bash dbt_user
 RUN chown -R dbt_user /home/dbt_user/
 WORKDIR /home/dbt_user/
 
-COPY . ./dbtr/server
+COPY dist/server ./dbtr/server
+COPY dist/common ./dbtr/common
 RUN mkdir .dbt
 
 ENV PORT=8080

@@ -1,14 +1,17 @@
 import functools
+from pathlib import Path
 
 import click
 from dbt.cli.main import cli as dbt_cli
 from dbt.cli import requires as dbt_requires
+import rich
 from skaff_telemetry import skaff_telemetry
 
 from dbtr.cli import requires
 from dbtr.cli.exceptions import handle_exceptions
 import dbtr.cli.params as p
 from dbtr.cli.remote_server import DbtServer
+from dbtr.cli.schedule import ScheduleManager
 from dbtr.cli.utils import rename
 from dbtr.cli.version import __version__
 
@@ -22,6 +25,7 @@ def global_flags(func):
     @p.gcp_memory
     @p.azure_location
     @p.azure_resource_group
+    @p.dry_run
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -77,6 +81,66 @@ def deploy(ctx, **kwargs):
         click.echo(f"Deploying a dbt server on '{cloud_provider}' is not supported. The only supported providers at the moment are 'google' and 'local'")
 
 
+@remote.group("schedule", help="Manage your scheduled runs")
+@click.pass_context
+def schedule(ctx, **kwargs):
+    pass
+
+
+@schedule.command("list", help="List all scheduled jobs")
+@click.pass_context
+@global_flags
+@p.cloud_provider
+@requires.dbt_server
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
+def list_schedules(ctx, **kwargs):
+    server: DbtServer = ctx.obj["server"]
+    schedules = ScheduleManager(server).list()
+    rich.print(schedules)
+
+
+@schedule.command("get", help="Get details about a scheduled job")
+@click.pass_context
+@global_flags
+@p.cloud_provider
+@p.schedule_name
+@requires.dbt_server
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
+def get_schedule(ctx, **kwargs):
+    server: DbtServer = ctx.obj["server"]
+    schedule = ScheduleManager(server).get(ctx.params["schedule_name"])
+    rich.print(schedule)
+
+
+@schedule.command("set", help="Set a schedule from a file")
+@click.pass_context
+@global_flags
+@p.cloud_provider
+@p.schedule_file
+@p.auto_approve
+@requires.dbt_server
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
+def set_schedules(ctx, **kwargs):
+    server: DbtServer = ctx.obj["server"]
+    ScheduleManager(server).set_from_file(Path(ctx.params["schedule_file"]), auto_approve=ctx.params["auto_approve"])
+    rich.print("Schedules have been set:")
+    schedules = ScheduleManager(server).list()
+    rich.print(schedules)
+
+
+@schedule.command("delete", help="Delete a scheduled job")
+@click.pass_context
+@global_flags
+@p.cloud_provider
+@p.schedule_name
+@requires.dbt_server
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
+def delete_schedules(ctx, **kwargs):
+    server: DbtServer = ctx.obj["server"]
+    ScheduleManager(server).delete(ctx.params["schedule_name"])
+    click.echo(f"Deleted job '{ctx.params['schedule_name']}'")
+
+
 @remote.command("unlock", help="Forcefully remove a server lock")
 @click.pass_context
 @global_flags
@@ -112,6 +176,9 @@ def create_command(name, help_message):
     @requires.dbt_server
     @rename(name)
     def command_function(ctx, **kwargs):
+        if ctx.params["dry_run"]:
+            return ctx
+
         @skaff_telemetry(accelerator_name="dbtr-cli", function_name=name, version_number=__version__, project_name=ctx.obj["project"].project_name)
         def inner_command_function(ctx, **kwargs):
             server: DbtServer = ctx.obj["server"]

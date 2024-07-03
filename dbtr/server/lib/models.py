@@ -1,34 +1,22 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import random
 import string
 
-from pydantic import Field, field_validator, computed_field, BaseModel, model_validator
+from pydantic import field_validator, computed_field, model_validator
 from snowflake import SnowflakeGenerator
 
+from dbtr.common.job import DbtRemoteJob
 from dbtr.server.lib.database import Database
 
 
-class ServerRuntimeConfig(BaseModel):
-    run_id: Optional[str] = Field(default=None, validate_default=True)
-    run_conf_version: int = 1
-    project: str
-    server_url: str
-    cloud_provider: str
-    provider_config: Dict = Field(default_factory=dict)
-    requester: str = "unknown"
-    dbt_runtime_config: Dict = Field(default_factory=dict)
-    schedule_name: Optional[str] = None
-    schedule_cron: Optional[str] = None
-    schedule_description: Optional[str] = None
-
+class ServerJob(DbtRemoteJob):
     @computed_field
     def run_now(self) -> bool:
         return self.schedule_cron is None
 
     @model_validator(mode="before")
     def set_run_id(cls, values: Dict[str, Any]):
-        print("values:", values)
         run_id = values.get("run_id", None)
         schedule_cron = values.get("schedule_cron", None)
 

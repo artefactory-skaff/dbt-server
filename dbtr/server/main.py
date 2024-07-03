@@ -16,7 +16,7 @@ from dbtr.server.lib.database import Database
 from dbtr.server.lib.dbt_executor import DBTExecutor
 from dbtr.server.lib.lock import Lock, LockException, LockNotFound
 from dbtr.server.lib.logger import get_logger
-from dbtr.server.lib.models import ServerRuntimeConfig
+from dbtr.server.lib.models import ServerJob
 from dbtr.server.lib.scheduler import schedulers
 from dbtr.server.lib.scheduler.base import BaseScheduler
 from dbtr.server.version import __version__
@@ -58,38 +58,13 @@ async def create_run(
     server_runtime_config, local_artifacts_path = await unpack_job_request(server_runtime_config, dbt_remote_artifacts)
 
     if server_runtime_config.run_now:
-        return await start_dbt_job(server_runtime_config, local_artifacts_path, background_tasks)
+        result = await start_dbt_job(server_runtime_config, local_artifacts_path, background_tasks)
+        status_code = status.HTTP_200_OK
     else:
-        return await schedule_dbt_job(server_runtime_config)
+        result = await schedule_dbt_job(server_runtime_config)
+        status_code = status.HTTP_201_CREATED
 
-
-@app.post("/api/schedule/{scheduled_run_id}/trigger")
-async def trigger_scheduled_run(scheduled_run_id: str, background_tasks: BackgroundTasks):
-    with Database(CONFIG.db_connection_string, logger=logger) as db:
-        server_runtime_config = ServerRuntimeConfig.from_scheduled_run(db, scheduled_run_id)
-        server_runtime_config.to_db(db)
-
-    local_artifact_path = move_folder(
-        CONFIG.persisted_dir / Path("schedules") / scheduled_run_id,
-        CONFIG.persisted_dir / Path("runs") / server_runtime_config.run_id,
-        delete_after_copy=False,
-    )
-
-    project_dir = local_artifact_path / "artifacts" / "input"
-    return await start_dbt_job(server_runtime_config, project_dir, background_tasks)
-
-
-@app.get("/api/logs/{run_id}")
-def stream_log(run_id: str, include_debug: bool = False):
-    return StreamingResponse(
-        stream_log_file(
-            run_id,
-            filter=lambda line: include_debug or line.get("info", {}).get("level") != "debug",
-            stop=lambda line: line.get("info", {}).get("name") == "CommandCompleted"
-        ),
-        media_type="text/event-stream",
-        status_code=status.HTTP_200_OK
-    )
+    return JSONResponse(status_code=status_code, content=result)
 
 
 @app.get("/api/run/{run_id}")
@@ -127,6 +102,95 @@ def list_runs(skip: int = 0, limit: int = 20):
     return JSONResponse(status_code=status.HTTP_200_OK, content=runs_dict)
 
 
+@app.post("/api/schedule/{scheduled_run_id}/trigger")
+async def trigger_scheduled_run(scheduled_run_id: str, background_tasks: BackgroundTasks):
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        server_runtime_config = ServerJob.from_scheduled_run(db, scheduled_run_id)
+        server_runtime_config.to_db(db)
+
+    local_artifact_path = move_folder(
+        CONFIG.persisted_dir / Path("schedules") / scheduled_run_id,
+        CONFIG.persisted_dir / Path("runs") / server_runtime_config.run_id,
+        delete_after_copy=False,
+    )
+
+    project_dir = local_artifact_path / "artifacts" / "input"
+    return await start_dbt_job(server_runtime_config, project_dir, background_tasks)
+
+
+@app.get("/api/schedule")
+def list_schedules(skip: int = 0, limit: int = 20):
+    logger.info("Listing schedules")
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        query = """
+            SELECT run_id, run_conf_version, project, server_url, cloud_provider, provider_config, requester, dbt_runtime_config, schedule_cron, schedule_name, schedule_description
+            FROM RunConfiguration
+            WHERE schedule_cron IS NOT NULL
+            ORDER BY run_id DESC
+            LIMIT ? OFFSET ?
+        """
+        schedules = db.fetchall(query, (limit, skip))
+    schedules_dict = {}
+    for schedule in schedules:
+        schedule = sanitize_run_from_db(schedule)
+        schedule_name = schedule["schedule_name"]
+        schedules_dict[schedule_name] = schedule
+    return JSONResponse(status_code=status.HTTP_200_OK, content=schedules_dict)
+
+
+@app.get("/api/schedule/{schedule_name}")
+def get_schedule(schedule_name: str):
+    logger.info(f"Fetching schedule with ID: {schedule_name}")
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        query = """
+            SELECT run_id, run_conf_version, project, server_url, cloud_provider, provider_config, requester, dbt_runtime_config, schedule_cron, schedule_name, schedule_description
+            FROM RunConfiguration
+            WHERE schedule_name = ?
+        """
+        schedule = db.fetchone(query, (schedule_name,))
+
+    if schedule:
+        schedule = sanitize_run_from_db(schedule)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=schedule)
+    else:
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "Schedule not found"})
+
+
+@app.delete("/api/schedule/{schedule_name}")
+def delete_schedule(schedule_name: str):
+    logger.info(f"Deleting schedule: {schedule_name}")
+
+    try:
+        scheduling_backend().delete(schedule_name)
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(e)})
+
+    with Database(CONFIG.db_connection_string, logger=logger) as db:
+        query = """
+            DELETE FROM RunConfiguration
+            WHERE schedule_name = ?
+        """
+        result = db.execute(query, (schedule_name,))
+
+    if result.rowcount > 0:
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Schedule {schedule_name} deleted successfully"})
+    else:
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "Schedule not found"})
+
+
+@app.get("/api/logs/{run_id}")
+def stream_log(run_id: str, include_debug: bool = False):
+    return StreamingResponse(
+        stream_log_file(
+            run_id,
+            filter=lambda line: include_debug or line.get("info", {}).get("level") != "debug",
+            stop=lambda line: line.get("info", {}).get("name") == "CommandCompleted"
+        ),
+        media_type="text/event-stream",
+        status_code=status.HTTP_200_OK
+    )
+
+
 @app.get("/api/project")
 def get_project():
     project_names = set()
@@ -143,16 +207,6 @@ def get_project():
     return JSONResponse(status_code=status.HTTP_200_OK, content={"projects": list(project_names)})
 
 
-@app.get("/api/version")
-async def get_version():
-    return JSONResponse(status_code=status.HTTP_200_OK, content={"version": __version__})
-
-
-@app.get("/api/check")
-async def check():
-    return {"response": f"Running dbt-server version {__version__}"}
-
-
 @app.post("/api/unlock")
 def unlock_server():
     try:
@@ -165,9 +219,19 @@ def unlock_server():
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(e)})
 
 
+@app.get("/api/version")
+async def get_version():
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"version": __version__})
+
+
+@app.get("/api/check")
+async def check():
+    return {"response": f"Running dbt-server version {__version__}"}
+
+
 async def unpack_job_request(server_runtime_config, dbt_remote_artifacts):
     server_runtime_config_dict = json.loads(server_runtime_config)
-    server_runtime_config = ServerRuntimeConfig(**server_runtime_config_dict)
+    server_runtime_config = ServerJob(**server_runtime_config_dict)
 
     logger.debug("Persisting metadata")
     with Database(CONFIG.db_connection_string, logger=logger) as db:
@@ -185,7 +249,7 @@ async def unpack_job_request(server_runtime_config, dbt_remote_artifacts):
     return server_runtime_config, local_artifact_path
 
 
-async def start_dbt_job(server_runtime_config: ServerRuntimeConfig, local_artifact_path: Path, background_tasks: BackgroundTasks):
+async def start_dbt_job(server_runtime_config: ServerJob, local_artifact_path: Path, background_tasks: BackgroundTasks):
     try:
         lock = Lock(Database(CONFIG.db_connection_string, logger=logger))
         lock.acquire(holder=server_runtime_config.requester, run_id=server_runtime_config.run_id)
@@ -211,10 +275,10 @@ async def start_dbt_job(server_runtime_config: ServerRuntimeConfig, local_artifa
         "run_id": server_runtime_config.run_id,
         "next_url": f"{server_runtime_config.server_url}/api/logs/{server_runtime_config.run_id}"
     }
-    return JSONResponse(status_code=status.HTTP_200_OK, content=response_contents)
+    return response_contents
 
 
-async def schedule_dbt_job(server_runtime_config: ServerRuntimeConfig):
+async def schedule_dbt_job(server_runtime_config: ServerJob):
     logger.debug("Creating scheduler")
     trigger_url = f"{server_runtime_config.server_url}/api/schedule/{server_runtime_config.run_id}/trigger"
 
@@ -232,7 +296,7 @@ async def schedule_dbt_job(server_runtime_config: ServerRuntimeConfig):
         "schedule_cron": server_runtime_config.schedule_cron,
         "next_url": trigger_url,
     }
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=response_contents)
+    return response_contents
 
 
 async def stream_log_file(run_id: str, filter: Callable, stop: Callable):

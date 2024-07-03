@@ -27,7 +27,7 @@ def deploy(image: str, service_name: str, port: int, region: str, adapter: str, 
         project_id = get_project_id()
     if region is None:
         raise MissingLocation("A location is required to deploy a dbt server on gcp. Specify one with --gcp-location (e.g. europe-west1, us-central1)")
-    enable_gcp_services(["run", "storage", "iam", "bigquery"], project_id)
+    enable_gcp_services(["run", "storage", "iam", "bigquery", "scheduler"], project_id)
     bucket = get_or_create_backend_bucket()
     service_account = create_dbt_server_service_account()
     deploy_cloud_run(
@@ -107,7 +107,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     for role in roles:
         print(f"    - {role}")
     modify_policy_add_member(project_id, roles, f"serviceAccount:{account.email}")
-
+    grant_sa_self_use(project_id, account.email)
     return account
 
 
@@ -281,6 +281,20 @@ def set_project_policy(
 
     policy = client.set_iam_policy(request)
     return policy
+
+
+def grant_sa_self_use(project_id: str, service_account_email: str):
+    sa_resource_name = f"projects/{project_id}/serviceAccounts/{service_account_email}"
+    client = iam_admin_v1.IAMClient()
+    policy = client.get_iam_policy(resource=sa_resource_name)
+    binding = policy.bindings.add()
+    binding.role = "roles/iam.serviceAccountUser"
+    binding.members.append(f"serviceAccount:{service_account_email}")
+
+    request = iam_policy_pb2.SetIamPolicyRequest()
+    request.resource = sa_resource_name
+    request.policy.MergeFrom(policy)
+    policy = client.set_iam_policy(request)
 
 
 def enable_gcp_services(services: List[str], project_id: str):

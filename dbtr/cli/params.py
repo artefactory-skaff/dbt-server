@@ -112,6 +112,11 @@ schedule_description = click.option(
     help='Description for the scheduler created. If none is given, "" will be used',
 )
 
+schedule_file = click.option(
+    '--schedule-file',
+    help='Path to a file containing the schedules to deploy. The file should be a yaml, toml or json file.'
+)
+
 service = click.option(
     "--service",
     envvar="SERVICE",
@@ -146,4 +151,18 @@ log_level = click.option(
     envvar="LOG_LEVEL",
     default="INFO",
     help="Log level for the dbt server. Default: INFO"
+)
+
+auto_approve = click.option(
+    "--auto-approve",
+    is_flag=True,
+    default=False,
+    help="Auto approve the command without asking for confirmation."
+)
+
+dry_run = click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Dry run the command without invoking it. Will return the context instead of running the command. Useful for debugging."
 )

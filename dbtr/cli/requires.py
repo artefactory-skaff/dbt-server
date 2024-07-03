@@ -32,6 +32,9 @@ def artifacts_archive(func):
         ctx = args[0]
         assert isinstance(ctx, click.Context)
 
+        if ctx.params["dry_run"]:  # Skip building the artifacts archive in dry-run mode
+            return func(*args, **kwargs)
+
         flags = ctx.obj["flags"]
         project_dir = Path(flags.project_dir)
 

@@ -23,6 +23,9 @@ click = "^8"
 dbutils = "^3"
 sqlalchemy = "^2"
 cron-descriptor = "^1"
+rich = "^13"
+crontzconvert = "^0.1"
+tzlocal = "^5"
 dbt-core = { version = "^1", optional = true }
 dbt-bigquery = { version = "^1", optional = true }
 google-cloud-iam = { version = "^2", optional = true }
