@@ -7,8 +7,8 @@ import humanize
 
 from skaff_telemetry import skaff_telemetry
 import uvicorn
-from fastapi import FastAPI, Form, Request, UploadFile, File, status, BackgroundTasks
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi import APIRouter, FastAPI, Form, Request, UploadFile, File, status, BackgroundTasks
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
 from dbtr.server.config import CONFIG
 from dbtr.server.lib.artifacts import move_folder, unzip_and_persist_artifacts
@@ -32,6 +32,7 @@ app = FastAPI(
     version=__version__,
     docs_url="/docs"
 )
+router = APIRouter()
 
 
 with Database(CONFIG.db_connection_string, logger=logger) as db:
@@ -100,6 +101,15 @@ def list_runs(skip: int = 0, limit: int = 20):
         run_id = run["run_id"]
         runs_dict[run_id] = run
     return JSONResponse(status_code=status.HTTP_200_OK, content=runs_dict)
+
+
+@router.get("/api/run/{run_id}/docs/{file_path:path}")
+async def serve_docs(run_id: str, file_path: str):
+    docs_dir = CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "output" / "docs"
+    file_location = docs_dir / file_path
+    if file_location.exists():
+        return FileResponse(file_location)
+    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "File not found"})
 
 
 @app.post("/api/schedule/{scheduled_run_id}/trigger")
@@ -228,7 +238,6 @@ async def get_version():
 async def check():
     return {"response": f"Running dbt-server version {__version__}"}
 
-
 async def unpack_job_request(server_runtime_config, dbt_remote_artifacts):
     server_runtime_config_dict = json.loads(server_runtime_config)
     server_runtime_config = ServerJob(**server_runtime_config_dict)
@@ -336,6 +345,10 @@ def sanitize_run_from_db(run: str):
     run["provider_config"] = json.loads(run["provider_config"])
     run["dbt_runtime_config"] = json.loads(run["dbt_runtime_config"])
     return run
+
+
+app.include_router(router)
+
 
 if __name__ == '__main__':
     uvicorn.run("dbtr.server.main:app", host="0.0.0.0", port=CONFIG.port, workers=1, reload=False)

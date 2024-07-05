@@ -26,6 +26,10 @@ class JobWithStatus(DbtRemoteJob):
         return None
 
     @computed_field
+    def end_time_humanized(self) -> datetime.datetime:
+        return humanize.naturaltime(self.end_datetime)
+
+    @computed_field
     def duration(self) -> Optional[datetime.timedelta]:
         if self.start_datetime and self.end_datetime:
             return self.end_datetime - self.start_datetime
@@ -50,8 +54,8 @@ class JobWithStatusManager:
     def __init__(self, server: DbtServer):
         self.server = server
 
-    def list(self) -> JobsWithStatus:
-        res = self.server.session.get(url=self.server.server_url + "api/run")
+    def list(self, skip: int = 0, limit: int = 20) -> JobsWithStatus:
+        res = self.server.session.get(url=self.server.server_url + f"api/run?skip={skip}&limit={limit}")
         return JobsWithStatus(dbt_remote_jobs=[JobWithStatus(**dbt_remote_job_dict) for dbt_remote_job_dict in res.json().values()])
 
     def get(self, dbt_remote_job_id: str) -> JobWithStatus:

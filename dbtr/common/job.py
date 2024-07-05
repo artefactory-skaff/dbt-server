@@ -32,8 +32,8 @@ class DbtRemoteJobManager:
     def __init__(self, server: DbtServer):
         self.server = server
 
-    def list(self) -> DbtRemoteJobs:
-        res = self.server.session.get(url=self.server.server_url + "api/run")
+    def list(self, skip: int = 0, limit: int = 20) -> DbtRemoteJobs:
+        res = self.server.session.get(url=self.server.server_url + f"api/run?skip={skip}&limit={limit}")
         return DbtRemoteJobs(dbt_remote_jobs=[DbtRemoteJob(**dbt_remote_job_dict) for dbt_remote_job_dict in res.json().values()])
 
     def get(self, dbt_remote_job_id: str) -> DbtRemoteJob:

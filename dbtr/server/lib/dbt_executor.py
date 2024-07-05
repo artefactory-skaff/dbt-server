@@ -10,6 +10,7 @@ from dbtr.server.config import CONFIG
 from dbtr.server.lib.database import Database
 
 from dbtr.server.lib.lock import Lock
+from dbtr.server.lib.models import ServerJob
 
 
 class DBTExecutor:
@@ -18,7 +19,7 @@ class DBTExecutor:
     def __init__(
             self,
             dbt_runtime_config,
-            server_runtime_config,
+            server_runtime_config: ServerJob,
             artifact_input: Path,
             logger: logging.Logger,
     ):
@@ -63,6 +64,22 @@ class DBTExecutor:
         finally:
             if lock:
                 lock.release()
+
+        self.generate_doc(manifest, command_args)
+
+    def generate_doc(self, manifest: Manifest, command_args: dict[str, Any]):
+        self.logger.info("Generating documentation")
+        res: dbtRunnerResult = dbtRunner(manifest).invoke(
+            ["docs", "generate"],
+            **{
+                **command_args,
+                **self.LOG_CONFIG,
+                "log_level_file": "none",  # log ignored here to
+                "target_path": CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "output" / "docs"
+            }
+        )
+        if not res.success:
+            raise res.exception
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
