@@ -5,7 +5,7 @@ import requests
 
 from cron_descriptor import get_description, Options
 
-from dbtr.cli.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
+from dbtr.common.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
 
 
 class Server:

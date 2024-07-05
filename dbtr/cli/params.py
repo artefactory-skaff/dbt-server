@@ -2,7 +2,7 @@ from typing import Any, Callable, Union
 import click
 from dbt.cli.main import cli as dbt_cli
 
-from dbtr.cli.exceptions import MissingAzureParams
+from dbtr.common.exceptions import MissingAzureParams
 
 
 def dbt_flags(command: Union[click.Command, Callable[..., Any]]):

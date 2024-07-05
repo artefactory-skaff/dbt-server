@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from dbtr.cli.exceptions import AzureDeploymentFailed, MissingExtraPackage
+from dbtr.common.exceptions import AzureDeploymentFailed, MissingExtraPackage
 
 try:
     from azure.identity import AzureCliCredential, DefaultAzureCredential

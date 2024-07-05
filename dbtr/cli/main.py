@@ -8,10 +8,10 @@ import rich
 from skaff_telemetry import skaff_telemetry
 
 from dbtr.cli import requires
-from dbtr.cli.exceptions import handle_exceptions
+from dbtr.common.exceptions import handle_exceptions
 import dbtr.cli.params as p
-from dbtr.cli.remote_server import DbtServer
-from dbtr.cli.schedule import ScheduleManager
+from dbtr.common.remote_server import DbtServer
+from dbtr.common.schedule import ScheduleManager
 from dbtr.cli.utils import rename
 from dbtr.cli.version import __version__
 

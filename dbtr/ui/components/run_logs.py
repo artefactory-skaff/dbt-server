@@ -4,17 +4,16 @@ from datetime import datetime
 import humanize
 from ansi2html import Ansi2HTMLConverter
 
-from dbtr.cli.remote_server import DbtServer
-
-server = DbtServer(server_url="http://0.0.0.0:8080")
-
 def run_logs():
     run_id = st.session_state.get("run_id", None)
-    if not run_id:
-        st.title("Select a run from the sidebar to view logs.")
-        return
+    server = st.session_state["server"]
 
-    st.title(f"Logs for run {run_id}")
+    col1, col2 = st.columns([1, 7])
+    with col1:
+        st.write("")
+        st.button("Back to runs history", on_click=lambda: st.session_state.pop("run_id"), type="primary")
+    with col2:
+        st.header(f"Logs for run {run_id}")
 
     st.markdown(
         """

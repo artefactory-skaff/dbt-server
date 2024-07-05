@@ -5,6 +5,7 @@ from typing import Any, List
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
+from dbtr.common.job import JobStatus
 from dbtr.server.config import CONFIG
 from dbtr.server.lib.database import Database
 
@@ -31,7 +32,7 @@ class DBTExecutor:
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
                     "INSERT INTO Runs (run_id, start_time, run_status) VALUES (?, ?, ?)",
-                    (self.server_runtime_config.run_id, time.time(), "initializing")
+                    (self.server_runtime_config.run_id, time.time(), JobStatus.INITIALIZING)
                 )
             command_args = self.__prepare_command_args(self.dbt_runtime_config, self.artifact_input)
             self.logger.info("Building manifest")
@@ -39,12 +40,12 @@ class DBTExecutor:
             self.logger.info(f"Executing dbt command {dbt_command} with artifact input {self.artifact_input.as_posix()}")
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
-                    "UPDATE Runs SET run_status = 'running' WHERE run_id = ?",
-                    (self.server_runtime_config.run_id,)
+                    "UPDATE Runs SET run_status = ? WHERE run_id = ?",
+                    (JobStatus.RUNNING, self.server_runtime_config.run_id)
                 )
             dbt_runner = dbtRunner(manifest=manifest)
             result = dbt_runner.invoke(dbt_command, **{**command_args, **self.LOG_CONFIG})
-            final_run_status = "success" if result.success else "failed"
+            final_run_status = JobStatus.SUCCESS if result.success else JobStatus.FAILED
             self.logger.info(f"DBT command {dbt_command} completed")
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
@@ -56,7 +57,7 @@ class DBTExecutor:
             with Database(CONFIG.db_connection_string, logger=self.logger) as db:
                 db.execute(
                     "UPDATE Runs SET end_time = ?, run_status = ? WHERE run_id = ?",
-                    (time.time(), "server error", self.server_runtime_config.run_id)
+                    (time.time(), JobStatus.SERVER_ERROR, self.server_runtime_config.run_id)
                 )
             raise
         finally:

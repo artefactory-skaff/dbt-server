@@ -15,8 +15,8 @@ from crontzconvert import convert
 from tzlocal import get_localzone
 from dbt.cli.main import cli
 
-from dbtr.cli.exceptions import DbtrException
-from dbtr.cli.remote_server import DbtServer
+from dbtr.common.exceptions import DbtrException
+from dbtr.common.remote_server import DbtServer
 from dbtr.common.job import DbtRemoteJob
 
 
@@ -32,6 +32,13 @@ class Schedule(DbtRemoteJob):
         raw_schedule = result.obj["server_runtime_config"]
         raw_schedule["spec"] = schedule_file_spec
         return cls(**raw_schedule)
+
+    @computed_field
+    def humanized_cron(self) -> str:
+        local_tz = get_localzone()
+        localized_cron = convert(self.schedule_cron, "UTC", str(local_tz))
+        cron_description_options = Options()
+        return f"{get_description(localized_cron, cron_description_options)} ({local_tz})"
 
 
     def __rich__(self):

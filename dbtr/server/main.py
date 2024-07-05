@@ -193,7 +193,6 @@ def stream_log(run_id: str, include_debug: bool = False):
 
 @app.get("/api/project")
 def get_project():
-    project_names = set()
     with Database(CONFIG.db_connection_string, logger=logger) as db:
         query = """
             SELECT DISTINCT project
@@ -201,10 +200,11 @@ def get_project():
         """
         projects = db.fetchall(query)
 
+    content = {}
     for project in projects:
-        project_names.add(project["project"])
+        content[project["project"]] = {"name": project["project"]}
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content={"projects": list(project_names)})
+    return JSONResponse(status_code=status.HTTP_200_OK, content=content)
 
 
 @app.post("/api/unlock")

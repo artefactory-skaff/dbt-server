@@ -39,6 +39,7 @@ google-cloud-storage = { version = "^2", optional = true }
 azure-identity = { version = "^1", optional = true }
 azure-mgmt-resource = { version = "^23", optional = true }
 google-cloud-scheduler = { version = "^2", optional = true }
+extra-streamlit-components = "^0.1.71"
 
 [tool.poetry.extras]
 google = [

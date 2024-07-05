@@ -4,7 +4,8 @@ from typing import List
 from uuid import uuid4
 from subprocess import check_output
 
-from dbtr.cli.exceptions import MissingExtraPackage, MissingLocation, ServerNotFound
+from dbtr.common.exceptions import MissingExtraPackage, MissingLocation, ServerNotFound
+from dbtr.common.remote_server import DbtServer
 
 try:
     from google.cloud import iam_credentials_v1, compute_v1, bigquery, run_v2, storage, iam_admin_v1, resourcemanager_v3
@@ -18,8 +19,6 @@ try:
 except ImportError:
     raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install dbtr[google]`.")
 
-
-from dbtr.cli.remote_server import DbtServer
 
 
 def deploy(image: str, service_name: str, port: int, region: str, adapter: str, cpu: str = "1", memory: str = "1Gi", project_id: str = None, log_level: str = "INFO"):

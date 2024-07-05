@@ -6,11 +6,11 @@ from pathlib import Path, PosixPath
 
 import click
 import humanize
+
 from dbt_common.helper_types import WarnErrorOptions
 from dbt.cli.main import cli as dbt_cli
-from dbtr.cli.exceptions import MissingServerURL
-
-from dbtr.cli.remote_server import DbtServer
+from dbtr.common.exceptions import MissingServerURL
+from dbtr.common.remote_server import DbtServer
 
 
 def artifacts_archive(func):
