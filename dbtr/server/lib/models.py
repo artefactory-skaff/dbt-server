@@ -33,7 +33,7 @@ class ServerJob(DbtRemoteJob):
         return v
 
     def to_db(self, db: Database):
-        entry = self.model_dump(exclude={"run_now"})
+        entry = self.model_dump(exclude={"run_now", "humanized_model_selection"})
         entry["provider_config"] = json.dumps(entry["provider_config"])
         entry["dbt_runtime_config"] = json.dumps(entry["dbt_runtime_config"])
         db.execute(
