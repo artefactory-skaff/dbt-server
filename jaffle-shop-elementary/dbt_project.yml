@@ -1,0 +1,42 @@
+config-version: 2
+
+name: "jaffle_shop_elementary"
+version: "3.0.0"
+require-dbt-version: ">=1.5.0"
+
+profile: default # Put your profile here
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["data-tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  "dbt_date:time_zone": "America/Los_Angeles"
+
+seeds:
+  jaffle_shop:
+    +schema: raw
+
+models:
+  jaffle_shop:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+  elementary:
+    ## elementary models will be created in the schema '<your_schema>_elementary'
+    +schema: "elementary"
+    ## To disable elementary for dev, uncomment this:
+    # enabled: "{{ target.name in ['prod','analytics'] }}"
+
+# Required from dbt 1.8 and above for certain Elementary features (please see more details above)
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: false

@@ -1,0 +1,8 @@
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.1.1
+  - package: calogica/dbt_date
+    version: 0.10.0
+  - package: elementary-data/elementary
+    version: 0.15.2
+sha1_hash: f180ddc4f09caeb5222a1e4a5c3e4484d7f534b8
