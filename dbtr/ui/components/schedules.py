@@ -17,6 +17,7 @@ def schedules():
                     <span style="background-color: #505050; padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace; color: #a0aec0;">{schedule.schedule_name}</span>
                     <span style="background-color: #1f77b4; padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace;">{schedule.humanized_cron}</span>
                     <span style="background-color: #808080; padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace;">{" ".join(schedule.dbt_runtime_config['command'])}</span>
+                    <span style='padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace;'>{schedule.humanized_model_selection}</span>
                 </div>
             </div>
             """,

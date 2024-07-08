@@ -15,4 +15,5 @@ with col1:
     st.title("DBT Cloud from Wish")
 with col2:
     project_selector()
+st.write(f"Connected to remote server at {st.session_state['server'].server_url}")
 tabs()

@@ -19,6 +19,7 @@ def run_history():
                 JobStatus.INITIALIZING: "#D69E2E",
                 JobStatus.SERVER_ERROR: "#E53E3E",
             }[run_details.run_status]
+
             col1, col2 = st.columns([16, 1])
             with col1:
                 st.markdown(
@@ -28,6 +29,7 @@ def run_history():
                             <span style="background-color: #505050; padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace; color: #a0aec0;">{timestamp.strftime("%Y-%m-%d %H:%M:%S")} ({humanized_time})</span>
                             <span style="background-color: #1f77b4; padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace;">{run_details.requester}</span>
                             <span style="background-color: #808080; padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace;">{" ".join(run_details.dbt_runtime_config['command'])}</span>
+                            <span style='padding: 2px 5px; border-radius: 3px; margin-left: 3px; font-family: monospace;'>{run_details.humanized_model_selection}</span>
                             <span style="background-color: {result_color}; padding: 0px 5px; border-radius: 3px; font-family: monospace; float: right;">{run_details.run_status.value.upper()}</span>
                         </div>
                     </div>

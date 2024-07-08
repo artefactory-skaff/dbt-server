@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 from typing import Any, List
 
-from elementary.cli.cli import cli
+from elementary.cli.cli import cli as elementary_cli
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
@@ -85,13 +85,13 @@ class DBTExecutor:
 
     def generate_elementary_report(self):
         self.logger.info("Generating elementary report")
-        result = cli([
+        elementary_cli([
             "report",
             "--target-path", str(CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "output" / "elementary"),
             "--project-dir", str(CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "input"),
             "--profiles-dir", str(CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "input"),
+            "--open-browser", "false"
         ], standalone_mode=False)
-        print("Done bye")
 
 
     @staticmethod

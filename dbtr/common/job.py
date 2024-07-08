@@ -19,6 +19,29 @@ class DbtRemoteJob(BaseModel):
     schedule_cron: Optional[str] = None
     schedule_description: Optional[str] = None
 
+    @computed_field
+    def humanized_model_selection(self) -> str:
+        selected_models = self.dbt_runtime_config["flags"].get("select", [])
+        excluded_models = self.dbt_runtime_config["flags"].get("exclude", [])
+
+        if len(excluded_models) > 0:
+            if len(selected_models) > 0:
+                selected_models_string = ', '.join(selected_models)
+                excluded_models_string = f"excluding {', '.join(excluded_models)}"
+            else:
+                selected_models_string = ""
+                excluded_models_string = f"All models excluding {', '.join(excluded_models)}"
+        else:
+            if len(selected_models) > 0:
+                selected_models_string = f"{', '.join(selected_models)}"
+                excluded_models_string = ""
+            else:
+                selected_models_string = "All models"
+                excluded_models_string = ""
+
+        model_selection_string = f"{selected_models_string} {excluded_models_string}"
+        return model_selection_string
+
 
 class DbtRemoteJobs(BaseModel):
     dbt_remote_jobs: list[DbtRemoteJob]
