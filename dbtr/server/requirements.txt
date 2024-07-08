@@ -7,4 +7,6 @@ dbt-core
 pandas
 dbutils
 sqlalchemy
+cron-descriptor
 google-cloud-scheduler>=2.1,<3
+elementary-data

@@ -6,7 +6,7 @@ import humanize
 def run_history():
     st.header(f"Runs history for {st.session_state['project'].name}")
 
-    jobs = JobWithStatusManager(server=st.session_state["server"]).list()
+    jobs = JobWithStatusManager(server=st.session_state["server"]).list(project=st.session_state["project"].name)
 
     with st.container(border=False, height=500):
         for run_details in jobs.dbt_remote_jobs:

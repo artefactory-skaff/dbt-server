@@ -8,6 +8,24 @@ from cron_descriptor import get_description, Options
 from dbtr.common.exceptions import Server400, Server500, ServerConnectionError, ServerLocked, ServerUnlockFailed
 
 
+class AuthSession(requests.Session):
+    def __init__(self, token_generator: Callable, server_url: str):
+        super().__init__()
+        self.token_generator = token_generator
+        self.server_url = server_url
+        self.update_token()
+
+    def update_token(self):
+        token = self.token_generator(server_url=self.server_url)
+        self.headers.update({"Authorization": f"Bearer {token}"})
+
+    def request(self, method, url, **kwargs) -> requests.Response:
+        response = super().request(method, url, **kwargs)
+        if response.status_code == 401:
+            self.update_token()
+            response = super().request(method, url, **kwargs)
+        return response
+
 class Server:
     def __init__(self, server_url, token_generator: Callable = None):
         self.server_url = server_url if server_url.endswith("/") else server_url + "/"
@@ -15,14 +33,10 @@ class Server:
 
         self.session = self.get_auth_session()
 
-    def get_auth_session(self) -> requests.Session:
+    def get_auth_session(self) -> AuthSession:
         if self.token_generator is None:
             return requests.Session()
-
-        token = self.token_generator(server_url=self.server_url)
-        session = requests.Session()
-        session.headers.update({"Authorization": f"Bearer {token}"})
-        return session
+        return AuthSession(self.token_generator, self.server_url)
 
 
 class DbtServer(Server):

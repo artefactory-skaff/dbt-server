@@ -9,6 +9,7 @@ from skaff_telemetry import skaff_telemetry
 import uvicorn
 from fastapi import APIRouter, FastAPI, Form, Request, UploadFile, File, status, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from jinja2 import Template
 
 from dbtr.server.config import CONFIG
 from dbtr.server.lib.artifacts import move_folder, unzip_and_persist_artifacts
@@ -82,18 +83,26 @@ def get_run(run_id: str):
 
 
 @app.get("/api/run")
-def list_runs(skip: int = 0, limit: int = 20):
+def list_runs(skip: int = 0, limit: int = 20, project: str = None):
     logger.info("Listing past runs")
     with Database(CONFIG.db_connection_string, logger=logger) as db:
-        query = """
+        base_query = """
             SELECT rc.run_id, rc.run_conf_version, rc.project, rc.server_url, rc.cloud_provider, rc.provider_config, rc.requester, rc.dbt_runtime_config, rc.schedule_cron, rc.schedule_name, rc.schedule_description, r.run_status, r.start_time, r.end_time
             FROM RunConfiguration rc
             JOIN Runs r ON rc.run_id = r.run_id
             WHERE rc.schedule_cron IS NULL
+            {% if project %}
+            AND rc.project = :project
+            {% endif %}
             ORDER BY rc.run_id DESC
-            LIMIT ? OFFSET ?
+            LIMIT :limit OFFSET :skip
         """
-        runs = db.fetchall(query, (limit, skip))
+        template = Template(base_query)
+        query = template.render(project=project)
+        params = {"limit": limit, "skip": skip}
+        if project:
+            params["project"] = project
+        runs = db.fetchall(query, params)
 
     runs_dict = {}
     for run in runs:
@@ -107,6 +116,15 @@ def list_runs(skip: int = 0, limit: int = 20):
 async def serve_docs(run_id: str, file_path: str):
     docs_dir = CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "output" / "docs"
     file_location = docs_dir / file_path
+    if file_location.exists():
+        return FileResponse(file_location)
+    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "File not found"})
+
+
+@router.get("/api/run/{run_id}/elementary/{file_path:path}")
+async def serve_elementary(run_id: str, file_path: str):
+    elementary_dir = CONFIG.persisted_dir / "runs" / run_id / "artifacts" / "output" / "elementary"
+    file_location = elementary_dir / file_path
     if file_location.exists():
         return FileResponse(file_location)
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "File not found"})

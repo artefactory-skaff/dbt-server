@@ -54,8 +54,9 @@ class JobWithStatusManager:
     def __init__(self, server: DbtServer):
         self.server = server
 
-    def list(self, skip: int = 0, limit: int = 20) -> JobsWithStatus:
-        res = self.server.session.get(url=self.server.server_url + f"api/run?skip={skip}&limit={limit}")
+    def list(self, skip: int = 0, limit: int = 20, project: str = None) -> JobsWithStatus:
+        project_param = f"&project={project}" if project else ""
+        res = self.server.session.get(url=self.server.server_url + f"api/run?skip={skip}&limit={limit}{project_param}")
         return JobsWithStatus(dbt_remote_jobs=[JobWithStatus(**dbt_remote_job_dict) for dbt_remote_job_dict in res.json().values()])
 
     def get(self, dbt_remote_job_id: str) -> JobWithStatus:

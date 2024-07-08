@@ -26,7 +26,7 @@ def deploy(image: str, service_name: str, port: int, region: str, adapter: str, 
         project_id = get_project_id()
     if region is None:
         raise MissingLocation("A location is required to deploy a dbt server on gcp. Specify one with --gcp-location (e.g. europe-west1, us-central1)")
-    enable_gcp_services(["run", "storage", "iam", "bigquery", "scheduler"], project_id)
+    enable_gcp_services(["run", "storage", "iam", "bigquery", "cloudscheduler"], project_id)
     bucket = get_or_create_backend_bucket()
     service_account = create_dbt_server_service_account()
     deploy_cloud_run(

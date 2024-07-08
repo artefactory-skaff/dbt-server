@@ -37,7 +37,7 @@ def run_logs():
 
     conv = Ansi2HTMLConverter()
 
-    log_levels = ["ERROR", "WARNING", "INFO", "DEBUG"]
+    log_levels = ["ERROR", "WARN", "INFO", "DEBUG"]
     col1, col2, col3 = st.columns([1, 2, 1])  # Adjust the column widths as needed
 
     with col1:
@@ -89,7 +89,7 @@ def run_logs():
             if log_levels.index(log_level.upper()) <= log_levels.index(selected_log_level):
                 level_color = {
                     "INFO": "#1f77b4",
-                    "WARNING": "#ff7f0e",
+                    "WARN": "#ff7f0e",
                     "ERROR": "#d62728",
                     "DEBUG": "#808080"
                 }.get(log_level.upper(), "#808080")

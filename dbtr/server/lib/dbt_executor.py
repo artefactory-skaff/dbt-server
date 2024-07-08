@@ -3,12 +3,13 @@ from pathlib import Path
 import time
 from typing import Any, List
 
+from elementary.cli.cli import cli
+
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 from dbtr.common.job import JobStatus
 from dbtr.server.config import CONFIG
 from dbtr.server.lib.database import Database
-
 from dbtr.server.lib.lock import Lock
 from dbtr.server.lib.models import ServerJob
 
@@ -66,6 +67,7 @@ class DBTExecutor:
                 lock.release()
 
         self.generate_doc(manifest, command_args)
+        self.generate_elementary_report()
 
     def generate_doc(self, manifest: Manifest, command_args: dict[str, Any]):
         self.logger.info("Generating documentation")
@@ -80,6 +82,17 @@ class DBTExecutor:
         )
         if not res.success:
             raise res.exception
+
+    def generate_elementary_report(self):
+        self.logger.info("Generating elementary report")
+        result = cli([
+            "report",
+            "--target-path", str(CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "output" / "elementary"),
+            "--project-dir", str(CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "input"),
+            "--profiles-dir", str(CONFIG.persisted_dir / "runs" / self.server_runtime_config.run_id / "artifacts" / "input"),
+        ], standalone_mode=False)
+        print("Done bye")
+
 
     @staticmethod
     def __prepare_command_args(command_args: dict[str, Any], remote_project_dir: Path) -> dict[str, Any]:
