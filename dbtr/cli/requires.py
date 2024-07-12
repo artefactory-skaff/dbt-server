@@ -159,29 +159,31 @@ def dbt_server(func):
         ctx.obj = ctx.obj or {}
         assert isinstance(ctx, click.Context)
 
-        if ctx.params["cloud_provider"] == "google":
+        if ctx.params.get("cloud_provider") == "google":
             from dbtr.cli.cloud_providers import gcp
 
-            if ctx.params["server_url"] is None:
+            if ctx.params.get("server_url") is None:
                 click.echo("--server-url not set, performing server discovery...")
-                if ctx.params["gcp_project"] is None:
+                if ctx.params.get("gcp_project") is None:
                     project_id = gcp.get_project_id()
                     click.echo(f"--gcp-project not set, defaulting to using the GCP project from your gcloud configuration: {project_id}")
+                else:
+                    project_id = ctx.params.get("gcp_project")
 
-                server_url = gcp.find_dbt_server(ctx.params["gcp_location"], ctx.params["gcp_project"])
+                server_url = gcp.find_dbt_server(ctx.params.get("gcp_location"), project_id)
             else:
                 server_url = ctx.params["server_url"]
             server = DbtServer(server_url, token_generator=gcp.get_auth_token)
 
-        elif ctx.params["cloud_provider"] == "azure":
+        elif ctx.params.get("cloud_provider") == "azure":
             from dbtr.cli.cloud_providers import az
 
-            if ctx.params["server_url"] is None:
+            if ctx.params.get("server_url") is None:
                 raise MissingServerURL("--server-url is required for Azure runs.")
             server = DbtServer(ctx.params["server_url"], token_generator=az.get_auth_token)
 
-        elif ctx.params["cloud_provider"] == "local":
-            if ctx.params["server_url"] is None:
+        elif ctx.params.get("cloud_provider") == "local":
+            if ctx.params.get("server_url") is None:
                 raise MissingServerURL("--server-url is required for local runs.")
             server = DbtServer(ctx.params["server_url"])
 

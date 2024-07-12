@@ -86,7 +86,7 @@ job-1:
 job-2:
    command: dbtr remote build --select +customers+ --server-url https://my-dbt-server-abcdefghij-ew.a.run.app --cloud-provider google
    schedule_cron: "0 6 * * *"
-   description: "Build all the sales models at 6 UTC"
+   description: "Build all the customer models at 6 UTC"
 ```
 
 Then deploy the schedules:
