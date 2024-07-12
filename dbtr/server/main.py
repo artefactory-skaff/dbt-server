@@ -308,7 +308,7 @@ async def schedule_dbt_job(server_runtime_config: ServerJob):
     logger.debug("Creating scheduler")
     trigger_url = f"{server_runtime_config.server_url}/api/schedule/{server_runtime_config.run_id}/trigger"
 
-    scheduling_backend().create_or_update_job(
+    scheduling_backend.create_or_update_job(
         name=server_runtime_config.schedule_name,
         cron_expression=server_runtime_config.schedule_cron,
         trigger_url=trigger_url,

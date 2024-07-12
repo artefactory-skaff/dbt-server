@@ -1,1 +1,1 @@
-__version__ = "0.3.3" # TODO: centralized version management
+__version__ = "0.3.4" # TODO: centralized version management
