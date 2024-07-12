@@ -17,7 +17,7 @@ This is a low-cost and practical alternative to dbt Cloud.
 
 Install dbtr with the right extras depending on where your server is (or will be):
 ```shell
-pip install dbtr[local]
+pip install 'dbtr[local]'
 ```
 
 Available extras:
