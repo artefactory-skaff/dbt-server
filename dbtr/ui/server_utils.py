@@ -33,7 +33,7 @@ def run_proxy_server(server_instance, port):
             with socketserver.TCPServer(("", port), handler) as httpd:
                 httpd.serve_forever()
         except OSError as e:
-            if e.errno == 98:  # Address already in use
+            if e.errno == 48:  # Address already in use
                 port += 1
             else:
                 raise

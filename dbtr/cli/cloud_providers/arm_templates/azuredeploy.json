@@ -28,6 +28,10 @@
                 {
                     "name": "ADAPTER",
                     "value": "dbt-bigquery"
+                },
+                {
+                    "name": "PROVIDER",
+                    "value": "azure"
                 }
             ]
         },
@@ -108,8 +112,8 @@
                                     "path": "/api/version",
                                     "port": 8080
                                   },
-                                  "initialDelaySeconds": 0,
-                                  "periodSeconds": 10
+                                  "initialDelaySeconds": 20,
+                                  "periodSeconds": 20
                                 }
                             ]
                         }
@@ -122,7 +126,8 @@
                         {
                             "name": "[parameters('name')]",
                             "storageType": "AzureFile",
-                            "storageName": "[parameters('nameSanitized')]"
+                            "storageName": "[parameters('nameSanitized')]",
+                            "mountOptions": "uid=1000,gid=1000,nobrl,mfsymlinks,cache=none"
                         }
                     ]
                 },

@@ -3,6 +3,10 @@ from functools import lru_cache
 from typing import List
 from uuid import uuid4
 from subprocess import check_output
+import click
+
+from rich.table import Table
+from rich.console import Console
 
 from dbtr.common.exceptions import MissingExtraPackage, MissingLocation, ServerNotFound
 from dbtr.common.remote_server import DbtServer
@@ -21,26 +25,43 @@ except ImportError:
 
 
 
-def deploy(image: str, service_name: str, port: int, region: str, adapter: str, cpu: str = "1", memory: str = "1Gi", project_id: str = None, log_level: str = "INFO"):
-    if project_id is None:
-        project_id = get_project_id()
-    if region is None:
-        raise MissingLocation("A location is required to deploy a dbt server on gcp. Specify one with --gcp-location (e.g. europe-west1, us-central1)")
+def deploy(image: str, service_name: str, region: str, adapter: str, cpu: int = 1, memory: str = "1Gi", project_id: str = None, log_level: str = "INFO", auto_approve: bool = False):
+    print("cpu", type(cpu), cpu)
+    console = Console()
+    table = Table(title="Deploying dbt server on GCP with the following configuration")
+
+    table.add_column("Configuration", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Value", style="magenta")
+
+    table.add_row("Project ID", project_id)
+    table.add_row("Service Name", service_name)
+    table.add_row("Region", region)
+    table.add_row("Adapter", adapter)
+    table.add_row("CPU", str(cpu))
+    table.add_row("Memory", memory)
+    table.add_row("Image", image)
+    table.add_row("Log Level", log_level)
+
+    console.print(table)
+    if not auto_approve:
+        click.confirm("Confirm deployment?", abort=True)
+
     enable_gcp_services(["run", "storage", "iam", "bigquery", "cloudscheduler"], project_id)
     bucket = get_or_create_backend_bucket()
     service_account = create_dbt_server_service_account()
-    deploy_cloud_run(
+    result = deploy_cloud_run(
         image=image,
         service_name=service_name,
         backend_bucket=bucket,
         service_account_email=service_account.email,
-        port=port,
         region=region,
         log_level=log_level,
         adapter=adapter,
         cpu=cpu,
         memory=memory,
     )
+    console.print(f"[green]Deployed dbt server at {result.uri}[/green]")
+    console.print(f"You can now run dbt jobs remotely with [cyan]dbtr remote debug --cloud-provider google --server-url {result.uri}[/cyan]")
 
 
 def get_or_create_backend_bucket(location: str = "eu") -> storage.Bucket:
@@ -110,7 +131,7 @@ def create_dbt_server_service_account() -> iam_admin_v1.ServiceAccount:
     return account
 
 
-def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: storage.Bucket, adapter: str, cpu: str = "1", memory: str = "512Mi", region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
+def deploy_cloud_run(image: str, service_name: str, backend_bucket: storage.Bucket, adapter: str, cpu: str = "1", memory: str = "512Mi", region: str = "europe-west1", service_account_email: str = None, log_level: str = "INFO"):
     project_id = get_project_id()
 
     print(f"Deploying Cloud Run service {service_name} in project {project_id} with image {image}")
@@ -120,7 +141,7 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
 
     container = run_v2.Container(
         image=image,
-        ports=[run_v2.ContainerPort(container_port=port)],
+        ports=[run_v2.ContainerPort(container_port=8080)],
         volume_mounts=[run_v2.VolumeMount(mount_path="/home/dbt_user/dbt-server-volume", name="dbt-server-volume")],
         env=[
             run_v2.EnvVar(name="LOG_LEVEL", value=log_level),
@@ -130,7 +151,7 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
             run_v2.EnvVar(name="PROVIDER", value="google"),
         ],
         resources=run_v2.ResourceRequirements(
-            limits={"cpu": cpu, "memory": memory}
+            limits={"cpu": str(cpu), "memory": memory}
         )
     )
 
@@ -162,13 +183,12 @@ def deploy_cloud_run(image: str, service_name: str, port: int, backend_bucket: s
     update_request = run_v2.UpdateServiceRequest(service=service, allow_missing=True)
     try:
         operation = client.update_service(request=update_request)
-        operation.result()
+        result = operation.result()
         print(f"Service {service_name} updated successfully.")
     except Exception as e:
         print(f"Failed to deploy service {service_name}: {e}")
 
-
-    return request
+    return result
 
 
 def find_dbt_server(location: str = None, gcp_project: str = None) -> str:

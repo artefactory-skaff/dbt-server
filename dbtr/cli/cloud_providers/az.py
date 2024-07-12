@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 import click
+from rich.console import Console
+from rich.table import Table
 
 from dbtr.common.exceptions import AzureDeploymentFailed, MissingExtraPackage
 
@@ -13,7 +15,24 @@ except ImportError:
     raise MissingExtraPackage("dbtr is not installed with Azure support. Please install with `pip install dbtr[azure]`.")
 
 
-def deploy(image: str, service_name: str, location: str, adpater: str, resource_group: str, log_level: str = "INFO"):
+def deploy(image: str, service_name: str, location: str, adpater: str, resource_group: str, log_level: str = "INFO", auto_approve: bool = False):
+    console = Console()
+    table = Table(title="Deploying dbt server on Azure with the following configuration")
+
+    table.add_column("Configuration", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Value", style="magenta")
+
+    table.add_row("Resource Group", resource_group)
+    table.add_row("Service Name", service_name)
+    table.add_row("Location", location)
+    table.add_row("Adapter", adpater)
+    table.add_row("Image", image)
+    table.add_row("Log Level", log_level)
+
+    console.print(table)
+    if not auto_approve:
+        click.confirm("Confirm deployment?", abort=True)
+
     credential = AzureCliCredential()
     subscription_client = SubscriptionClient(credential)
     subscription = next(subscription_client.subscriptions.list())
@@ -25,7 +44,6 @@ def deploy(image: str, service_name: str, location: str, adpater: str, resource_
 
     sanitized_name = "".join(filter(str.isalpha, service_name)).lower()
 
-    click.echo(f"Deploying dbt server '{service_name}' to Azure in resource group '{resource_group}'. This may take a few minutes.")
     deployment_poller = resource_client.deployments.begin_create_or_update(
         resource_group,
         "dbtServerDeployment",
@@ -54,6 +72,10 @@ def deploy(image: str, service_name: str, location: str, adpater: str, resource_
                             {
                                 "name": "ADAPTER",
                                 "value": adpater
+                            },
+                            {
+                                "name": "PROVIDER",
+                                "value": "azure"
                             }
                         ]
                     },

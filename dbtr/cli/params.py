@@ -5,6 +5,7 @@ from dbt.cli.main import cli as dbt_cli
 from dbtr.common.exceptions import MissingAzureParams
 
 
+
 def dbt_flags(command: Union[click.Command, Callable[..., Any]]):
     """Dynamically add the dbt flags of the original command to its remote version. This makes sure the help and validation of the original command is preserved in the remote version, and should allow us to support a broader range of past and future versions of dbt."""
 
@@ -17,15 +18,6 @@ def dbt_flags(command: Union[click.Command, Callable[..., Any]]):
                 command.__click_params__ = []  # type: ignore
             command.__click_params__.append(param)  # type: ignore
     return command
-
-
-def cloud_provider_validator(ctx, param, value):
-    if value == 'azure' and ctx.command.name == 'deploy':
-        if not ctx.params.get('azure_location'):
-            raise MissingAzureParams("--azure-location is required when cloud provider is 'azure'")
-        if not ctx.params.get('azure_resource_group'):
-            raise MissingAzureParams("--azure-resource-group is required when cloud provider is 'azure'")
-    return value
 
 
 def register_as_cloud_provider_config(ctx, param, value):
@@ -50,7 +42,6 @@ cloud_provider = click.option(
     prompt='Cloud provider where the dbt server runs',
     type=click.Choice(['google', 'azure', 'local'], case_sensitive=False),
     help='Cloud provider where the dbt server runs.',
-    callback=cloud_provider_validator,
 )
 
 gcp_project = click.option(
@@ -63,23 +54,23 @@ gcp_project = click.option(
 gcp_location = click.option(
     '--gcp-location',
     envvar='DBT_SERVER_GCP_LOCATION',
-    help='Location where the dbt server runs, ex: us-central1. Useful for server auto detection. If none is given, dbt-remote will look at all EU and US locations.',
+    help='Location where the dbt server runs, ex: us-central1.',
     callback=register_as_cloud_provider_config,
 )
 
-gcp_cpu = click.option(
-    '--gcp-cpu',
-    envvar='DBT_SERVER_GCP_CPU',
+cpu = click.option(
+    '--cpu',
+    envvar='DBT_SERVER_CPU',
     default=1,
-    help='Number of CPUs to use for the dbt server. Default: 1',
+    help='Number of CPUs to use for the dbt server.',
     callback=register_as_cloud_provider_config,
 )
 
-gcp_memory = click.option(
-    '--gcp-memory',
-    envvar='DBT_SERVER_GCP_MEMORY',
+memory = click.option(
+    '--memory',
+    envvar='DBT_SERVER_MEMORY',
     default="1Gi",
-    help='Amount of memory to use for the dbt server in GB. Default: 1Gi',
+    help='Amount of memory to use for the dbt server in GB.',
     callback=register_as_cloud_provider_config,
 )
 
@@ -120,8 +111,7 @@ schedule_file = click.option(
 service = click.option(
     "--service",
     envvar="SERVICE",
-    default="dbt-server",
-    help="Cloud Run service name for the dbt server."
+    help="Service name for the dbt server."
 )
 
 image = click.option(
@@ -134,8 +124,6 @@ image = click.option(
 adapter = click.option(
     "--adapter",
     envvar="ADAPTER",
-    required=True,
-    prompt="Adapter for the dbt server (dbt-bigquery, dbt-snowflake, ... )",
     help="Adapter to use on the dbt server. dbt-bigquery, dbt-snowflake, etc."
 )
 
@@ -165,4 +153,11 @@ dry_run = click.option(
     is_flag=True,
     default=False,
     help="Dry run the command without invoking it. Will return the context instead of running the command. Useful for debugging."
+)
+
+auto_approve = click.option(
+    "--auto-approve",
+    is_flag=True,
+    default=False,
+    help="Auto approve the command without asking for confirmation."
 )
