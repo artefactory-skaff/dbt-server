@@ -8,7 +8,7 @@ import click
 from rich.table import Table
 from rich.console import Console
 
-from dbtr.common.exceptions import MissingExtraPackage, MissingLocation, ServerNotFound
+from dbtr.common.exceptions import MissingExtraPackage, ServerNotFound
 from dbtr.common.remote_server import DbtServer
 
 try:
