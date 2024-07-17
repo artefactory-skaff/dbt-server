@@ -88,6 +88,13 @@ azure_location = click.option(
     callback=register_as_cloud_provider_config,
 )
 
+aws_location = click.option(
+    '--aws-location',
+    envvar='DBT_SERVER_AWS_LOCATION',
+    help='Location where the dbt server runs, ex: eu-west-3.',
+    callback=register_as_cloud_provider_config,
+)
+
 schedule_cron = click.option(
     '--schedule-cron',
     help='Cron expression to schedule a run. Ex: "0 0 * * *" to run every day at midnight. See https://crontab.guru/ for more information. Warning: Jobs will be scheduled on UTC time.'

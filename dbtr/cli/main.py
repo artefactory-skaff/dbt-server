@@ -108,6 +108,37 @@ def deploy_azure(ctx, **kwargs):
         auto_approve=ctx.params["auto_approve"]
     )
 
+@deploy.command("aws", help="Deploy a dbt server on AWS")
+@click.pass_context
+@global_flags
+@p.aws_location
+@p.cpu
+@p.memory
+@p.adapter
+@p.image
+@p.service
+@p.auto_approve
+@skaff_telemetry(accelerator_name="dbtr-cli", version_number=__version__, project_name='')
+def deploy_aws(ctx, **kwargs):
+    from dbtr.cli.cloud_providers.aws import deploy
+
+    if not ctx.params.get("aws_location"):
+        ctx.params["aws_location"] = click.prompt("AWS location", default="eu-west-3")
+    if not ctx.params.get("service"):
+        ctx.params["service"] = click.prompt("Name of the  service", default="dbt-server")
+    if not ctx.params.get("adapter"):
+        ctx.params["adapter"] = click.prompt("Adapter for the dbt server (dbt-snowflake, dbt-bigquery, ...)")
+
+    deploy(
+        resource_group=ctx.params["aws_resource_group"],
+        location=ctx.params["aws_location"],
+        service_name=ctx.params["service"],
+        image=ctx.params["image"],
+        adpater=ctx.params["adapter"],
+        log_level=ctx.params["log_level"],
+        auto_approve=ctx.params["auto_approve"]
+    )
+
 @deploy.command("local", help="Deploy a dbt server locally")
 @click.pass_context
 @global_flags
