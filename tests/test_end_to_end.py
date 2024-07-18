@@ -5,7 +5,7 @@ from typing import List
 from click.testing import CliRunner
 import pytest
 
-from cli.main import dbt_cli
+from dbtr.cli.main import dbt_cli
 
 SERVER_URL = os.environ.get("SERVER_URL")
 

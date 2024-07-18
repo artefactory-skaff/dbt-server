@@ -21,7 +21,7 @@ try:
     from google.auth.transport.requests import Request
     from google.auth import default
 except ImportError:
-    raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install dbtr[google]`.")
+    raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install 'dbtr[google]'`.")
 
 
 
