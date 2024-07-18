@@ -18,6 +18,14 @@ from dbtr.cli.utils import rename
 from dbtr.cli.version import __version__
 
 
+# Run the CLI and handle top-level exceptions
+def main():
+    try:
+        dbt_cli()
+    except Exception as e:
+        handle_exceptions(e)
+
+
 def global_flags(func):
     @p.server_url
     @p.log_level
@@ -33,6 +41,10 @@ def global_flags(func):
 def remote(ctx, **kwargs):
     pass
 
+
+###############################################
+#              SERVER DEPLOYMENT              #
+###############################################
 
 @remote.group("deploy", help="Deploy a dbt server on the selected cloud provider")
 @global_flags
@@ -122,6 +134,12 @@ def deploy_local(ctx, **kwargs):
         adapter=ctx.params["adapter"]
     )
 
+
+
+############################################
+#              JOB SCHEDULING              #
+############################################
+
 @remote.group("schedule", help="Manage your scheduled runs")
 @click.pass_context
 def schedule(ctx, **kwargs):
@@ -181,6 +199,10 @@ def delete_schedules(ctx, **kwargs):
     ScheduleManager(server).delete(ctx.params["schedule_name"])
     click.echo(f"Deleted job '{ctx.params['schedule_name']}'")
 
+
+##################################
+#              MISC              #
+##################################
 
 @remote.command("unlock", help="Forcefully remove a server lock")
 @click.pass_context
@@ -266,14 +288,6 @@ for name, help_message in commands:
 
 # Extend the dbt CLI with the remote commands
 dbt_cli.add_command(remote)
-
-
-# Run the CLI and catch top-level exceptions
-def main():
-    try:
-        dbt_cli()
-    except Exception as e:
-        handle_exceptions(e)
 
 
 if __name__ == "__main__":
