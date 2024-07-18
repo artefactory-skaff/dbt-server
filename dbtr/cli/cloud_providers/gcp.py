@@ -61,7 +61,7 @@ def deploy(image: str, service_name: str, region: str, adapter: str, cpu: int = 
         memory=memory,
     )
     console.print(f"[green]Deployed dbt server at {result.uri}[/green]")
-    console.print(f"You can now run dbt jobs remotely with [cyan]dbtr remote debug --cloud-provider google --server-url {result.uri}[/cyan]")
+    console.print(f"You can now run dbt jobs remotely.\n    [cyan]dbtr remote debug --cloud-provider google --server-url {result.uri}[/cyan]")
 
 
 def get_or_create_backend_bucket(location: str = "eu") -> storage.Bucket:

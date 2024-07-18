@@ -117,8 +117,8 @@ service = click.option(
 image = click.option(
     "--image",
     envvar="IMAGE",
-    default="europe-docker.pkg.dev/dbt-server-sbx-01-caed/dbt-server/prod:latest",
-    help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/dbt-server-sbx-01-caed/dbt_server/prod:latest"
+    default="europe-docker.pkg.dev/skaff-dbtr/dbt-server/prod:latest",
+    help="Docker image name to use for the dbt server. Default: europe-docker.pkg.dev/skaff-dbtr/dbt-server/prod:latest"
 )
 
 adapter = click.option(

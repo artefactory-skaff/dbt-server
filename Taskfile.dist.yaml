@@ -19,12 +19,12 @@ tasks:
 
   cloud_run:
     cmds:
-      - poetry run dbtr remote deploy --image europe-docker.pkg.dev/{{.PROJECT_ID}}/dbt-server/{{.ENV}}:{{.TAG}} --service {{.SERVICE_NAME}} --log-level {{.LOG_LEVEL}}
+      - poetry run dbtr remote deploy --image europe-docker.pkg.dev/skaff-dbtr/dbt-server/{{.ENV}}:{{.TAG}} --service {{.SERVICE_NAME}} --log-level {{.LOG_LEVEL}}
     requires:
-      vars: [PROJECT_ID, ENV, TAG, SERVICE_NAME, LOG_LEVEL]
+      vars: [ENV, TAG, SERVICE_NAME, LOG_LEVEL]
 
   image:
     cmds:
-      - gcloud builds submit dbtr/server --region={{.LOCATION}} --tag europe-docker.pkg.dev/{{.PROJECT_ID}}/dbt-server/{{.ENV}}:{{.TAG}}
+      - gcloud builds submit dbtr/server --region={{.LOCATION}} --tag europe-docker.pkg.dev/skaff-dbtr/dbt-server/{{.ENV}}:{{.TAG}} --project skaff-dbtr
     requires:
-      vars: [LOCATION, PROJECT_ID, ENV, TAG]
+      vars: [LOCATION, ENV, TAG]
