@@ -25,5 +25,9 @@ def get_scheduler(cloud_provider: str) -> BaseScheduler:
     elif cloud_provider == "azure":
         from dbtr.server.lib.scheduler.azure import AzureScheduler
         return AzureScheduler()
+    elif cloud_provider == "aws":
+        from dbtr.server.lib.scheduler.aws import AWSScheduler
+        from dbtr.server.lib.scheduler.local import LocalScheduler
+        return LocalScheduler()
     else:
         raise ValueError(f"Invalid cloud provider: {cloud_provider}")
