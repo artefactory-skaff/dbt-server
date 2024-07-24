@@ -12,7 +12,7 @@ try:
     from azure.mgmt.resource import ResourceManagementClient, SubscriptionClient
     from azure.mgmt.resource.resources.models import DeploymentMode
 except ImportError:
-    raise MissingExtraPackage("dbtr is not installed with Azure support. Please install with `pip install dbtr[azure]`.")
+    raise MissingExtraPackage("dbtr is not installed with Azure support. Please install with `pip install 'dbtr[azure]'`.")
 
 
 def deploy(image: str, service_name: str, location: str, adpater: str, resource_group: str, log_level: str = "INFO", auto_approve: bool = False):

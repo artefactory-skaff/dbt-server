@@ -18,13 +18,12 @@ from dbtr.server.lib.dbt_executor import DBTExecutor
 from dbtr.server.lib.lock import Lock, LockException, LockNotFound
 from dbtr.server.lib.logger import get_logger
 from dbtr.server.lib.models import ServerJob
-from dbtr.server.lib.scheduler.base import BaseScheduler
-from dbtr.server.lib.scheduler import schedulers
+from dbtr.server.lib.scheduler.base import BaseScheduler, get_scheduler
 from dbtr.server.version import __version__
 
 
 logger = get_logger(CONFIG.log_level)
-scheduling_backend: BaseScheduler = schedulers[CONFIG.provider]
+scheduling_backend: BaseScheduler = get_scheduler(CONFIG.provider)
 
 
 app = FastAPI(
@@ -309,7 +308,7 @@ async def schedule_dbt_job(server_runtime_config: ServerJob):
     logger.debug("Creating scheduler")
     trigger_url = f"{server_runtime_config.server_url}/api/schedule/{server_runtime_config.run_id}/trigger"
 
-    scheduling_backend().create_or_update_job(
+    scheduling_backend.create_or_update_job(
         name=server_runtime_config.schedule_name,
         cron_expression=server_runtime_config.schedule_cron,
         trigger_url=trigger_url,

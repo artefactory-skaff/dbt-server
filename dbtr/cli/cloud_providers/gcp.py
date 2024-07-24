@@ -8,7 +8,7 @@ import click
 from rich.table import Table
 from rich.console import Console
 
-from dbtr.common.exceptions import MissingExtraPackage, MissingLocation, ServerNotFound
+from dbtr.common.exceptions import MissingExtraPackage, ServerNotFound
 from dbtr.common.remote_server import DbtServer
 
 try:
@@ -21,7 +21,7 @@ try:
     from google.auth.transport.requests import Request
     from google.auth import default
 except ImportError:
-    raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install dbtr[google]`.")
+    raise MissingExtraPackage("dbtr is not installed with Google Cloud support. Please install with `pip install 'dbtr[google]'`.")
 
 
 
@@ -61,7 +61,7 @@ def deploy(image: str, service_name: str, region: str, adapter: str, cpu: int = 
         memory=memory,
     )
     console.print(f"[green]Deployed dbt server at {result.uri}[/green]")
-    console.print(f"You can now run dbt jobs remotely with [cyan]dbtr remote debug --cloud-provider google --server-url {result.uri}[/cyan]")
+    console.print(f"You can now run dbt jobs remotely.\n    [cyan]dbtr remote debug --cloud-provider google --server-url {result.uri}[/cyan]")
 
 
 def get_or_create_backend_bucket(location: str = "eu") -> storage.Bucket:
