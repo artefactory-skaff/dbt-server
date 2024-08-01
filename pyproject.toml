@@ -41,6 +41,8 @@ google-cloud-storage = { version = "^2", optional = true }
 azure-identity = { version = "^1", optional = true }
 azure-mgmt-resource = { version = "^23", optional = true }
 google-cloud-scheduler = { version = "^2", optional = true }
+aws-cdk-lib = "2.150.0"
+constructs = "10.3.0"
 
 [tool.poetry.extras]
 google = [
