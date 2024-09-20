@@ -45,7 +45,7 @@ At this point you can now synthesize the CloudFormation template for this code.
 
 Increase API Gateway timeout quota:
 ```
-aws service-quotas request-service-quota-increase --service-code 'apigateway' --quota-code 'L-E5AE38E3' --desired-value 120000 --profile 533267378851_AdministratorAccess --region eu-west-3`
+aws service-quotas request-service-quota-increase --service-code 'apigateway' --quota-code 'L-E5AE38E3' --desired-value 60000 --profile <profile name> --region eu-west-3`
 ```
 Then deploy using:
 ```
