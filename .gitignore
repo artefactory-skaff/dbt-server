@@ -155,9 +155,3 @@ Taskfile.yml
 
 # Elementary
 edr_target/
-
-.dbt
-.dbtl
-.ndbt
-.dbtrenv
-postgres-shop/
