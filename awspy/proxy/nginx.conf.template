@@ -1,0 +1,64 @@
+worker_processes 2;
+
+http {
+  server {
+    listen 80;
+    http2 on;
+    # NGINX will reject anything not matching /
+    location / {
+        auth_request /auth;
+        resolver 1.1.1.1 ipv6=off valid=30s; # disable ipv6
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Host $server_name;
+        # get sent to the application server
+        proxy_pass http://host.docker.internal:8080;
+        proxy_set_header Upgrade $http_upgrade; 
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 1800s; # 3O minutes
+        proxy_connect_timeout 75s;
+        proxy_send_timeout 1800s;
+        send_timeout 1800s;
+        fastcgi_send_timeout 1800s;
+        fastcgi_read_timeout 1800s;
+        resolver_timeout 1800s;
+        proxy_max_temp_file_size 4096m;
+        keepalive_timeout 30m;
+        proxy_intercept_errors on;
+        client_max_body_size 200M;
+        client_body_buffer_size 200M;
+    }
+
+    location = /auth {
+        internal;
+        resolver 1.1.1.1 ipv6=off valid=30s; # disable ipv6 usage
+        resolver_timeout 1800s;
+        set $empty "";
+        proxy_pass ${LAMBDA_URL}$empty; # variable added to force dns resolution at runtime
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_pass_header X-Amz-Date; # required for authentication
+        proxy_pass_header X-Amz-Security-Token; # required for authentication
+        proxy_pass_header Authorization; # required for authentication
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length ""; # fixes timeout issue
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_read_timeout 900s;
+        proxy_connect_timeout 75s; # maximum value possible according to https://nginx.org/en/docs/http/ngx_http_proxy_module.html
+        proxy_send_timeout 900s;
+        send_timeout 900s;
+        fastcgi_send_timeout 900s;
+        fastcgi_read_timeout 900s;
+        proxy_max_temp_file_size 4096m;
+        keepalive_timeout 30m;
+        proxy_intercept_errors on;
+    }
+  }
+}
+events {
+  worker_connections 1024;
+}
