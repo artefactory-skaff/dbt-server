@@ -54,7 +54,10 @@ class EcsStack(cdk.Stack):
                                 connection=ec2.Port.tcp(port=80))
             # needed to be able to access the file system
             sg_fs.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
-                                    connection=ec2.Port.NFS)             
+                                    connection=ec2.Port.NFS)
+            # Uncomment to make dbt-server accessible internally (to other services in same vpc)
+            # sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
+            #                     connection=ec2.Port.tcp(port=8080))      
 
         ## Cluster setup ##
         dbt_server_cluster = ecs.Cluster(
