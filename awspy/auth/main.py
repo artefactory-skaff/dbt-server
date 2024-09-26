@@ -24,21 +24,17 @@ def get_auth_headers():
         aws_session_token=session_token,
         region_name=region
     )
-
     request = AWSRequest(
         "GET",
         url,
         headers={'Host': host}
     )
-
     SigV4Auth(session.get_credentials(), service, region).add_auth(request)
-
     server_request = AWSRequest(
         method,
         server_url,
         headers={'Host': server_host}
     )
-
     server_request.headers['X-Amz-Date'] = request.headers['X-Amz-Date']
     server_request.headers['X-Amz-Security-Token'] = request.headers['X-Amz-Security-Token']
     server_request.headers['Authorization'] = request.headers['Authorization']
