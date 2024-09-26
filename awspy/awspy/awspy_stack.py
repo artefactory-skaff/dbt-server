@@ -22,39 +22,56 @@ class EcsStack(cdk.Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        ## Lambda function setup (responsible for authentication) ##
+        auth_function = _lambda.Function(
+            self,
+            "DBTAuthFunction",
+            function_name="dbt-auth",
+            runtime = _lambda.Runtime.PYTHON_3_12, 
+            code = _lambda.Code.from_asset("lambda"), # Points to the lambda directory
+            handler = "dbtauth.lambda_handler", # Points to the 'dbtauth' file in the lambda directory
+        )
+        fn_url = auth_function.add_function_url(
+            auth_type=_lambda.FunctionUrlAuthType.AWS_IAM
+        )
+
+        ## Network and firewall configuration ##
         subnet_configuration = ec2.SubnetConfiguration(
-                name="dbtr-subnets",
+                name="dbts-subnets",
                 subnet_type=ec2.SubnetType.PUBLIC,
                 reserved=False
             )
-        vpc = ec2.Vpc(self, "dbtr-vpc", vpc_name="dbtr-vpc", subnet_configuration=[subnet_configuration]) #vpc-0f763d4efd233d795
+        vpc = ec2.Vpc(self, "dbts-vpc", vpc_name="dbts-vpc", subnet_configuration=[subnet_configuration]) #vpc-0f763d4efd233d795
         subnets = ec2.SubnetSelection(subnets=vpc.public_subnets)
 
-        sg = ec2.SecurityGroup(self, "dbtr-sg", vpc=vpc, security_group_name="dbtr-sg", allow_all_outbound=True)
-        sg_fs = ec2.SecurityGroup(self, "dbtr-sg-fs", vpc=vpc, security_group_name="dbtr-sg-fs", allow_all_outbound=True)
-        sg_nlb = ec2.SecurityGroup(self, "dbtr-sg-nlb", vpc=vpc, security_group_name="dbtr-sg-nlb", allow_all_outbound=True)
+        sg = ec2.SecurityGroup(self, "dbts-sg", vpc=vpc, security_group_name="dbts-sg", allow_all_outbound=True)
+        sg.add_ingress_rule(peer=ec2.Peer.any_ipv4(),
+                                connection=ec2.Port.tcp(port=80))
+        sg_fs = ec2.SecurityGroup(self, "dbts-sg-fs", vpc=vpc, security_group_name="dbts-sg-fs", allow_all_outbound=True)
+        
         for subnet in vpc.public_subnets:
             sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
-                                connection=ec2.Port.tcp(port=8080))
+                                connection=ec2.Port.tcp(port=80))
+            # needed to be able to access the file system
             sg_fs.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
-                                    connection=ec2.Port.NFS)            
-            sg_nlb.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
-                                    connection=ec2.Port.all_traffic())      
+                                    connection=ec2.Port.NFS)             
 
+        ## Cluster setup ##
         dbt_server_cluster = ecs.Cluster(
             self,
-            "dbtServerCluster",
+            "dbtrServersCluster",
             enable_fargate_capacity_providers=True,
             vpc=vpc,
-            cluster_name="dbtServerCluster"
+            cluster_name="dbtrServersCluster"
         )
 
+        ## EFS file system setup ##
         ap_acl=efs.Acl(
                     owner_uid="12",
                     owner_gid="12",
                     permissions="777"
                 )
-        file_system = efs.FileSystem(self, "dbtr-fs", file_system_name="dbtr-fs", vpc=vpc, security_group=sg_fs)
+        file_system = efs.FileSystem(self, "dbts-fs", file_system_name="dbts-fs", vpc=vpc, security_group=sg_fs)
         statement = iam.PolicyStatement(
             actions=["elasticfilesystem:ClientRootAccess", "elasticfilesystem:ClientWrite", "elasticfilesystem:ClientMount"
             ],
@@ -68,7 +85,7 @@ class EcsStack(cdk.Stack):
             effect=iam.Effect.ALLOW
         )
         file_system.add_to_resource_policy(statement)
-        ap = file_system.add_access_point("dbtr-ap", path="/home", create_acl=ap_acl)
+        ap = file_system.add_access_point("dbts-ap", path="/home", create_acl=ap_acl)
         authorization_config = ecs.AuthorizationConfig(
                 access_point_id=ap.access_point_id
             )
@@ -78,20 +95,31 @@ class EcsStack(cdk.Stack):
             authorization_config=authorization_config,
             transit_encryption="ENABLED"
         )
-        volume = ecs.Volume(name="dbtr-volume", efs_volume_configuration=efs_volume_configuration)
-        fargate_task_definition = ecs.FargateTaskDefinition(self, "dbtServer",
+
+        ## DBT server and reverse proxy setup ##
+        volume = ecs.Volume(name="dbts-volume", efs_volume_configuration=efs_volume_configuration)
+        fargate_task_definition = ecs.FargateTaskDefinition(self, "dbtServers",
             memory_limit_mib=3072,
             cpu=1024,
             volumes=[volume],
         )
 
-        container = fargate_task_definition.add_container('dbtServer',
-                                      image=ecs.ContainerImage.from_registry("europe-docker.pkg.dev/skaff-dbtr/dbt-server/prod:latest"),
-                                      port_mappings=[ecs.PortMapping(container_port=8080)],
-                                      environment={'PROVIDER': "local", "LOG_LEVEL": "info", "LOCATION": "eu-west-3"},
-                                      logging=ecs.LogDrivers.aws_logs(
-                                            stream_prefix="dbtServerlogs"
-                                        )
+        container = fargate_task_definition.add_container('dbtServers',
+                                        image=ecs.ContainerImage.from_registry("europe-docker.pkg.dev/skaff-dbtr/dbt-server/prod:latest"), # to test with an image that includes the postgress adapter use: ghcr.io/maryam21/dbt-server:latest
+                                        environment={'PROVIDER': "local", "LOG_LEVEL": "info", "LOCATION": "eu-west-3"},
+                                        logging=ecs.LogDrivers.aws_logs(
+                                            stream_prefix="dbtServerslogs"
+                                        ),
+                                        essential=True
+                                      )
+        proxy_container = fargate_task_definition.add_container('proxyServers',
+                                        image=ecs.ContainerImage.from_registry("ghcr.io/maryam21/nginx:latest"),
+                                        environment={'LAMBDA_URL': fn_url.url},
+                                        port_mappings=[ecs.PortMapping(container_port=80)],
+                                        logging=ecs.LogDrivers.aws_logs(
+                                            stream_prefix="proxyServerslogs"
+                                        ),
+                                        essential=True
                                       )
         container.add_mount_points(ecs.MountPoint(container_path="/home/dbt_user/dbt-server-volume", \
                                                   read_only=False, source_volume=volume.name))
@@ -107,67 +135,7 @@ class EcsStack(cdk.Stack):
                 capacity_provider="FARGATE",
                 weight=1
             )],
-            service_name="dbtr-service"
-        )
-
-        # NLB and API Gateway for autheuntication
-        nlb = elbv2.NetworkLoadBalancer(self, "dbtr-nlb", vpc=vpc,
-                                        enforce_security_group_inbound_rules_on_private_link_traffic=False, internet_facing=False,
-                                        security_groups=[sg_nlb], load_balancer_name="dbtr-nlb")
-        listener = nlb.add_listener("dbtr-listener", port=80)
-        listener.add_targets("dbtr-target",
-                                port=80,
-                                protocol=elbv2.Protocol.TCP,
-                                targets=[service],
-                                target_group_name="dbtr-target"
-                            )
-
-        link = apigateway.VpcLink(self, "dbtr-link",
-            targets=[nlb]
-        )
-        gateway_timeout = 60
-        integration_options = apigateway.IntegrationOptions(
-                connection_type=apigateway.ConnectionType.VPC_LINK,
-                vpc_link=link,
-                timeout=cdk.Duration.seconds(gateway_timeout)
-            )
-        integration = apigateway.Integration(
-            type=apigateway.IntegrationType.HTTP_PROXY,
-            integration_http_method="GET",
-            options=integration_options
-        )
-        rest_api = apigateway.RestApi(self, "dbtserver-api", default_integration=integration)
-        rest_api.root.add_method("GET", integration,
-            authorization_type=apigateway.AuthorizationType.IAM
-        )
-        api_ressource = rest_api.root.add_resource("api")
-        proxy_integration_options = apigateway.IntegrationOptions(
-                connection_type=apigateway.ConnectionType.VPC_LINK,
-                vpc_link=link,
-                timeout=cdk.Duration.seconds(gateway_timeout),
-                request_parameters={"integration.request.path.proxy": "method.request.path.proxy"}
-            )
-        proxy_integration = lambda method: apigateway.Integration(
-                    type=apigateway.IntegrationType.HTTP_PROXY,
-                    integration_http_method=method,
-                    uri="http://"+ nlb.load_balancer_dns_name + "/api/{proxy}",
-                    options=proxy_integration_options
-                )
-        proxy_ressource = api_ressource.add_proxy(
-                default_integration=proxy_integration("GET"),
-                any_method=False
-            )
-        proxy_ressource.add_method("GET", proxy_integration("GET"),
-            authorization_type=apigateway.AuthorizationType.IAM,
-            request_parameters={"method.request.path.proxy": True}
-        )
-        proxy_ressource.add_method("POST", proxy_integration("POST"),
-            authorization_type=apigateway.AuthorizationType.IAM,
-            request_parameters={"method.request.path.proxy": True}
-        )
-        proxy_ressource.add_method("DELETE", proxy_integration("DELETE"),
-            authorization_type=apigateway.AuthorizationType.IAM,
-            request_parameters={"method.request.path.proxy": True}
+            service_name="dbt-services"
         )
 
 
