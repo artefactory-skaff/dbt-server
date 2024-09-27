@@ -1,7 +1,7 @@
 
-# Deploying the infrastructure
+## Deploying the infrastructure
 
-## Prerequisites
+### Prerequisites
 
 - Install Node.js 14.15.0 or later
 Then run 
@@ -19,12 +19,12 @@ aws configure
 and then enter you access key ID and secret.
 After this your credentials will be saved in `~/.aws/credentials` and your configuration in `~/.aws/config`.
 
-### Sources
+#### Sources
 https://docs.aws.amazon.com/cdk/v2/guide/prerequisites.html
 https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html
 https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html
 
-## Deployment
+### Deployment
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 At this point you can now synthesize the CloudFormation template for this code:
@@ -36,18 +36,28 @@ Deploy using:
 cdk bootstrap --profile <profile to use in ~/.aws/credentials>
 cdk deploy --profile <profile to use in ~/.aws/credentials>
 ```
+To update the stack just rerun the above commands after modifying the code.
 
-### Sources
+#### Sources
 https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-python.html
 
-
-## Useful commands
+### Useful commands
 
  * `cdk ls`          list all stacks in the app
  * `cdk synth`       emits the synthesized CloudFormation template
  * `cdk deploy`      deploy this stack to your default AWS account/region
  * `cdk diff`        compare deployed stack with current state
  * `cdk docs`        open CDK documentation
+
+
+## Architecture
+We use mainly three components:
+- DBT server: deployed as a container in an instance
+- Nginx reverse proxy: deployed as a container in the same instance as the DBT server
+- Lambda function: used for authenticating users
+<center><img src="./docs/archi3.png" width="100%"></center>
+<!-- ![Architecture](https://github.com/[maryam21]/[dbt-server]/blob/[v2-aws]/docs/archi.png?raw=true) -->
+As the above image suggests any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. 
 
 
 # Documentation
@@ -90,5 +100,3 @@ https://stackoverflow.com/questions/64469544/is-there-a-way-to-not-allocate-an-e
 ## Use lambda functions for authentication
 
 
-docker build . -t ghcr.io/maryam21/nginx --platform linux/amd64
-docker push  ghcr.io/maryam21/nginx
