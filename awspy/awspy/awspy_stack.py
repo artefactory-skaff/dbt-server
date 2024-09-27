@@ -46,10 +46,10 @@ class DBTStack(cdk.Stack):
         subnets = ec2.SubnetSelection(subnets=vpc.public_subnets)
 
         sg = ec2.SecurityGroup(self, "dbtr-sg", vpc=vpc, security_group_name="dbtr-sg", allow_all_outbound=True)
-        sg.add_ingress_rule(peer=ec2.Peer.any_ipv4(),
-                                connection=ec2.Port.tcp(port=80))
         sg_fs = ec2.SecurityGroup(self, "dbtr-sg-fs", vpc=vpc, security_group_name="dbtr-sg-fs", allow_all_outbound=True)
         
+        sg.add_ingress_rule(peer=ec2.Peer.any_ipv4(),
+                        connection=ec2.Port.tcp(port=80))
         for subnet in vpc.public_subnets:
             sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
                                 connection=ec2.Port.tcp(port=80))
@@ -111,6 +111,7 @@ class DBTStack(cdk.Stack):
         container = fargate_task_definition.add_container('dbtrServers',
                                         image=ecs.ContainerImage.from_registry("europe-docker.pkg.dev/skaff-dbtr/dbt-server/prod:latest"), # to test with an image that includes the postgress adapter use: ghcr.io/maryam21/dbt-server:latest
                                         environment={'PROVIDER': "local", "LOG_LEVEL": "info", "LOCATION": "eu-west-3"},
+                                        port_mappings=[ecs.PortMapping(container_port=8080)],
                                         logging=ecs.LogDrivers.aws_logs(
                                             stream_prefix="dbtrServerslogs"
                                         ),
