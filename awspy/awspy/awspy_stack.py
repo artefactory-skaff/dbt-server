@@ -51,8 +51,6 @@ class DBTStack(cdk.Stack):
         sg.add_ingress_rule(peer=ec2.Peer.any_ipv4(),
                         connection=ec2.Port.tcp(port=80))
         for subnet in vpc.public_subnets:
-            sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
-                                connection=ec2.Port.tcp(port=80))
             # needed to be able to access the file system
             sg_fs.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
                                     connection=ec2.Port.NFS)
