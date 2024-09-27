@@ -57,6 +57,9 @@ We use mainly three components:
 - Lambda function: used for authenticating users
 <center><img src="./docs/archi.png" width="100%"></center>
 As the above image suggests any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. 
+<center><img src="./docs/archi3.png" width="100%"></center>
+![Architecture](https://github.com/[maryam21]/[dbt-server]/blob/[v2-aws]/docs/archi.png?raw=true)
+As the above image suggests, any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. The firewall is setup to only allow traffic from outside from port 80 which corresponds to the nginx service while the dbt server is on port 8080 and the firewall only accepts traffic to this port from clients with addresses in the same VPC as the instance containing nginx and dbt services.
 
 
 # Documentation
