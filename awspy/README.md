@@ -55,8 +55,7 @@ We use mainly three components:
 - DBT server: deployed as a container in an instance
 - Nginx reverse proxy: deployed as a container in the same instance as the DBT server
 - Lambda function: used for authenticating users
-<center><img src="./docs/archi3.png" width="100%"></center>
-<!-- ![Architecture](https://github.com/[maryam21]/[dbt-server]/blob/[v2-aws]/docs/archi.png?raw=true) -->
+<center><img src="./docs/archi.png" width="100%"></center>
 As the above image suggests any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. 
 
 
