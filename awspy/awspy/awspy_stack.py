@@ -26,8 +26,8 @@ class DBTStack(cdk.Stack):
         ## Lambda function setup (responsible for authentication) ##
         auth_function = _lambda.Function(
             self,
-            "DBTAuthFunction",
-            function_name="dbt-auth",
+            "DBTrAuthFunction",
+            function_name="dbtr-auth",
             runtime = _lambda.Runtime.PYTHON_3_12, 
             code = _lambda.Code.from_asset("lambda"), # Points to the lambda directory
             handler = "dbtauth.lambda_handler", # Points to the 'dbtauth' file in the lambda directory
@@ -38,17 +38,17 @@ class DBTStack(cdk.Stack):
 
         ## Network and firewall configuration ##
         subnet_configuration = ec2.SubnetConfiguration(
-                name="dbts-subnets",
+                name="dbtr-subnets",
                 subnet_type=ec2.SubnetType.PUBLIC,
                 reserved=False
             )
-        vpc = ec2.Vpc(self, "dbts-vpc", vpc_name="dbts-vpc", subnet_configuration=[subnet_configuration]) #vpc-0f763d4efd233d795
+        vpc = ec2.Vpc(self, "dbtr-vpc", vpc_name="dbtr-vpc", subnet_configuration=[subnet_configuration]) #vpc-0f763d4efd233d795
         subnets = ec2.SubnetSelection(subnets=vpc.public_subnets)
 
-        sg = ec2.SecurityGroup(self, "dbts-sg", vpc=vpc, security_group_name="dbts-sg", allow_all_outbound=True)
+        sg = ec2.SecurityGroup(self, "dbtr-sg", vpc=vpc, security_group_name="dbtr-sg", allow_all_outbound=True)
         sg.add_ingress_rule(peer=ec2.Peer.any_ipv4(),
                                 connection=ec2.Port.tcp(port=80))
-        sg_fs = ec2.SecurityGroup(self, "dbts-sg-fs", vpc=vpc, security_group_name="dbts-sg-fs", allow_all_outbound=True)
+        sg_fs = ec2.SecurityGroup(self, "dbtr-sg-fs", vpc=vpc, security_group_name="dbtr-sg-fs", allow_all_outbound=True)
         
         for subnet in vpc.public_subnets:
             sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
@@ -56,17 +56,17 @@ class DBTStack(cdk.Stack):
             # needed to be able to access the file system
             sg_fs.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
                                     connection=ec2.Port.NFS)
-            # Uncomment to make dbt-server accessible internally (to other services in same vpc)
+            # to make dbt-server accessible internally (to other services in same vpc)
             sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
                                 connection=ec2.Port.tcp(port=8080))      
 
         ## Cluster setup ##
         dbt_server_cluster = ecs.Cluster(
             self,
-            "dbtrServersCluster",
+            "dbtServersCluster",
             enable_fargate_capacity_providers=True,
             vpc=vpc,
-            cluster_name="dbtrServersCluster"
+            cluster_name="dbtServersCluster"
         )
 
         ## EFS file system setup ##
@@ -75,7 +75,7 @@ class DBTStack(cdk.Stack):
                     owner_gid="12",
                     permissions="777"
                 )
-        file_system = efs.FileSystem(self, "dbts-fs", file_system_name="dbts-fs", vpc=vpc, security_group=sg_fs)
+        file_system = efs.FileSystem(self, "dbtr-fs", file_system_name="dbtr-fs", vpc=vpc, security_group=sg_fs)
         statement = iam.PolicyStatement(
             actions=["elasticfilesystem:ClientRootAccess", "elasticfilesystem:ClientWrite", "elasticfilesystem:ClientMount"
             ],
@@ -89,7 +89,7 @@ class DBTStack(cdk.Stack):
             effect=iam.Effect.ALLOW
         )
         file_system.add_to_resource_policy(statement)
-        ap = file_system.add_access_point("dbts-ap", path="/home", create_acl=ap_acl)
+        ap = file_system.add_access_point("dbtr-ap", path="/home", create_acl=ap_acl)
         authorization_config = ecs.AuthorizationConfig(
                 access_point_id=ap.access_point_id
             )
@@ -101,34 +101,34 @@ class DBTStack(cdk.Stack):
         )
 
         ## DBT server and reverse proxy setup ##
-        volume = ecs.Volume(name="dbts-volume", efs_volume_configuration=efs_volume_configuration)
-        fargate_task_definition = ecs.FargateTaskDefinition(self, "dbtServers",
+        volume = ecs.Volume(name="dbtr-volume", efs_volume_configuration=efs_volume_configuration)
+        fargate_task_definition = ecs.FargateTaskDefinition(self, "dbtrServers",
             memory_limit_mib=3072,
             cpu=1024,
             volumes=[volume],
         )
 
-        container = fargate_task_definition.add_container('dbtServers',
+        container = fargate_task_definition.add_container('dbtrServers',
                                         image=ecs.ContainerImage.from_registry("europe-docker.pkg.dev/skaff-dbtr/dbt-server/prod:latest"), # to test with an image that includes the postgress adapter use: ghcr.io/maryam21/dbt-server:latest
                                         environment={'PROVIDER': "local", "LOG_LEVEL": "info", "LOCATION": "eu-west-3"},
                                         logging=ecs.LogDrivers.aws_logs(
-                                            stream_prefix="dbtServerslogs"
+                                            stream_prefix="dbtrServerslogs"
                                         ),
                                         essential=True
                                       )
-        proxy_container = fargate_task_definition.add_container('proxyServers',
+        proxy_container = fargate_task_definition.add_container('reverseProxyServers',
                                         image=ecs.ContainerImage.from_registry("ghcr.io/maryam21/nginx:latest"),
                                         environment={'LAMBDA_URL': fn_url.url},
                                         port_mappings=[ecs.PortMapping(container_port=80)],
                                         logging=ecs.LogDrivers.aws_logs(
-                                            stream_prefix="proxyServerslogs"
+                                            stream_prefix="reverseProxyServerslogs"
                                         ),
                                         essential=True
                                       )
         container.add_mount_points(ecs.MountPoint(container_path="/home/dbt_user/dbt-server-volume", \
                                                   read_only=False, source_volume=volume.name))
 
-        service = ecs.FargateService(self, "Service",
+        service = ecs.FargateService(self, "dbtrService",
             cluster=dbt_server_cluster,
             task_definition=fargate_task_definition,
             desired_count=1,
@@ -139,7 +139,7 @@ class DBTStack(cdk.Stack):
                 capacity_provider="FARGATE",
                 weight=1
             )],
-            service_name="dbt-services"
+            service_name="dbtr-services"
         )
 
 
