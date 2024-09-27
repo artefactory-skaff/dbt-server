@@ -1,62 +1,45 @@
 
-# Welcome to your CDK Python project!
-
-This is a blank project for CDK development with Python.
-
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
-
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
-
-To manually create a virtualenv on MacOS and Linux:
-
-```
-$ python3 -m venv .venv
-```
-
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
-
-```
-$ source .venv/bin/activate
-```
-
-If you are a Windows platform, you would activate the virtualenv like this:
-
-```
-% .venv\Scripts\activate.bat
-```
-
-Once the virtualenv is activated, you can install the required dependencies.
-
-```
-$ python3 -m pip install -r requirements.txt
-```
-https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-python.html
-
-At this point you can now synthesize the CloudFormation template for this code.
-
-
 # Deploying the infrastructure
 
-Increase API Gateway timeout quota:
+## Prerequisites
+
+- Install Node.js 14.15.0 or later
+Then run 
 ```
-aws service-quotas request-service-quota-increase --service-code 'apigateway' --quota-code 'L-E5AE38E3' --desired-value 60000 --profile <profile name> --region eu-west-3`
+npm install -g aws-cdk
 ```
-Then deploy using:
+Verify installation
+```
+cdk --version
+```
+The CDK CLI will use your security credentials to authenticate with AWS, to configure them you need to run the following:
+```
+aws configure
+```
+and then enter you access key ID and secret.
+After this your credentials will be saved in `~/.aws/credentials` and your configuration in `~/.aws/config`.
+
+### Sources
+https://docs.aws.amazon.com/cdk/v2/guide/prerequisites.html
+https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html
+https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html
+
+## Deployment
+
+The `cdk.json` file tells the CDK Toolkit how to execute your app.
+At this point you can now synthesize the CloudFormation template for this code:
 ```
 cdk synth
-cdk bootstrap --profile <profile to use in .aws/credentials>
-cdk deploy --profile <profile to use in .aws/credentials>
+```
+Deploy using:
+```
+cdk bootstrap --profile <profile to use in ~/.aws/credentials>
+cdk deploy --profile <profile to use in ~/.aws/credentials>
 ```
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+### Sources
+https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-python.html
+
 
 ## Useful commands
 
@@ -91,6 +74,11 @@ aws apigateway test-invoke-method --rest-api-id "<api id>" --http-method "GET" -
 
 https://github.com/aws-samples/sigv4-signing-examples/blob/main/sdk/python/main.py
 
+Increase API Gateway timeout quota:
+```
+aws service-quotas request-service-quota-increase --service-code 'apigateway' --quota-code 'L-E5AE38E3' --desired-value 60000 --profile <profile name> --region eu-west-3
+```
+
 ### additional docs
 https://docs.aws.amazon.com/amazonglacier/latest/dev/amazon-glacier-signing-requests.html#SignatureCalculationTask1
 
@@ -98,3 +86,9 @@ https://docs.aws.amazon.com/amazonglacier/latest/dev/amazon-glacier-signing-requ
 # VPC setup
 https://stackoverflow.com/questions/64469544/is-there-a-way-to-not-allocate-an-elastic-ip-eip-when-creating-a-vpc-using-aws
 
+
+## Use lambda functions for authentication
+
+
+docker build . -t ghcr.io/maryam21/nginx --platform linux/amd64
+docker push  ghcr.io/maryam21/nginx
