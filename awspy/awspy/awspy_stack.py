@@ -3,7 +3,8 @@ from aws_cdk import (
     # Duration,
     Stack,
     # aws_sqs as sqs,
-    aws_iam
+    aws_iam,
+    aws_lambda as _lambda,
 )
 import aws_cdk as cdk
 import aws_cdk.aws_ecs as ecs
@@ -17,7 +18,7 @@ from aws_cdk import aws_elasticloadbalancingv2_targets as elasticloadbalancingv2
 import aws_cdk.aws_apigateway as apigateway
 from constructs import Construct
 
-class EcsStack(cdk.Stack):
+class DBTStack(cdk.Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -56,8 +57,8 @@ class EcsStack(cdk.Stack):
             sg_fs.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
                                     connection=ec2.Port.NFS)
             # Uncomment to make dbt-server accessible internally (to other services in same vpc)
-            # sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
-            #                     connection=ec2.Port.tcp(port=8080))      
+            sg.add_ingress_rule(peer=ec2.Peer.ipv4(typing.cast(str, subnet.ipv4_cidr_block)),
+                                connection=ec2.Port.tcp(port=8080))      
 
         ## Cluster setup ##
         dbt_server_cluster = ecs.Cluster(
