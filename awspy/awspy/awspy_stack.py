@@ -117,7 +117,7 @@ class DBTStack(cdk.Stack):
                                       )
         proxy_container = fargate_task_definition.add_container('reverseProxyServers',
                                         image=ecs.ContainerImage.from_registry("ghcr.io/maryam21/nginx:latest"),
-                                        environment={'LAMBDA_URL': fn_url.url},
+                                        environment={'LAMBDA_URL': fn_url.url, "SERVER_URL": "http://localhost:8080"},
                                         port_mappings=[ecs.PortMapping(container_port=80)],
                                         logging=ecs.LogDrivers.aws_logs(
                                             stream_prefix="reverseProxyServerslogs"

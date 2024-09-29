@@ -12,7 +12,7 @@ http {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Host $server_name;
         # get sent to the application server
-        proxy_pass http://localhost:8080;
+        proxy_pass ${SERVER_URL};
         proxy_set_header Upgrade $http_upgrade; 
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
