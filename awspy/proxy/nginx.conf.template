@@ -19,7 +19,7 @@ http {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_cache_bypass $http_upgrade;
         proxy_read_timeout 1800s; # 3O minutes
-        proxy_connect_timeout 75s;
+        proxy_connect_timeout 75s; # maximum value possible according to https://nginx.org/en/docs/http/ngx_http_proxy_module.html
         proxy_send_timeout 1800s;
         send_timeout 1800s;
         fastcgi_send_timeout 1800s;

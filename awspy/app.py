@@ -3,10 +3,10 @@ import os
 # import boto3
 import aws_cdk as cdk
 
-from awspy.awspy_stack import AwspyStack, EcsStack
+from awspy.awspy_stack import AwspyStack, DBTStack
 
 app = cdk.App()
-EcsStack(app, "EcsStack",
+DBTStack(app, "DBTStack",
          env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION'))
         )
 # AwspyStack(app, "AwspyStack",
