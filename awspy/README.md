@@ -3,8 +3,7 @@
 
 ### Prerequisites
 
-- Install Node.js 14.15.0 or later
-Then run 
+- Install Node.js 14.15.0 or later then run 
 ```
 npm install -g aws-cdk
 ```
@@ -62,7 +61,21 @@ As the above image suggests any request coming from the outside needs to go thro
 As the above image suggests, any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. The firewall is setup to only allow traffic from outside from port 80 which corresponds to the nginx service while the dbt server is on port 8080 and the firewall only accepts traffic to this port from clients with addresses in the same VPC as the instance containing nginx and dbt services.
 
 
-# Documentation
+## Authentication 
+AWS uses signed requests for authentication, this is already integrated in SDK clients which authenticate using your provided access keys. AWS provides libraries that generate signed requests using your credentials, you can find an example in `auth/main.py`.
+
+### Sources
+https://github.com/aws-samples/sigv4-signing-examples/tree/main
+https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
+https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
+https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html
+
+
+## Technologie choice
+
+### Container service
+
+
 ## Setup API Gateway REST API
 
 https://docs.aws.amazon.com/apigateway/latest/developerguide/getting-started-with-private-integration.html
