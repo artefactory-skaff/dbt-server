@@ -20,7 +20,9 @@ After this your credentials will be saved in `~/.aws/credentials` and your confi
 
 #### Sources
 https://docs.aws.amazon.com/cdk/v2/guide/prerequisites.html
+
 https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html
+
 https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html
 
 ### Deployment
@@ -64,8 +66,11 @@ AWS uses signed requests for authentication, this is already integrated in SDK c
 
 ### Sources
 https://github.com/aws-samples/sigv4-signing-examples/tree/main
+
 https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
+
 https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
+
 https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html
 
 
@@ -77,6 +82,7 @@ https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html
 ## Setup API Gateway REST API
 
 https://docs.aws.amazon.com/apigateway/latest/developerguide/getting-started-with-private-integration.html
+
 fix privatelink
 https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-nlb-for-vpclink-using-console.html
 
