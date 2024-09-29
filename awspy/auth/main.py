@@ -40,10 +40,11 @@ def get_auth_headers(server_url, method):
 def main():
     try:
         server_url = os.environ.get("SERVER_URL")
-        method = os.environ.get("HTTP_METHOD")
+        method = os.environ.get("HTTP_METHOD", "GET")
+        body = os.environ.get("REQUEST_BODY", {})
 
         server_request_headers = get_auth_headers(server_url, method)
-        response = requests.request(method, server_url, headers=dict(server_request_headers), data={}, timeout=60)
+        response = requests.request(method, server_url, headers=dict(server_request_headers), data=body, timeout=60)
         response.raise_for_status()
 
         print(f'Response Status: {response.status_code}')
