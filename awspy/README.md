@@ -100,48 +100,32 @@ https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
 
 ### Authentication solutions
 
-#### Cognito
+#### Amazon Cognito
 
 
 #### IAM authentication
 
-### Setup API Gateway REST API
+There some services that support IAM type of authentication by default, such as:
+##### API Gateway
 
+Fully managed service for creating APIs. This API is used as the "front door" to our dbt server. We tested with a REST API Gateway, in order for this API to communicate with our dbt server we had to use a Network load balancer and a VPC link.
+At the end, we did not go with this solution because it has a very small maximum integration timeout (timeout between the API and the dbt server) of 60 seconds (default is 29 but can be increased up to 60), and we need a timeout of 30 minutes.
+
+###### Sources
 https://docs.aws.amazon.com/apigateway/latest/developerguide/getting-started-with-private-integration.html
 
-fix privatelink
 https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-nlb-for-vpclink-using-console.html
 
-### setup routes
 https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-step-by-step.html
+
 https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html
 
-### api gateway max timeout increase
 https://aws.amazon.com/about-aws/whats-new/2024/06/amazon-api-gateway-integration-timeout-limit-29-seconds/
+
 https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html#api-gateway-execution-service-limits-table
-https://raviintodia.medium.com/aws-api-gateway-extending-timeout-limits-beyond-29-seconds-b8c947f8e84c#:~:text=If%20the%20current%20quota%20is,await%20a%20response%20from%20AWS
 
-## Auth to API Gateway
-command to test the API:
-```
-aws apigateway test-invoke-method --rest-api-id "<api id>" --http-method "GET" --resource-id "<api resource id>" --profile <profile name> --region eu-west-3
-```
+##### Lambda functions
 
-https://github.com/aws-samples/sigv4-signing-examples/blob/main/sdk/python/main.py
-
-Increase API Gateway timeout quota:
-```
-aws service-quotas request-service-quota-increase --service-code 'apigateway' --quota-code 'L-E5AE38E3' --desired-value 60000 --profile <profile name> --region eu-west-3
-```
-
-### additional docs
-https://docs.aws.amazon.com/amazonglacier/latest/dev/amazon-glacier-signing-requests.html#SignatureCalculationTask1
-
-
-# VPC setup
-https://stackoverflow.com/questions/64469544/is-there-a-way-to-not-allocate-an-elastic-ip-eip-when-creating-a-vpc-using-aws
-
-
-## Use lambda functions for authentication
+The first solution we tested using lambda functions, was to use a Lambda function that gets triggered when we hit our server. In order to do this we had to use a load balancer (which forward traffic to our server) since we can not directly trigger the function from our service. The drawback we found with this solution is that when the lambda function is invoked from the load balancer as opposed to invoking it directly the function skips the authentication step.
 
 
