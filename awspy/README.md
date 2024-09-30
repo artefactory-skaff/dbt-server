@@ -1,4 +1,6 @@
 
+# DBT server on AWS
+
 ## Deploying the infrastructure
 
 ### Prerequisites
@@ -61,9 +63,12 @@ As the above image suggests, any request coming from the outside needs to go thr
 
 
 ## Authentication 
-AWS uses signed requests for authentication, this is already integrated in SDK clients which authenticate using your provided access keys. AWS provides libraries that generate signed requests using your credentials, you can find an example in `auth/main.py`.
+AWS Lambda functions can be configured to use IAM authentication. For a user to be able to invoke a lambda function the user needs to have valid credentials and have the permission to invoke the function. We use this functionality to offload handling requests' authentication to a lambda function with IAM authentication type.
+IAM authentication authenticates clients by validating the signature in the client's request. This request signing is already integrated in SDK clients, which authenticate using your provided access key ID and secret. AWS provides libraries that generate signed requests using your credentials, you can find an example in `auth/main.py`.
 
 ### Sources
+https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-iam
+
 https://github.com/aws-samples/sigv4-signing-examples/tree/main
 
 https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
@@ -95,6 +100,10 @@ https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
 
 ### Authentication solutions
 
+#### Cognito
+
+
+#### IAM authentication
 
 ### Setup API Gateway REST API
 
