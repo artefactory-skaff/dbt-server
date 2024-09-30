@@ -56,7 +56,6 @@ We use mainly three components:
 - DBT server: deployed as a container in an instance
 - Nginx reverse proxy: deployed as a container in the same instance as the DBT server
 - Lambda function: used for authenticating users
-As the above image suggests any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. 
 <center><img src="./docs/archi.png" width="100%"></center>
 As the above image suggests, any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. The firewall is setup to only allow traffic from outside from port 80 which corresponds to the nginx service while the dbt server is on port 8080 and the firewall only accepts traffic to this port from clients with addresses in the same VPC as the instance containing nginx and dbt services.
 
@@ -76,10 +75,28 @@ https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html
 
 ## Technologie choice
 
-### Container service
+### Serveless deployment solutions
+
+#### App Runner:
+Service that provides easy deployment either from source code or a container image. Although this solution is much simpler to setup, it has two major drawbacks that made it a no go, these limitations are:
+- Storage is limited to 3GB
+- Not possible to mount a volume
+
+##### Sources
+https://docs.aws.amazon.com/apprunner/latest/dg/develop.html
+
+#### ECS with Fargate
+We use ECS a fully managed container orchestration service with Fargate a serverless compute engine to deploy our dbt server container image. Fargate comes with 21 GB storage by default which can be extended and we can also mount a volume to our container.
+
+##### Sources
+https://docs.aws.amazon.com/ecs/
+https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
 
 
-## Setup API Gateway REST API
+### Authentication solutions
+
+
+### Setup API Gateway REST API
 
 https://docs.aws.amazon.com/apigateway/latest/developerguide/getting-started-with-private-integration.html
 
