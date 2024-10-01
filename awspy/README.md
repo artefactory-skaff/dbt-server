@@ -27,10 +27,6 @@ https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html
 
 https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html
 
-https://docs.aws.amazon.com/cdk/api/v2/python/modules.html
-
-https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.html
-
 ### Deployment
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
@@ -47,6 +43,16 @@ To update the stack just rerun the above commands after modifying the code.
 
 #### Sources
 https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-python.html
+
+https://docs.aws.amazon.com/cdk/api/v2/python/modules.html
+
+https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.html
+
+https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.aws_ecs/FargateService.html
+
+https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.aws_ecs/FargateTaskDefinition.html
+
+https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.aws_lambda/FunctionUrl.html
 
 ### Useful commands
 
@@ -65,6 +71,14 @@ We use mainly three components:
 <center><img src="./docs/archi.png" width="100%"></center>
 As the above image suggests, any request coming from the outside needs to go through the reverse proxy which only forwards requests to the server if the lambda function succeeds at authenticating the request. The firewall is setup to only allow traffic from outside from port 80 which corresponds to the nginx service while the dbt server is on port 8080 and the firewall only accepts traffic to this port from clients with addresses in the same VPC as the instance containing nginx and dbt services.
 
+### Sources 
+https://github.com/awslabs/ecs-nginx-reverse-proxy/blob/master/reverse-proxy/README.md
+
+https://nginx.org/en/docs/http/ngx_http_proxy_module.html
+
+https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/
+
+https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html
 
 ## Authentication 
 AWS Lambda functions can be configured to use IAM authentication. For a user to be able to invoke a lambda function the user needs to have valid credentials and have the permission to invoke the function. We use this functionality to offload handling requests' authentication to a lambda function with IAM authentication type.
