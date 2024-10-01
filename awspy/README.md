@@ -34,6 +34,13 @@ https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html
 
 ### Deployment
 
+Before deployement you will need to export the following environment variables:
+
+```
+export CDK_DEFAULT_ACCOUNT=
+export CDK_DEFAULT_REGION=
+```
+
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 At this point you can now synthesize the CloudFormation template for this code:
 ```
@@ -87,7 +94,22 @@ https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html
 
 ## Authentication 
 AWS Lambda functions can be configured to use IAM authentication. For a user to be able to invoke a lambda function the user needs to have valid credentials and have the permission to invoke the function. We use this functionality to offload handling requests' authentication to a lambda function with IAM authentication type.
-IAM authentication authenticates clients by validating the signature in the client's request. This request signing is already integrated in SDK clients, which authenticate using your provided access key ID and secret. AWS provides libraries that generate signed requests using your credentials, you can find an example in `auth/main.py`.
+IAM authentication authenticates clients by validating the signature in the client's request. This request signing is already integrated in SDK clients, which authenticate using your provided access key ID and secret. AWS provides libraries that generate signed requests using your credentials, you can find an example in `auth/main.py`. To test this example first export the following environment variables:
+
+```
+export AWS_ACCESS_KEY_ID=
+export AWS_SECRET_ACCESS_KEY=
+export AWS_SESSION_TOKEN=
+export LAMBDA_URL=
+export AWS_REGION=
+export SERVER_URL=
+export HTTP_METHOD=
+export REQUEST_BODY=
+```
+Then run:
+```
+python3 auth/main.py
+```
 
 ### Sources
 https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-iam
