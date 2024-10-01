@@ -27,6 +27,10 @@ https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html
 
 https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html
 
+https://docs.aws.amazon.com/cdk/api/v2/python/modules.html
+
+https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.html
+
 ### Deployment
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
@@ -101,6 +105,40 @@ https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
 ### Authentication solutions
 
 #### Amazon Cognito
+At first we tried Cognito for handling authentication, which required seting up a load balancer with SSL support, an Amazon developer account must also be created. This solution uses a user pool in which users should be added manually, another method is federated identies with amazon as a provider which requires using the aws account's email and password to authenticate. The major drawback with this solution is the fact that the authentication is that it must be done with a through.
+Another method is `InitiateAuth` however it can not be used with federated identities. 
+Another possibilities is to use a `client_id` and a `client_secret` to authenticate, but this is method is only recommended for server to server authentication.
+
+##### Sources
+https://docs.aws.amazon.com/cognito/latest/developerguide/what-is-amazon-cognito.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-identity.html
+
+https://stackoverflow.com/questions/62572327/how-to-pass-cookies-when-calling-authentication-enabled-aws-application-loadbala
+
+https://docs.aws.amazon.com/elasticloadbalancing/latest/application/listener-authenticate-users.html#authentication-flow
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/userinfo-endpoint.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
+
+https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-assign-domain.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-integrate-apps.html#amazon-cognito-authentication-with-sdks
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-identity-federation.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html
+
+https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-authentication-flow.html
+
+https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminInitiateAuth.html
 
 
 #### IAM authentication
@@ -124,8 +162,11 @@ https://aws.amazon.com/about-aws/whats-new/2024/06/amazon-api-gateway-integratio
 
 https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html#api-gateway-execution-service-limits-table
 
+https://docs.aws.amazon.com/apigateway/latest/developerguide/permissions.html
+
 ##### Lambda functions
 
-The first solution we tested using lambda functions, was to use a Lambda function that gets triggered when we hit our server. In order to do this we had to use a load balancer (which forward traffic to our server) since we can not directly trigger the function from our service. The drawback we found with this solution is that when the lambda function is invoked from the load balancer as opposed to invoking it directly the function skips the authentication step.
+The first solution we tested using lambda functions, was to use a Lambda function that gets triggered when we hit our server. In order to do this we had to use a load balancer (which forward traffic to our server) since we can not directly trigger the function from our service. The drawback we found with this solution is that when the lambda function is invoked from the load balancer, as opposed to invoking it directly, the function skips the authentication step.
 
-
+###### Sources
+https://docs.aws.amazon.com/lambda/latest/dg/lambda-invocation.html
