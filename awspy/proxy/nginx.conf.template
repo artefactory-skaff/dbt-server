@@ -45,7 +45,7 @@ http {
         proxy_pass_header X-Amz-Security-Token; # required for authentication
         proxy_pass_header Authorization; # required for authentication
         proxy_pass_request_body off;
-        proxy_set_header Content-Length ""; # fixes timeout issue
+        proxy_set_header Content-Length ""; # fixes timeout issue, probably due to lambda functions having a maxium request body of 1MB https://docs.aws.amazon.com/elasticloadbalancing/latest/application/lambda-functions.html
         proxy_set_header X-Original-URI $request_uri;
         proxy_read_timeout 900s;
         proxy_connect_timeout 75s; # maximum value possible according to https://nginx.org/en/docs/http/ngx_http_proxy_module.html
