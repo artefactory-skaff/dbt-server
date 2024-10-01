@@ -20,6 +20,11 @@ aws configure
 and then enter you access key ID and secret.
 After this your credentials will be saved in `~/.aws/credentials` and your configuration in `~/.aws/config`.
 
+To get your credentials from the CLI run:
+```
+aws sts get-session-token --profile <profile to use in ~/.aws/credentials>
+```
+
 #### Sources
 https://docs.aws.amazon.com/cdk/v2/guide/prerequisites.html
 
