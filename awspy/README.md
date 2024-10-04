@@ -100,11 +100,11 @@ IAM authentication authenticates clients by validating the signature in the clie
 export AWS_ACCESS_KEY_ID=
 export AWS_SECRET_ACCESS_KEY=
 export AWS_SESSION_TOKEN=
-export LAMBDA_URL=
+export LAMBDA_URL= //authentication Lambda function URL
 export AWS_REGION=
-export SERVER_URL=
-export HTTP_METHOD=
-export REQUEST_BODY=
+export SERVER_URL= //eg: http://<IP address of the nginx/dbtserver instance>
+export HTTP_METHOD= //eg: GET
+export REQUEST_BODY={}
 ```
 Then run:
 ```
