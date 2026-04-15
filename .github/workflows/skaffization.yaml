@@ -1,0 +1,16 @@
+name: Skaffization
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+
+  skaff-checks:
+    uses: artefactory-skaff/skaff-website/.github/workflows/skaff_checks.yaml@main
+    secrets: inherit
+
+  create-pr:
+    needs: skaff-checks
+    uses: artefactory-skaff/skaff-website/.github/workflows/auto_pr.yaml@main
+    secrets: inherit
