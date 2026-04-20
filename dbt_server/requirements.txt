@@ -6,5 +6,5 @@ google-cloud-firestore>=2
 dbt-bigquery~=1.7.0
 uvicorn>=0
 fastapi>=0
-python-multipart==0.0.6
+python-multipart==0.0.18
 cron-descriptor>=1
